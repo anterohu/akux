@@ -1,9 +1,12 @@
 package fi.akux.app
 
 import android.app.PendingIntent
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.hardware.usb.UsbManager
+import android.os.Environment
+import android.provider.MediaStore
 import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.driver.UsbSerialProber
 import java.io.IOException
@@ -79,6 +82,24 @@ class UsbBridge(private val context: Context) {
         } catch (_: Exception) {
         }
         port = null
+    }
+
+    /**
+     * Tallentaa tiedoston puhelimen Lataukset/Akux-kansioon. Python tallentaa tällä
+     * jokaisen valmiin mittauksen mittaustiedostona ja PDF-raporttina.
+     */
+    fun saveToDownloads(name: String, mime: String, data: ByteArray): String {
+        val resolver = context.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, name)
+            put(MediaStore.Downloads.MIME_TYPE, mime)
+            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Akux")
+        }
+        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            ?: throw IOException("Tiedoston tallennus Lataukset-kansioon epäonnistui.")
+        resolver.openOutputStream(uri)?.use { it.write(data) }
+            ?: throw IOException("Tiedoston tallennus Lataukset-kansioon epäonnistui.")
+        return "Lataukset/Akux/$name"
     }
 
     /** Python kutsuu tätä, kun ohjelma suljetaan käyttöliittymästä. */

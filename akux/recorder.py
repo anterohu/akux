@@ -439,6 +439,14 @@ class Recorder:
                 txt = "Mittaus on valmis. Avaa tulos ohjelmasta."
             self.app.notify("valmis", "Mittaus valmis", txt)
             analysis.learn_vehicle(self.app.storage, tid, result)
+            if self.app.settings.get("mittaus_tallennus", True):
+                try:
+                    from . import mittaustiedosto
+                    paths = mittaustiedosto.save_to_folder(self.app.storage, tid)
+                    if paths:
+                        self.app.storage.add_event(tid, t, f"Mittaustiedosto ja raportti tallennettu: {paths[0].parent}")
+                except Exception as e:  # noqa: BLE001
+                    self.app.storage.add_event(tid, t, f"Mittaustiedoston tallennus epäonnistui: {e}")
         except Exception as e:  # noqa: BLE001
             import traceback
             traceback.print_exc()

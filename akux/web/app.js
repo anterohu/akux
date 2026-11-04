@@ -598,10 +598,22 @@ function bindTestRows() {
 views.mittaukset = {
   render(arg) { if (arg) return this.renderOne(Number(arg)); this.renderList(); },
   async renderList() {
-    view.innerHTML = `<div class="head"><div><h1>Mittaukset</h1><div class="muted">Kaikki tallennetut mittaukset</div></div></div><div class="card" id="tList"></div>`;
+    view.innerHTML = `<div class="head"><div><h1>Mittaukset</h1><div class="muted">Ohjelmaan tallennetut ja tiedostoista avatut mittaukset</div></div>
+      <label class="btn primary" style="cursor:pointer">Avaa mittaustiedosto<input type="file" id="tOpen" accept=".akux" hidden></label></div>
+      <div class="card" id="tList"></div>`;
     const { mittaukset } = await api("/api/mittaukset");
     $("#tList").innerHTML = testTable(mittaukset, true);
     bindTestRows();
+    $("#tOpen").onchange = async e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      try {
+        const r = await upload("/api/mittaukset/avaa", f);
+        toast(r.uusi ? "Mittaus avattu tiedostosta" : "Mittaus oli jo ohjelmassa");
+        location.hash = `#/mittaukset/${r.id}`;
+      } catch (err) { toast(err.message, true); }
+      e.target.value = "";
+    };
   },
   async renderOne(id) {
     const t = await api(`/api/mittaukset/${id}`);
@@ -612,6 +624,7 @@ views.mittaukset = {
     view.innerHTML = `<div class="head"><div><h1>${t.tyyppi === "kapasiteetti" ? "Kapasiteettimittaus" : "Pikatarkastus"}</h1>
       <div class="muted">${esc(v.nimi || "")} · ${date(t.aloitettu)}</div></div>
       <div class="row">${done ? `<a class="btn primary" href="/api/mittaukset/${id}/raportti.pdf" target="_blank">Avaa raportti (PDF)</a>` : ""}
+        <a class="btn" href="/api/mittaukset/${id}/tiedosto.akux">Mittaustiedosto</a>
         <a class="btn" href="/api/mittaukset/${id}/data.csv">Mittausdata (CSV)</a></div></div>
       ${r.virhe ? `<div class="notice bad">${esc(r.virhe)}</div>` : ""}
       ${!done && !r.virhe ? `<div class="notice warn">Mittaus on tilassa: ${esc(t.tila)}. Raporttia ei voi muodostaa.</div>` : ""}
@@ -690,6 +703,13 @@ views.asetukset = {
         <div class="row"><label class="btn sm" style="cursor:pointer">Valitse logo<input type="file" id="sLogo" accept="image/png,image/jpeg" hidden></label>
           <span class="small muted">${s.logo ? "Logo on käytössä raporteissa." : "Logoa ei ole valittu. Käytä PNG- tai JPEG-kuvaa."}</span>
           ${s.logo ? `<button class="btn sm" id="sLogoDel" type="button">Poista logo</button>` : ""}</div>
+      </div>
+
+      <div class="card"><h2>Mittausten tallennus</h2>
+        <p class="small muted">Jokainen valmis mittaus tallennetaan mittaustiedostona (.akux) ja PDF-raporttina. Mittaustiedosto sisältää kaikki mittauksen tiedot ja raakadatan, ja sen voi avata missä tahansa Akux-versiossa kohdasta Mittaukset → Avaa mittaustiedosto.</p>
+        <label class="check"><input type="checkbox" name="mittaus_tallennus" ${s.mittaus_tallennus ? "checked" : ""}><span>Tallenna jokainen valmis mittaus automaattisesti</span></label>
+        ${ANDROID ? `<p class="small">Tallennuskansio: <b>${esc(s.mittaus_kansio_oletus)}</b></p>` :
+          `<label class="f"><span>Tallennuskansio</span><input name="mittaus_kansio" value="${esc(s.mittaus_kansio)}" placeholder="${esc(s.mittaus_kansio_oletus)}"><small class="muted">Jätä tyhjäksi, niin tiedostot tallentuvat kansioon ${esc(s.mittaus_kansio_oletus)}. Voit käyttää myös pilvikansiota, esimerkiksi OneDrivea.</small></label>`}
       </div>
 
       <div class="card"><h2>Kapasiteettimittaus</h2>
@@ -774,8 +794,9 @@ views.yllapito = {
       <div class="grid g2">
         <div class="card"><h2>Päivitys</h2>
           <p class="small">Käytössä on versio <b>${esc(info.versio)}</b>.</p>
-          ${ANDROID ? `<p class="small muted">Päivitä Akux asentamalla uusi sovellusversio vanhan päälle. Autot, mittaukset, raportit ja asetukset säilyvät.</p>` : `<p class="small muted">Valitse uusi Akux-paketti (zip). Ohjelma sulkeutuu, asentaa uuden version ja avautuu uudelleen. Autot, mittaukset, raportit ja asetukset säilyvät.</p>
-          <label class="btn" style="cursor:pointer">Valitse päivityspaketti<input type="file" id="uFile" accept=".zip" hidden></label>`}
+          <p class="small muted">Uusin versio julkaistaan GitHubin Releases-sivulla. ${ANDROID ? "Lataa Akux-x.y.z.apk ja asenna se vanhan päälle." : "Lataa Akux-asennus-x.y.z.exe ja aja se. Asennus sulkee Akuxin, päivittää sen ja säilyttää tiedot."} Autot, mittaukset, raportit ja asetukset säilyvät.</p>
+          <div class="row"><a class="btn primary" href="https://github.com/anterohu/akux/releases/latest" target="_blank" rel="noopener">Avaa julkaisut</a>
+          ${ANDROID ? "" : `<label class="btn" style="cursor:pointer">Asenna lähdekoodipaketista<input type="file" id="uFile" accept=".zip" hidden></label>`}</div>
           <div id="uRes" style="margin-top:12px"></div></div>
         <div class="card"><h2>Varmuuskopiot</h2>
           <p class="small muted">Ohjelma tekee varmuuskopion automaattisesti kerran viikossa ja säilyttää viisi uusinta. Tallenna kopio välillä myös muistitikulle tai pilvipalveluun.</p>

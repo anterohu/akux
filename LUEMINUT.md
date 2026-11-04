@@ -2,24 +2,26 @@
 
 Akux mittaa Tesla Model 3:n ja Model Y:n ajoakun kunnon ja kapasiteetin OBDLink-sovittimella ja tekee tuloksista selkeän ja yksityiskohtaisen PDF-raportin ostajalle, asiakkaalle tai omaan käyttöön.
 
-## Asennus Windowsiin
+## Asennus
 
-1. Pura paketti esimerkiksi työpöydälle.
-2. Kaksoisnapsauta **Asenna.bat**.
+Valmiit ohjelmat ovat GitHubin **Releases**-sivulla: https://github.com/anterohu/akux/releases/latest
 
-Asennus tekee kaiken itse: lataa tarvittavat osat, rakentaa sovelluksen **Akux.exe**, asentaa sen, lisää pikakuvakkeen työpöydälle ja Käynnistä-valikkoon ja avaa ohjelman. Ensimmäinen asennus kestää noin 5–10 minuuttia ja vaatii verkkoyhteyden. Tietokoneelle ei tarvitse asentaa mitään muuta.
+**Windows:** lataa `Akux-asennus-x.y.z.exe` ja aja se. Asennus lisää pikakuvakkeen työpöydälle ja Käynnistä-valikkoon. Jos Windows näyttää ilmoituksen *Windows suojasi tietokonettasi*, valitse **Lisätietoja → Suorita silti**. Ilmoitus tulee vain asennusohjelmasta kerran jokaista uutta versiota kohden, ei itse ohjelmasta.
 
-Asennuksen jälkeen ohjelma avataan pikakuvakkeesta **Akux**. Se avautuu omaan ikkunaansa, eikä erillistä komentoikkunaa ole. Purkamasi kansion voi poistaa asennuksen jälkeen.
+**Android (10 tai uudempi):** lataa `Akux-x.y.z.apk` puhelimeen ja avaa se. Android kysyy kerran luvan asentaa sovelluksia tästä lähteestä. Kytke OBDLink EX auton OBD-liitäntään ja USB-C-sovittimella (OTG) puhelimeen ja salli Akuxille pääsy sovittimeen.
 
-Sovellus rakennetaan omalla tietokoneellasi, joten Windowsin SmartScreen ei varoita siitä. Asennus poistaa purettujen tiedostojen latauseston itse.
+**Päivitys:** lataa uusi versio samasta paikasta ja asenna se vanhan päälle. Autot, mittaukset, raportit ja asetukset säilyvät. Mitään tiedostoja ei tarvitse poistaa, siirtää eikä nimetä uudelleen.
 
-## Asennus Android-puhelimeen tai -tablettiin
+**Vaihtoehto Windowsissa, rakennus omalla koneella:** lataa Releases-sivulta lähdekoodi (zip), pura se ja aja `Asenna.bat`. Tällöin Akux rakennetaan omalla koneellasi, eikä SmartScreen kysy mitään. Molemmat tavat asentavat ohjelman samaan paikkaan ja käyttävät samoja tietoja.
 
-1. Avaa puhelimella GitHubista Akux-repon **Releases**-sivu ja lataa uusin **Akux-x.y.z.apk**.
-2. Avaa ladattu tiedosto. Android kysyy kerran luvan asentaa sovelluksia tästä lähteestä. Salli se.
-3. Avaa Akux. Kytke OBDLink EX auton OBD-liitäntään ja USB-C-sovittimella (OTG) puhelimeen ja salli Akuxille pääsy sovittimeen.
+## Mittaustiedostot
 
-Vaatimus: Android 10 tai uudempi. Päivitys asennetaan samalla tavalla uuden version päälle, ja tiedot säilyvät.
+Jokainen valmis mittaus tallennetaan automaattisesti mittaustiedostona (`.akux`) ja PDF-raporttina:
+
+- Windows: `Tiedostot\Akux\Mittaukset` (kansion voi vaihtaa asetuksista, esimerkiksi OneDriveen)
+- Android: `Lataukset/Akux`
+
+Mittaustiedosto sisältää kaiken: auton tiedot, mittausnäytteet, kennoryhmien jännitteet, tapahtumat, tuloksen, muuttamattoman raakadatan ja raportin. Sen voi avata missä tahansa Akux-versiossa ja millä tahansa laitteella kohdasta **Mittaukset → Avaa mittaustiedosto**. Ohjelma tarkistaa avattaessa, ettei tiedostoa ole muutettu.
 
 ## Mitä ohjelmassa on
 
@@ -44,15 +46,14 @@ Vaatimus: Android 10 tai uudempi. Päivitys asennetaan samalla tavalla uuden ver
 
 ## Päivittäminen
 
-Avaa **Ylläpito** ja valitse uusi Akux-paketti (zip). Ohjelma tarkistaa version, asentaa sen ja avautuu uudelleen. Vaihtoehtoisesti voit purkaa paketin ja ajaa sen **Asenna.bat**-tiedoston.
-
-Autot, mittaukset, raportit ja asetukset säilyvät, koska ne ovat eri kansiossa kuin ohjelma. Päivityksessä ei tarvitse poistaa, siirtää eikä nimetä uudelleen yhtään tiedostoa.
+Lataa uusi versio Releases-sivulta ja asenna se vanhan päälle (katso Asennus). Ylläpito-sivulla on suora linkki julkaisuihin.
 
 ## Tietojen sijainti
 
-- Mittaukset, raportit, asetukset ja varmuuskopiot: `%APPDATA%\Akux`
+- Mittaustiedostot ja raportit: `Tiedostot\Akux\Mittaukset` tai asetuksissa valittu kansio
+- Ohjelman autot, mittaushistoria, asetukset ja varmuuskopiot: `%APPDATA%\Akux`
 - Ohjelma: `%LOCALAPPDATA%\Programs\Akux`
-- Rakennustyökalut uusia versioita varten: `%LOCALAPPDATA%\Akux\rakennus`
+- Rakennustyökalut (vain Asenna.bat-rakennuksessa): `%LOCALAPPDATA%\Akux\rakennus`
 
 ## Linux ja macOS
 
@@ -70,9 +71,10 @@ python tests/test_reunatapaukset.py  # lataustauko, datakatko, ohitukset, keskey
 python tests/test_obdlink.py         # sovittimen alustus ja viestien luku
 python tests/test_yllapito.py        # asetukset, ilmoitukset, varmuuskopio, päivitys, puhelinsuojaus
 python tests/test_android_silta.py   # Android-sovelluksen USB-yhteys ja käynnistys
+python tests/test_mittaustiedosto.py # mittaustiedoston tallennus, avaus ja eheys
 ```
 
-GitHub ajaa jokaisen muutoksen jälkeen kaikki testit, oikean Windows-asennuksen sekä Android-sovelluksen rakennuksen ja kokonaistestin Android-emulaattorissa. Hyväksytty Android-versio julkaistaan Releases-sivulle.
+GitHub ajaa jokaisen muutoksen jälkeen kaikki testit, rakentaa Windows-asennusohjelman ja testaa asennuksen, mittauksen, raportin ja päivityksen oikealla Windows-koneella sekä rakentaa Android-sovelluksen ja testaa sen Android-emulaattorissa. Vasta kun kaikki on hyväksytty, versio julkaistaan Releases-sivulle.
 
 ## Android-sovelluksen allekirjoitusavain
 

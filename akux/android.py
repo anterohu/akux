@@ -101,6 +101,11 @@ def start(data_dir: str, bridge, port: int = 8765):
     from . import sources
     sources.SERIAL_FACTORY = AndroidSerial
     sources.PORT_LISTER = list_ports
+    from . import mittaustiedosto
+
+    def save(name, mime, data):
+        return _bridge.saveToDownloads(name, mime, bytes(data))
+    mittaustiedosto.SAVE_HOOK = save
     t = threading.Thread(target=_run, args=(port,), daemon=True, name="akux-palvelin")
     t.start()
     return True

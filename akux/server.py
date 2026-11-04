@@ -16,7 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import NIMI, VERSIO, docs, maintenance, profiles, report
+from . import NIMI, VERSIO, docs, maintenance, mittaustiedosto, profiles, report
 from . import vin as vinmod
 from .app import App
 from .decoder import PAKOLLISET
@@ -385,6 +385,19 @@ class Api:
         t["ajoneuvo"] = self.app.storage.vehicle(t["vehicle_id"])
         return t
 
+    def avaa_mittaus(self, q, body):
+        try:
+            return mittaustiedosto.import_file(self.app.storage, body.get("_raw") or b"")
+        except ValueError as e:
+            raise ApiError(str(e))
+
+    def tallenna_kansioon(self, q, body, tid):
+        try:
+            paths = mittaustiedosto.save_to_folder(self.app.storage, tid)
+        except (ValueError, OSError) as e:
+            raise ApiError(f"Tallennus epäonnistui: {e}")
+        return {"tiedostot": [str(p) for p in paths]}
+
     def poista_mittaus(self, q, body, tid):
         if self.app.recorder.test_id == tid:
             raise ApiError("Mittaus on käynnissä. Keskeytä se ensin.")
@@ -415,6 +428,7 @@ class Api:
         s = self.app.settings
         s["datakansio"] = str(self.app.storage.dir)
         s["puhelin"] = self.phone_info()
+        s["mittaus_kansio_oletus"] = "Lataukset/Akux" if platform_name() == "android" else str(mittaustiedosto.default_folder())
         s.pop("puhelin_avain", None)
         return s
 
@@ -450,7 +464,8 @@ ROUTES = [
     ("POST", r"/api/mittaukset", "aloita"), ("POST", r"/api/mittaukset/aktiivinen/ohita", "ohita"),
     ("POST", r"/api/mittaukset/aktiivinen/keskeyta", "keskeyta"),
     ("GET", r"/api/mittaukset", "mittaukset"), ("GET", r"/api/mittaukset/(\d+)", "mittaus"),
-    ("DELETE", r"/api/mittaukset/(\d+)", "poista_mittaus"), ("GET", r"/api/mittaukset/(\d+)/tarkista", "tarkista"),
+    ("DELETE", r"/api/mittaukset/(\d+)", "poista_mittaus"), ("POST", r"/api/mittaukset/avaa", "avaa_mittaus"),
+    ("POST", r"/api/mittaukset/(\d+)/tallenna", "tallenna_kansioon"), ("GET", r"/api/mittaukset/(\d+)/tarkista", "tarkista"),
     ("GET", r"/api/asetukset", "asetukset"), ("POST", r"/api/asetukset", "tallenna_asetukset"),
     ("POST", r"/api/logo", "logo"), ("POST", r"/api/sulje", "sulje"), ("POST", r"/api/uudelleen", "uudelleen"),
     ("GET", r"/api/yllapito/tarkistus", "tarkistus"), ("GET", r"/api/yllapito/loki", "loki"),
@@ -539,6 +554,15 @@ def make_handler(api: Api):
 
         def _files(self, path) -> bool:
             st = api.app.storage
+            m3 = re.fullmatch(r"/api/mittaukset/(\d+)/tiedosto\.akux", path)
+            if m3:
+                try:
+                    name, data = mittaustiedosto.export(st, int(m3.group(1)))
+                except ValueError as e:
+                    raise ApiError(str(e), 404)
+                self._send(200, data, "application/octet-stream",
+                           {"Content-Disposition": f'attachment; filename="{name}"'})
+                return True
             m = re.fullmatch(r"/api/mittaukset/(\d+)/(raportti\.pdf|data\.csv|raakadata\.csv\.gz)", path)
             if m:
                 tid = int(m.group(1))

@@ -152,7 +152,7 @@ class MainActivity : ComponentActivity() {
 
     private fun isDownload(u: Uri): Boolean {
         val p = u.path ?: return false
-        return p.endsWith(".pdf") || p.endsWith(".csv") || p.endsWith(".gz") || p.endsWith(".zip") ||
+        return p.endsWith(".pdf") || p.endsWith(".csv") || p.endsWith(".gz") || p.endsWith(".zip") || p.endsWith(".akux") ||
             p == "/api/yllapito/varmuuskopio"
     }
 

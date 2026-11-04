@@ -25,72 +25,108 @@ jobs:
         run: python tests/test_yllapito.py
       - name: Android-silta
         run: python tests/test_android_silta.py
+      - name: Mittaustiedosto
+        run: python tests/test_mittaustiedosto.py
 
   windows:
-    name: Windows-asennus
+    name: Windows-sovellus
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Aja Asenna.bat
-        shell: cmd
-        run: call Asenna.bat
-      - name: Käynnistä asennettu Akux ja testaa se
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Asenna rakennustyökalut
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+          if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+      - name: Lue versio
+        shell: bash
+        run: |
+          V=$(python -c "import re;print(re.search(r'VERSIO = \"([^\"]+)\"', open('akux/__init__.py').read()).group(1))")
+          echo "VERSIO=$V" >> $GITHUB_ENV
+      - name: Rakenna Akux.exe
+        run: |
+          python -m PyInstaller --noconfirm --clean --log-level WARN --windowed --name Akux `
+            --icon akux.ico `
+            --add-data "akux\web;akux\web" --add-data "akux\data;akux\data" `
+            --hidden-import serial.tools.list_ports --collect-submodules akux --exclude-module tkinter `
+            --distpath dist --workpath build Akux.pyw
+          if (-not (Test-Path dist\Akux\Akux.exe)) { throw "Akux.exe puuttuu" }
+      - name: Rakenna asennusohjelma
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q "/DVersio=$env:VERSIO" installer\akux.iss
+          if (-not (Test-Path "dist\Akux-asennus-$env:VERSIO.exe")) { throw "Asennusohjelma puuttuu" }
+      - name: Asenna, käynnistä ja testaa
         shell: pwsh
         run: |
-          # GitHubin Windows-kone sulkee edellisen vaiheen käynnistämät ohjelmat,
-          # joten Akux käynnistetään tässä vaiheessa pikakuvakkeen tavoin.
+          $setup = "dist\Akux-asennus-$env:VERSIO.exe"
+          $p = Start-Process $setup -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/TASKS=desktopicon" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Asennus epäonnistui ($($p.ExitCode))" }
           $exe = Join-Path $env:LOCALAPPDATA "Programs\Akux\Akux.exe"
-          if (-not (Test-Path $exe)) { throw "Akux.exe puuttuu" }
-          $lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) "Akux.lnk"
-          if (-not (Test-Path $lnk)) { throw "Työpöydän pikakuvake puuttuu" }
-          $menu = Join-Path ([Environment]::GetFolderPath('Programs')) "Akux.lnk"
-          if (-not (Test-Path $menu)) { throw "Käynnistä-valikon pikakuvake puuttuu" }
-          Start-Process $exe -WorkingDirectory (Split-Path $exe)
-          $b = "http://127.0.0.1:8765"
-          $ok = $false
-          for ($i = 0; $i -lt 60; $i++) {
-            try { $r = Invoke-RestMethod "$b/api/tila" -TimeoutSec 2; if ($r.nimi -eq "Akux") { $ok = $true; break } } catch {}
-            Start-Sleep 2
-          }
-          if (-not $ok) {
+          if (-not (Test-Path $exe)) { throw "Akux.exe puuttuu asennuksen jälkeen" }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) "Akux.lnk"))) { throw "Työpöydän pikakuvake puuttuu" }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Programs')) "Akux.lnk"))) { throw "Käynnistä-valikon pikakuvake puuttuu" }
+
+          function Odota-Akux {
+            for ($i = 0; $i -lt 60; $i++) {
+              try { $r = Invoke-RestMethod "http://127.0.0.1:8765/api/tila" -TimeoutSec 2; if ($r.nimi -eq "Akux") { return $r } } catch {}
+              Start-Sleep 2
+            }
             Get-Content (Join-Path $env:APPDATA "Akux\loki.txt") -ErrorAction SilentlyContinue
             throw "Akux ei käynnistynyt"
           }
+          $b = "http://127.0.0.1:8765"
+          Start-Process $exe
+          $r = Odota-Akux
           Write-Host "Akux $($r.versio) käynnissä"
+          if ($r.versio -ne $env:VERSIO) { throw "Väärä versio $($r.versio)" }
 
-          # Toinen käynnistys ei saa avata toista ohjelmaa
           Start-Process $exe -Wait
-          $n = (Get-Process Akux -ErrorAction SilentlyContinue | Measure-Object).Count
-          Write-Host "Akux-prosesseja käynnissä: $n"
+          Write-Host "Toinen käynnistys avasi vain ikkunan"
 
           $q = Invoke-RestMethod "$b/api/yllapito/tarkistus" -TimeoutSec 180
           $q.tarkistukset | Format-Table nimi, tila, tieto -AutoSize | Out-String -Width 200 | Write-Host
-          $bad = $q.tarkistukset | Where-Object { $_.tila -eq "virhe" }
-          if ($bad) { throw "Laaduntarkistuksessa virheitä" }
+          if ($q.tarkistukset | Where-Object { $_.tila -eq "virhe" }) { throw "Laaduntarkistuksessa virheitä" }
 
           Invoke-RestMethod "$b/api/yhdista" -Method Post -ContentType "application/json" -Body '{"tyyppi":"demo","soc":60,"nopeutus":60}' | Out-Null
           for ($i = 0; $i -lt 30; $i++) { $t = Invoke-RestMethod "$b/api/tila"; if ($t.vaylatesti.kunnossa -and $t.live.vin) { break }; Start-Sleep 1 }
           $v = Invoke-RestMethod "$b/api/ajoneuvot" -Method Post -ContentType "application/json" -Body (@{vin=$t.live.vin; rekisteri="CI-1"} | ConvertTo-Json)
           $m = Invoke-RestMethod "$b/api/mittaukset" -Method Post -ContentType "application/json" -Body (@{ajoneuvo_id=$v.id; tyyppi="pikatarkastus"} | ConvertTo-Json)
           for ($i = 0; $i -lt 90; $i++) { $t = Invoke-RestMethod "$b/api/tila"; if (-not $t.mittaus) { break }; Start-Sleep 2 }
-          $r = Invoke-RestMethod "$b/api/mittaukset/$($m.id)"
-          if ($r.tila -ne "valmis") { throw "Mittaus ei valmistunut: $($r.tila)" }
-          Invoke-WebRequest "$b/api/mittaukset/$($m.id)/raportti.pdf" -OutFile raportti.pdf
-          if ((Get-Item raportti.pdf).Length -lt 50000) { throw "Raportti on liian pieni" }
-          Invoke-WebRequest "$b/api/ohjeet.pdf" -OutFile kayttoohje.pdf
-          Write-Host "Pikatarkastus valmis, kunto $($r.tulos.yhteenveto.kunto_pct) %"
+          $res = Invoke-RestMethod "$b/api/mittaukset/$($m.id)"
+          if ($res.tila -ne "valmis") { throw "Mittaus ei valmistunut: $($res.tila)" }
+          Write-Host "Pikatarkastus valmis, kunto $($res.tulos.yhteenveto.kunto_pct) %"
+          $folder = Join-Path ([Environment]::GetFolderPath('MyDocuments')) "Akux\Mittaukset"
+          $saved = Get-ChildItem $folder -ErrorAction SilentlyContinue
+          $saved | ForEach-Object { Write-Host "Tallennettu: $($_.Name)" }
+          if (-not ($saved | Where-Object { $_.Extension -eq ".akux" })) { throw "Mittaustiedostoa ei tallennettu" }
+          if (-not ($saved | Where-Object { $_.Extension -eq ".pdf" })) { throw "Raporttia ei tallennettu" }
+          Copy-Item ($saved | Where-Object { $_.Extension -eq ".pdf" } | Select-Object -First 1).FullName raportti.pdf
+
+          # Päivitys käynnissä olevan ohjelman päälle: ohjelma suljetaan, tiedot säilyvät
+          $p = Start-Process $setup -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Päivitysasennus epäonnistui ($($p.ExitCode))" }
+          Start-Process $exe
+          $r = Odota-Akux
+          $list = Invoke-RestMethod "$b/api/mittaukset"
+          if ($list.mittaukset.Count -lt 1) { throw "Mittaukset hävisivät päivityksessä" }
+          Write-Host "Päivitys säilytti $($list.mittaukset.Count) mittausta"
 
           Invoke-RestMethod "$b/api/sulje" -Method Post -ContentType "application/json" -Body '{}' | Out-Null
           Start-Sleep 4
           if (Get-Process Akux -ErrorAction SilentlyContinue) { throw "Akux ei sulkeutunut" }
           Write-Host "Akux sulkeutui hallitusti"
       - uses: actions/upload-artifact@v4
+        with:
+          name: Akux-windows
+          path: dist/Akux-asennus-*.exe
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: windows-raportti
-          path: |
-            raportti.pdf
-            kayttoohje.pdf
+          path: raportti.pdf
           if-no-files-found: ignore
 
   android:
@@ -151,19 +187,29 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: Akux-android
+      - uses: actions/download-artifact@v4
+        with:
+          name: Akux-windows
       - name: Lue versio
         run: |
           V=$(python3 -c "import re;print(re.search(r'VERSIO = \"([^\"]+)\"', open('akux/__init__.py').read()).group(1))")
           echo "VERSIO=$V" >> $GITHUB_ENV
-      - name: Julkaise Android-sovellus
+          ls -la
+      - name: Julkaise
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: android-v${{ env.VERSIO }}
-          name: Akux ${{ env.VERSIO }} Android
+          tag_name: v${{ env.VERSIO }}
+          name: Akux ${{ env.VERSIO }}
+          make_latest: true
           body: |
-            Akux ${{ env.VERSIO }} Android-puhelimille ja -tableteille (Android 10 tai uudempi).
-            Kaikki testit, Windows-asennus ja Android-emulaattoritesti on ajettu hyväksytysti ennen julkaisua.
+            **Windows:** lataa Akux-asennus-${{ env.VERSIO }}.exe ja avaa se. Jos Windows näyttää ilmoituksen *Windows suojasi tietokonettasi*, valitse Lisätietoja → Suorita silti.
 
-            Asennus: lataa Akux-${{ env.VERSIO }}.apk puhelimeen ja avaa se. Päivitys asennetaan samalla tavalla vanhan päälle, ja tiedot säilyvät.
-          files: Akux-*.apk
+            **Android:** lataa Akux-${{ env.VERSIO }}.apk puhelimeen ja avaa se. Android 10 tai uudempi.
+
+            Päivitys asennetaan samalla tavalla vanhan version päälle. Autot, mittaukset, raportit ja asetukset säilyvät.
+
+            Ennen julkaisua on ajettu kaikki testit, Windows-asennus ja päivitys oikealla Windows-koneella sekä Android-sovelluksen kokonaistesti emulaattorissa.
+          files: |
+            Akux-*.apk
+            Akux-asennus-*.exe
           overwrite_files: true

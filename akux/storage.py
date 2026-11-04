@@ -44,6 +44,8 @@ OLETUSASETUKSET = {
     "ilmoitus_vaiheet": True,
     "ilmoitus_valmis": True,
     "ilmoitus_ongelmat": True,
+    "mittaus_tallennus": True,
+    "mittaus_kansio": "",
 }
 
 SCHEMA = """

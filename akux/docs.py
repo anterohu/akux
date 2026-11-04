@@ -162,9 +162,14 @@ OHJE = [
     {
         "id": "yllapito", "otsikko": "Päivitys ja varmuuskopiot",
         "osat": [
-            ("p", "<b>Päivitys:</b> valitse <b>Ylläpito</b>-sivulla uusi Akux-paketti (zip). Ohjelma tarkistaa version, "
-                  "sulkeutuu, asentaa uuden version ja avautuu uudelleen. Autot, mittaukset, raportit ja asetukset "
-                  "säilyvät."),
+            ("p", "<b>Päivitys:</b> uusin versio julkaistaan GitHubin Releases-sivulla, jonne pääsee myös "
+                  "<b>Ylläpito</b>-sivulta. Windowsissa ladataan ja ajetaan Akux-asennus-x.y.z.exe, Androidissa "
+                  "asennetaan Akux-x.y.z.apk vanhan päälle. Autot, mittaukset, raportit ja asetukset säilyvät."),
+            ("p", "<b>Mittaustiedostot:</b> jokainen valmis mittaus tallennetaan automaattisesti mittaustiedostona "
+                  "(.akux) ja PDF-raporttina. Windowsissa oletuskansio on Tiedostot/Akux/Mittaukset, Androidissa "
+                  "Lataukset/Akux. Kansion voi vaihtaa asetuksista. Mittaustiedosto sisältää kaikki mittauksen tiedot "
+                  "ja raakadatan, ja sen voi avata missä tahansa Akux-versiossa ja millä tahansa laitteella kohdasta "
+                  "<b>Mittaukset → Avaa mittaustiedosto</b>."),
             ("p", "<b>Varmuuskopio:</b> ohjelma tekee varmuuskopion automaattisesti kerran viikossa ja säilyttää "
                   "viisi uusinta. Voit tehdä varmuuskopion myös itse ja tallentaa sen esimerkiksi muistitikulle. "
                   "Palautuksessa nykyiset tiedot siirretään ensin talteen, joten mitään ei menetetä."),
