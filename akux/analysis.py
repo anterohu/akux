@@ -250,8 +250,12 @@ def _analyze_quick(res, snaps, samples):
     res["kennot_otsikko"] = "Kennoryhmien jännitteet mittaushetkellä"
     if cs and not cs["levossa"]:
         res["huomiot"].append("Akun virta oli mittaushetkellä yli 3 A. Kennojännitteiden ero on luotettavin levossa mitattuna.")
-    if d.get("kennot_naytteita"):
+    if d.get("kennot_naytteita") and res["kennot"]:
         res["kennot"]["naytteita"] = d["kennot_naytteita"]
+    if res["ajoneuvo"].get("kemia") == "LFP":
+        res["huomiot"].append("LFP-akun akunhallinta arvioi kapasiteetin luotettavimmin, kun akku on ladattu täyteen "
+                              "viime päivinä. Tesla suosittelee LFP-akun lataamista täyteen vähintään kerran viikossa. "
+                              "Tarkin tulos saadaan kapasiteettimittauksella.")
 
 
 def _median(vals):

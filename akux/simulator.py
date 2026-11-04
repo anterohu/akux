@@ -30,11 +30,12 @@ class BatterySimulator(Source):
 
     def __init__(self, *, soc: float = 0.12, nfp_kwh: float = 75.6, bol_kwh: float = 80.5,
                  cells: int = 96, accel: float = 1.0, temp_c: float = 21.0,
-                 weak_cell: int | None = 47, energy_format: str = "uusi", seed: int = 7):
+                 weak_cell: int | None = 47, energy_format: str = "uusi", seed: int = 7,
+                 chem: str = "NCA", vin: str | None = None):
         super().__init__()
         self.rng = random.Random(seed)
         self.n = cells
-        self.chem = "NCA"
+        self.chem = chem
         self.curve = profiles.chemistry(self.chem)["ocv"]
         self.bol = bol_kwh
         self.nfp = nfp_kwh
@@ -60,7 +61,7 @@ class BatterySimulator(Source):
         self.total_dis = 41250.0
         self.total_chg = 44410.0
         self.odo = 112_345.0
-        self.vin = _vin_with_check("5YJ3E7EB0LF654321")
+        self.vin = _vin_with_check(vin or "5YJ3E7EB0LF654321")
         self.full_complete = False
         self.sim_t = time.time()
         self._mux401 = 0

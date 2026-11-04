@@ -129,6 +129,45 @@ def test_liian_pieni_lataus_ja_keskeytys():
         app.disconnect()
 
 
+def test_lfp_akku():
+    """Model 3 SR+ LFP (Shanghai, 12/2020): 106 kennoryhmää ja tasainen jännitekäyrä."""
+    with tempfile.TemporaryDirectory() as tmp:
+        app, src, vid = setup(tmp, soc=0.08, accel=300, chem="LFP", cells=106, nfp_kwh=52.0, bol_kwh=55.0,
+                              vin="LRW3E7FA0MC123456", weak_cell=60)
+        st = app.decoder.state
+        assert st.brick_count == 106, st.brick_count
+        tid = app.start_test(vehicle_id=vid, tyyppi="kapasiteetti", mittarilukema=95000)
+        assert wait(lambda: app.recorder.vaihe == "odota_lataus", 60)
+        src.set_mode("charge", 7.0)
+        assert wait(lambda: app.recorder.vaihe == "lepo_loppu", 300)
+        src.set_mode("park")
+        assert wait(lambda: not app.recorder.active, 120)
+        r = app.storage.test(tid)["tulos"]
+        cap = r["kapasiteetti"]
+        print("LFP:", r["ajoneuvo"]["malli_id"], round(cap["taysi_kwh"], 2), "±", round(cap["epavarmuus_kwh"], 2),
+              "oikea", src.nfp, "R", cap["r_ohm"], "ero", round(r["kennot"]["ero_mv"], 1), r["kennot"]["luokka"],
+              "matala", round(r["kennot_matala"]["ero_mv"], 1), r["huomiot"])
+        assert r["ajoneuvo"]["kemia"] == "LFP" and r["ajoneuvo"]["kennoryhmat"] == 106
+        assert r["ajoneuvo"]["malli_id"].endswith("lfp")
+        assert r["viite"]["kwh"] == 55.0
+        assert cap["valmis"] and abs(cap["taysi_kwh"] - src.nfp) < max(1.5, cap["epavarmuus_kwh"])
+        assert "ocv_kwh" not in cap           # lepojänniterinnakkaisarvio ei sovellu LFP-akulle
+        assert r["kennot"]["lkm"] == 106
+        assert report.build(app.storage, tid).exists()
+
+        src2 = app.connect("demo", soc=0.55, accel=20, chem="LFP", cells=106, nfp_kwh=52.0, bol_kwh=55.0,
+                           vin="LRW3E7FA0MC123456")
+        assert wait(lambda: app.decoder.state.brick_count == 106, 20)
+        tid2 = app.start_test(vehicle_id=vid, tyyppi="pikatarkastus")
+        assert wait(lambda: not app.recorder.active, 120)
+        r2 = app.storage.test(tid2)["tulos"]
+        app.disconnect()
+        print("LFP pika:", round(r2["bms"]["soh_pct"], 1), r2["huomiot"])
+        assert abs(r2["bms"]["soh_pct"] - 52.0 / 55.0 * 100) < 0.3
+        assert any("täyteen" in h for h in r2["huomiot"]), "LFP-huomautus puuttuu"
+        assert report.build(app.storage, tid2).exists()
+
+
 def test_keskeytynyt_ohjelma():
     """Ohjelma suljetaan kesken mittauksen: mittaus merkitään keskeytyneeksi seuraavalla käynnistyksellä."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -142,6 +181,6 @@ def test_keskeytynyt_ohjelma():
 
 if __name__ == "__main__":
     for f in (test_vanha_muoto_tauko_ja_katko, test_datakatko_latauksen_aikana, test_lataus_heti_ja_ohitukset, test_liian_pieni_lataus_ja_keskeytys,
-              test_keskeytynyt_ohjelma):
+              test_lfp_akku, test_keskeytynyt_ohjelma):
         f()
         print("OK", f.__name__)
