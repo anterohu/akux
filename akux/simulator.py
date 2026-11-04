@@ -251,6 +251,9 @@ class BatterySimulator(Source):
         self.info = {"sovitin": "Simuloitu Model 3 Long Range 2020", "portti": "-", "suodatus": True}
         tick = 0.1
         while not self._stop.is_set():
+            if self._scan_req:
+                secs, self._scan_req = self._scan_req, None
+                self.scanning_until = self.sim_t + secs * self.accel
             t0 = time.time()
             dt = tick * self.accel
             if self.mode != "sleep":

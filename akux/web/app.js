@@ -92,6 +92,10 @@ function renderConn() {
   $(".conn-txt").textContent = txt;
 }
 
+// ---------- valikko puhelimessa ----------
+$("#menuBtn").onclick = () => document.body.classList.toggle("menu-open");
+$$("#nav a").forEach(a => a.addEventListener("click", () => document.body.classList.remove("menu-open")));
+
 // ---------- reititys ----------
 const views = {};
 function route() {
@@ -139,7 +143,7 @@ views.yleiskuva = {
       <div class="grid g4" style="margin-top:16px" id="stats"></div>
       <div class="grid g2" style="margin-top:16px">
         <div class="card"><h2>Kennoryhmät</h2><div id="cellBox"></div></div>
-        <div class="card"><h2>Yhteystesti</h2><div id="busBox"><div class="empty small">Yhdistä sovittimeen nähdäksesi, mitä tietoja autosta vastaanotetaan.</div></div></div>
+        <div class="card"><h2>Yhteystesti</h2><div id="busBox"><div class="empty small">Yhdistä sovittimeen nähdäksesi, mitä tietoja autosta vastaanotetaan.</div></div><div id="scanBox"></div></div>
       </div>`;
     this.connRendered = null;
     this.renderStart();
@@ -177,7 +181,7 @@ views.yleiskuva = {
               <select id="port">${opts || `<option value="">Sovitinta ei löytynyt</option>`}</select></label>
             <div class="row"><button class="btn primary" id="bConnect" ${opts ? "" : "disabled"}>Yhdistä autoon</button>
               <button class="btn" id="bRefresh">Päivitä portit</button></div>
-            <p class="small muted" style="margin-top:10px">${ANDROID ? "Kytke sovitin auton OBD-liitäntään ja USB-C-sovittimella puhelimeen. Kun Android kysyy lupaa käyttää sovitinta, valitse Salli." : "Kytke sovitin auton OBD-liitäntään ja tietokoneeseen."} Auton on oltava hereillä, esimerkiksi ovi avattuna tai ilmastointi päällä. <a href="#/ohjeet/yhdistaminen">Ohje</a></p>
+            <p class="small muted" style="margin-top:10px">${ANDROID ? "Kytke sovitin auton diagnostiikkaliittimeen ja USB-C-sovittimella puhelimeen. Kun Android kysyy lupaa käyttää sovitinta, valitse Salli." : "Kytke sovitin auton diagnostiikkaliittimeen ja tietokoneeseen."} Auton on oltava hereillä, esimerkiksi ovi avattuna tai ilmastointi päällä. <a href="#/ohjeet/yhdistaminen">Ohje</a></p>
           </div>
           <div>
             <label class="f"><span>Esittelytila ilman autoa</span></label>
@@ -205,6 +209,22 @@ views.yleiskuva = {
       bindDemo(c);
       this.updateConn();
     }
+  },
+  async scan() {
+    const box = $("#scanBox");
+    try { await api("/api/vaylakartoitus", { method: "POST", body: {} }); } catch (e) { toast(e.message, true); return; }
+    box.innerHTML = `<h3>Väylän kartoitus</h3><p class="small muted">Kuunnellaan liitäntää 10 sekuntia ilman suodatusta…</p><div class="bar"><i class="indet"></i></div>`;
+    let r;
+    for (let i = 0; i < 30; i++) {
+      await new Promise(ok => setTimeout(ok, 1000));
+      r = await api("/api/vaylakartoitus");
+      if (r.tila === "valmis") break;
+    }
+    const cls = { ok: "good", rajattu: "bad", ei: "warn" }[r.arvio] || "";
+    box.innerHTML = `<h3>Väylän kartoitus</h3><div class="notice ${cls}">${esc(r.teksti)}</div>
+      <p class="small muted">Liitännässä liikkui ${r.lajeja} erilaista viestiä.</p>
+      ${r.viestit.length ? `<table class="t"><tr><th>Tunniste</th><th class="num">Taajuus</th><th>Tieto</th></tr>
+      ${r.viestit.map(v => `<tr><td>${esc(v.tunniste)}</td><td class="num">${n(v.taajuus_hz, 1)} Hz</td><td class="small ${v.kuvaus ? "" : "muted"}">${esc(v.kuvaus || "Ei käytössä Akuxissa")}</td></tr>`).join("")}</table>` : ""}`;
   },
   updateConn() {
     const y = S.yhteys, el = $("#connInfo");
@@ -264,17 +284,23 @@ views.yleiskuva = {
     }
     // väylätesti
     const vt = S.vaylatesti;
+    const restricted = vt && !vt.kunnossa && vt.kehyksia > 300 &&
+      !vt.viestit.some(r => r.pakollinen && r.nakyy) && vt.viestit.some(r => r.nakyy);
     if (vt) {
       $("#busBox").innerHTML = `
         ${vt.kunnossa ? `<div class="notice good">Kaikki mittauksessa tarvittavat tiedot vastaanotetaan.</div>` :
-          `<div class="notice warn"><b>Puuttuu:</b> ${esc(vt.puuttuvat.join(", "))}. Odota hetki. Jos tieto ei ilmesty minuutin kuluessa, auto ei lähetä sitä tähän liitäntään.</div>`}
+          (restricted ? `<div class="notice bad"><b>Tämä liitäntä ei välitä akun tietoja.</b> Autosta tulee viestejä, mutta vain muutama tieto, kuten nopeus ja virtatila. Kytke sovitin Teslan diagnostiikkaliittimeen välikaapelilla. Liitin on keskikonsolin takapäässä takamatkustajien puolella paneelin takana: vuosien 2019–2020 autoissa 20-pinninen ja 2021 alkaen 26-pinninen. <a href="#/ohjeet/yhdistaminen">Ohje</a></div>` :
+          `<div class="notice warn"><b>Puuttuu:</b> ${esc(vt.puuttuvat.join(", "))}. Odota hetki. Jos tieto ei ilmesty minuutin kuluessa, auto ei lähetä sitä tähän liitäntään.</div>`)}
         <table class="t ${this.tech ? "tech" : ""}"><tr><th>Tieto</th><th class="techcol">Tunniste</th><th class="num techcol">Taajuus</th><th></th></tr>
         ${vt.viestit.map(r => `<tr><td>${esc(r.kuvaus)}${r.pakollinen ? "" : ' <span class="muted small">(lisätieto)</span>'}</td><td class="muted techcol">${r.tunniste}</td>
           <td class="num techcol">${r.taajuus_hz ? n(r.taajuus_hz, 1) + " Hz" : "–"}</td>
           <td class="num">${r.nakyy ? '<span class="pill good">Vastaanotetaan</span>' : (r.pakollinen ? '<span class="pill warn">Ei näy</span>' : '<span class="pill">Ei näy</span>')}</td></tr>`).join("")}
         </table>
-        <div class="row" style="margin-top:10px"><button class="btn sm" id="techT" type="button">${this.tech ? "Piilota tekniset tiedot" : "Näytä tekniset tiedot"}</button></div>`;
+        <div class="row" style="margin-top:10px"><button class="btn sm" id="techT" type="button">${this.tech ? "Piilota tekniset tiedot" : "Näytä tekniset tiedot"}</button>
+          ${S.yhteys.simuloitu ? "" : `<button class="btn sm" id="scanB" type="button">Kartoita väylä</button>`}</div>`;
       $("#techT").onclick = () => { this.tech = !this.tech; this.update(S); };
+      const sb = $("#scanB");
+      if (sb) sb.onclick = () => this.scan();
     }
   },
 };
@@ -907,6 +933,7 @@ async function quitApp() {
   setTimeout(() => { if (ANDROID) window.AkuxAndroid.close(); else window.close(); }, 400);
 }
 $("#quit").onclick = quitApp;
+$("#quitM").onclick = e => { e.preventDefault(); document.body.classList.remove("menu-open"); quitApp(); };
 
 // ---------- käynnistys ----------
 route();

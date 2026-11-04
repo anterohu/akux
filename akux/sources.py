@@ -22,6 +22,7 @@ class Source:
     name = "lähde"
     max_gap = 5.0         # suurin hyväksytty aukko virtamittauksessa (s)
     simulated = False
+    scan_supported = True
 
     def __init__(self):
         self.status = "Ei yhteyttä"
@@ -30,6 +31,16 @@ class Source:
         self._cb: FrameCallback | None = None
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
+        self._scan_req = None
+        self.scanning_until = None
+
+    def request_scan(self, seconds: float):
+        """Väylän kartoitus: kuunnellaan hetki ilman suodatusta, jotta nähdään kaikki viestit."""
+        self._scan_req = seconds
+
+    @property
+    def scanning(self) -> bool:
+        return bool(self._scan_req or (self.scanning_until and self.now() < self.scanning_until))
 
     def start(self, cb: FrameCallback):
         self._cb = cb
@@ -139,10 +150,20 @@ class ObdLinkSource(Source):
         self.stn = "STN" in ident or "OBDLink" in ident
         self.info = {"sovitin": ident or self._cmd("ATI"), "portti": self.port, "nopeus": self.baud,
                      "suodatus": self.stn}
-        if self.stn:
-            self._cmd("STFAC")
+        self._apply_filters(True)
+
+    def _apply_filters(self, on: bool):
+        if not self.stn:
+            return
+        self._cmd("STFAC")
+        if on:
             for cid in KAYTETYT_TUNNISTEET:
                 self._cmd(f"STFAP {cid:03X},7FF")
+
+    def _stop_monitor(self):
+        self.ser.write(b"\r")
+        time.sleep(0.3)
+        self.ser.reset_input_buffer()
 
     def _start_monitor(self):
         self.ser.reset_input_buffer()
@@ -171,6 +192,17 @@ class ObdLinkSource(Source):
                 buf = b""
                 last_frame = time.time()
                 while not self._stop.is_set():
+                    if self._scan_req:
+                        secs, self._scan_req = self._scan_req, None
+                        self._stop_monitor()
+                        self._apply_filters(False)
+                        self.scanning_until = time.time() + secs
+                        self._start_monitor()
+                    elif self.scanning_until and time.time() > self.scanning_until:
+                        self.scanning_until = None
+                        self._stop_monitor()
+                        self._apply_filters(True)
+                        self._start_monitor()
                     chunk = self.ser.read(self.ser.in_waiting or 1)
                     now = time.time()
                     if chunk:

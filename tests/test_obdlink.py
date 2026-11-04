@@ -104,3 +104,69 @@ def test_obdlink_session():
 
 if __name__ == "__main__":
     test_obdlink_session()
+
+
+class TaxiOnlySerial(FakeSerial):
+    """Jalkatilan kolmannen osapuolen liitäntä: väylällä vain nopeus ja virtatila (0x105)."""
+
+    def __init__(self, port, baud, timeout=0.2):
+        super().__init__(port, baud, timeout)
+        self.frames = [b"10500400000000000000\r"[:3] + b"0400000000000000\r"] * 50
+
+
+def test_rajattu_liitanta_ja_kartoitus():
+    fake = types.ModuleType("serial")
+    fake.Serial = TaxiOnlySerial
+    sys.modules["serial"] = fake
+    import tempfile
+    import json
+    import urllib.request
+    from akux.app import App
+    from akux.server import Api, bind_server
+    FakeSerial.commands.clear()
+    with tempfile.TemporaryDirectory() as tmp:
+        app = App(tmp)
+        api = Api(app)
+        httpd = bind_server(api, "127.0.0.1", 0)
+        api.httpd = httpd
+        port = httpd.server_address[1]
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        base = f"http://127.0.0.1:{port}"
+
+        def call(path, body=None):
+            req = urllib.request.Request(base + path, data=json.dumps(body).encode() if body is not None else None,
+                                         headers={"Content-Type": "application/json"},
+                                         method="POST" if body is not None else "GET")
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return json.loads(r.read())
+
+        app.connect("obdlink", port="COM3")
+        end = time.time() + 15
+        while time.time() < end and app.decoder.total_frames < 400:
+            time.sleep(0.1)
+        t = call("/api/tila")
+        assert not t["vaylatesti"]["kunnossa"]
+        assert [r["tunniste"] for r in t["vaylatesti"]["viestit"] if r["nakyy"]] == ["0x105"]
+        call("/api/vaylakartoitus", {})
+        time.sleep(1)
+        assert app.source.scanning
+        end = time.time() + 20
+        while time.time() < end:
+            r = call("/api/vaylakartoitus")
+            if r["tila"] == "valmis":
+                break
+            time.sleep(0.5)
+        assert r["tila"] == "valmis" and r["arvio"] == "rajattu", r
+        assert "diagnostiikkaliittimeen" in r["teksti"]
+        # kartoituksen ajan suodattimet poistettiin ja sen jälkeen palautettiin
+        time.sleep(1.5)
+        cmds = FakeSerial.commands
+        i = len(cmds) - 1 - cmds[::-1].index("STFAC")
+        assert any(c.startswith("STFAP") for c in cmds[i:]), "suodattimia ei palautettu"
+        app.disconnect()
+        httpd.shutdown()
+        print("OK rajattu liitäntä ja kartoitus")
+
+
+if __name__ == "__main__":
+    test_rajattu_liitanta_ja_kartoitus()

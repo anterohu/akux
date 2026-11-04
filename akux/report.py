@@ -415,7 +415,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         if cs.get("naytteita"):
             cond("Kennojännitteiden näytteitä", f"{cs['naytteita']} kpl kennoryhmää kohden", "Tulos on näytteiden keskiarvo")
     src_info = meta.get("sovitin") or {}
-    cond("Tietolähde", src_info.get("sovitin") or meta.get("lahde"), "Auton akunhallinta OBD-liitännän kautta")
+    cond("Tietolähde", src_info.get("sovitin") or meta.get("lahde"), "Auton akunhallinta diagnostiikkaliitännän kautta")
     E.append(_table(rows_c, [62 * mm, 50 * mm, CW - 112 * mm]))
 
     # Tietojen alkuperä ja vastuu
@@ -648,7 +648,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     E.append(PageBreak())
     E.append(P("Menetelmä ja tietolähteet", "h2"))
     meth = [
-        ("Tiedonkeruu", "Tiedot luettiin auton CAN-väylältä OBD-liitännän kautta. Ohjelma ainoastaan kuuntelee "
+        ("Tiedonkeruu", "Tiedot luettiin auton CAN-väylältä diagnostiikkaliitännän kautta. Ohjelma ainoastaan kuuntelee "
          "väylää eikä lähetä autolle viestejä tai muuta sen asetuksia. Viestien sisältö puretaan avoimen, "
          "Tesla-omistajien yhteisön ylläpitämän viestimäärittelyn (Model 3 DBC) mukaisesti."),
         ("Alkuperäinen kapasiteetti", "Akun alkuperäinen energia luetaan ensisijaisesti akunhallinnasta, joka "

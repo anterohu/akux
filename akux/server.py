@@ -202,6 +202,48 @@ class Api:
         return {"viestit": rep, "puuttuvat": [r["kuvaus"] for r in missing], "kunnossa": not missing,
                 "kehyksia": d.total_frames}
 
+    # -- väylän kartoitus ------------------------------------------------
+    def aloita_kartoitus(self, q, body):
+        src = self.app.source
+        if not src or not src.running:
+            raise ApiError("Yhdistä ensin sovittimeen.")
+        if self.app.recorder.active:
+            raise ApiError("Kartoitusta ei voi tehdä mittauksen aikana.")
+        secs = 10.0
+        self.scan = {"perus": self.app.decoder.counts(), "alku": src.now(), "kesto": secs,
+                     "seinakello": time.time()}
+        src.request_scan(secs)
+        return {"ok": True, "kesto_s": secs}
+
+    def kartoitus(self, q, body):
+        sc = getattr(self, "scan", None)
+        src = self.app.source
+        if not sc or not src:
+            return {"tila": "ei"}
+        from .decoder import PAKOLLISET, TUNNISTE_KUVAUS
+        running = src.scanning
+        now = src.now()
+        dur = max(0.5, (min(now, sc["alku"] + sc["kesto"] * (src.accel if src.simulated else 1))) - sc["alku"])
+        cur = self.app.decoder.counts()
+        rows = []
+        for cid, n in sorted(cur.items()):
+            d = n - sc["perus"].get(cid, 0)
+            if d > 0:
+                rows.append({"tunniste": f"0x{cid:03X}", "kpl": d, "taajuus_hz": round(d / dur, 1),
+                             "kuvaus": TUNNISTE_KUVAUS.get(cid), "akku": cid in PAKOLLISET})
+        ids = {int(r["tunniste"], 16) for r in rows}
+        if any(cid in ids for cid in PAKOLLISET):
+            verdict = ("ok", "Liitäntä välittää akun tiedot. Mittaukset voidaan tehdä tämän liitännän kautta.")
+        elif not rows:
+            verdict = ("ei", "Väylällä ei liikkunut viestejä. Herätä auto avaamalla ovi tai käynnistämällä ilmastointi ja kartoita uudelleen.")
+        else:
+            verdict = ("rajattu", "Liitäntä välittää vain muutaman tiedon, kuten nopeuden ja virtatilan, mutta ei akun tietoja. "
+                       "Kytke sovitin Teslan diagnostiikkaliittimeen välikaapelilla. Liitin on keskikonsolin takapäässä "
+                       "takamatkustajien puolella paneelin takana: vuosien 2019–2020 autoissa 20-pinninen ja 2021 alkaen "
+                       "26-pinninen.")
+        return {"tila": "kaynnissa" if running else "valmis", "jaljella_s": max(0, round(sc["kesto"] - (time.time() - sc["seinakello"]))),
+                "viestit": rows, "lajeja": len(rows), "arvio": verdict[0], "teksti": verdict[1]}
+
     def kennot(self, q, body):
         return {"kennot": self.app.decoder.bricks_list()}
 
@@ -467,6 +509,7 @@ ROUTES = [
     ("DELETE", r"/api/mittaukset/(\d+)", "poista_mittaus"), ("POST", r"/api/mittaukset/avaa", "avaa_mittaus"),
     ("POST", r"/api/mittaukset/(\d+)/tallenna", "tallenna_kansioon"), ("GET", r"/api/mittaukset/(\d+)/tarkista", "tarkista"),
     ("GET", r"/api/asetukset", "asetukset"), ("POST", r"/api/asetukset", "tallenna_asetukset"),
+    ("POST", r"/api/vaylakartoitus", "aloita_kartoitus"), ("GET", r"/api/vaylakartoitus", "kartoitus"),
     ("POST", r"/api/logo", "logo"), ("POST", r"/api/sulje", "sulje"), ("POST", r"/api/uudelleen", "uudelleen"),
     ("GET", r"/api/yllapito/tarkistus", "tarkistus"), ("GET", r"/api/yllapito/loki", "loki"),
     ("GET", r"/api/yllapito/varmuuskopiot", "varmuuskopiot"),

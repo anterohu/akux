@@ -10,7 +10,7 @@ OHJE = [
                   "auton akunhallinnasta OBDLink-sovittimella."),
             ("ol", [
                 "Avaa <b>Asetukset</b> ja täytä yrityksen tiedot, mittaajan nimi ja logo. Tiedot näkyvät jokaisessa raportissa.",
-                "Kytke OBDLink-sovitin auton OBD-liitäntään ja USB-kaapelilla tietokoneeseen.",
+                "Kytke OBDLink-sovitin välikaapelilla auton diagnostiikkaliittimeen ja USB-kaapelilla tietokoneeseen.",
                 "Herätä auto ja paina <b>Yleiskuva</b>-sivulla <b>Yhdistä autoon</b>.",
                 "Lisää auto. Ohjelma lukee valmistenumeron autosta ja tunnistaa mallin.",
                 "Tee autolle pikatarkastus. Sen jälkeen voit tehdä kapasiteettimittauksen.",
@@ -21,9 +21,13 @@ OHJE = [
     {
         "id": "yhdistaminen", "otsikko": "Yhdistäminen autoon",
         "osat": [
-            ("p", "Eurooppalaisessa Model 3:ssa ja Model Y:ssä OBD-liitäntä on kuljettajan jalkatilassa ohjauspyörän "
-                  "vasemmalla puolella. Jos autossa ei ole liitäntää jalkatilassa, käytä Teslan "
-                  "diagnostiikkaliittimeen sopivaa välikaapelia."),
+            ("p", "Akun tiedot luetaan Teslan diagnostiikkaliittimestä. Liitin on keskikonsolin takapäässä "
+                  "takamatkustajien puolella paneelin takana. Sovitin kytketään siihen välikaapelilla: vuosien "
+                  "2019–2020 autoissa liitin on yleensä 20-pinninen ja 2021 alkaen 26-pinninen. Tarkista pinnien "
+                  "määrä ennen kaapelin hankintaa."),
+            ("note", "Eurooppalaisten Model 3- ja Model Y -autojen jalkatilassa on myös tavallisen näköinen OBD-liitäntä. "
+                     "Se on tarkoitettu kolmannen osapuolen laitteille, ja se välittää vain muutaman tiedon, kuten nopeuden "
+                     "ja virtatilan, mutta ei akun tietoja. Yhteystesti ja väylän kartoitus kertovat tämän suoraan."),
             ("ol", [
                 "Kytke sovitin auton liitäntään ja tietokoneeseen.",
                 "Herätä auto avaamalla ovi tai käynnistämällä ilmastointi Tesla-sovelluksesta. Sovitin saa virtaa vain, kun auto on hereillä.",
@@ -131,7 +135,7 @@ OHJE = [
             ("p", "Android-sovelluksella koko mittauksen voi tehdä pelkällä puhelimella tai tabletilla. Sovelluksessa "
                   "on samat toiminnot, mittaukset ja raportit kuin tietokoneohjelmassa."),
             ("ol", [
-                "Kytke OBDLink EX auton OBD-liitäntään ja USB-C-sovittimella (OTG) puhelimeen.",
+                "Kytke OBDLink EX välikaapelilla auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen.",
                 "Kun Android kysyy, saako Akux käyttää sovitinta, valitse <b>Salli</b>. Voit valita, että Akux avautuu aina, kun sovitin kytketään.",
                 "Paina <b>Yleiskuva</b>-sivulla <b>Yhdistä autoon</b> ja jatka kuten tietokoneella.",
             ]),
@@ -184,7 +188,7 @@ OHJE = [
             ("ul", [
                 "<b>Sovitinta ei löydy:</b> irrota ja kytke USB-kaapeli uudelleen ja paina Päivitä portit. Jos sovitin ei vieläkään näy, asenna FTDI:n VCP-ajuri valmistajan sivuilta (ftdichip.com).",
                 "<b>Väylä on hiljaa:</b> auto on lepotilassa. Herätä auto avaamalla ovi tai käynnistämällä ilmastointi.",
-                "<b>Jokin tieto ei näy yhteystestissä:</b> odota minuutti. Jos tieto ei ilmesty, kyseinen liitäntä ei välitä sitä, ja tarvitaan Teslan diagnostiikkaliittimeen kytkettävä välikaapeli.",
+                "<b>Akun tiedot puuttuvat yhteystestistä:</b> paina <b>Kartoita väylä</b>. Jos liitännässä liikkuu vain muutama viesti, kuten nopeus ja virtatila, sovitin on kytketty jalkatilan liitäntään. Kytke se diagnostiikkaliittimeen välikaapelilla.",
                 "<b>Puhelin ei saa yhteyttä:</b> tarkista, että puhelin ja tietokone ovat samassa verkossa ja että Windowsin palomuuri sallii yhteyden.",
                 "<b>Ohjelma ei käynnisty:</b> aja asennus uudelleen. Tiedot säilyvät.",
             ]),

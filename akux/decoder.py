@@ -345,6 +345,10 @@ class TeslaDecoder:
                 })
         return out
 
+    def counts(self) -> dict:
+        with self.lock:
+            return {cid: v["count"] for cid, v in self.seen.items()}
+
     def snapshot(self) -> dict:
         with self.lock:
             st = self.state
