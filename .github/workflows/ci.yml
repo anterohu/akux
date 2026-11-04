@@ -103,6 +103,8 @@ jobs:
           $saved | ForEach-Object { Write-Host "Tallennettu: $($_.Name)" }
           if (-not ($saved | Where-Object { $_.Extension -eq ".akux" })) { throw "Mittaustiedostoa ei tallennettu" }
           if (-not ($saved | Where-Object { $_.Extension -eq ".pdf" })) { throw "Raporttia ei tallennettu" }
+          if ($saved | Where-Object { $_.Name -like "*Laaduntarkistus*" }) { throw "Laaduntarkistus tallensi tiedostoja mittauskansioon" }
+          if (($saved | Measure-Object).Count -ne 2) { throw "Mittauskansiossa on ylimääräisiä tiedostoja" }
           Copy-Item ($saved | Where-Object { $_.Extension -eq ".pdf" } | Select-Object -First 1).FullName raportti.pdf
 
           # Päivitys käynnissä olevan ohjelman päälle: ohjelma suljetaan, tiedot säilyvät

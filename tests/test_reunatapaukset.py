@@ -1,10 +1,13 @@
 """Reunatapaukset: vanha energiaviesti, lataustauko, datakatko, ohitukset ja keskeytys."""
+import os
 import sys
+import tempfile as _tf
 import tempfile
 import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+os.environ.setdefault("AKUX_MITTAUSKANSIO", _tf.mkdtemp(prefix="akux-testi-"))
 
 from akux.app import App  # noqa: E402
 from akux import report  # noqa: E402

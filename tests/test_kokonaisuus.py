@@ -2,12 +2,15 @@
 
 Ajo: python -m pytest tests  (tai python tests/test_kokonaisuus.py)
 """
+import os
 import sys
+import tempfile as _tf
 import tempfile
 import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+os.environ.setdefault("AKUX_MITTAUSKANSIO", _tf.mkdtemp(prefix="akux-testi-"))
 
 from akux.app import App  # noqa: E402
 from akux.bits import encode, get_bits, put_bits  # noqa: E402

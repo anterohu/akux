@@ -3,13 +3,16 @@
 Testi korvaa pyserial-kirjaston keinotekoisella sarjaportilla, joka vastaa kuten
 STN-piirillinen OBDLink-sovitin ja syöttää simulaattorin tuottamia kehyksiä.
 """
+import os
 import sys
+import tempfile as _tf
 import threading
 import time
 import types
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+os.environ.setdefault("AKUX_MITTAUSKANSIO", _tf.mkdtemp(prefix="akux-testi-"))
 
 from akux.decoder import TeslaDecoder  # noqa: E402
 from akux.simulator import BatterySimulator  # noqa: E402

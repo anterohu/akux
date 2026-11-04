@@ -267,6 +267,8 @@ def selftest(app, full: bool = True) -> dict:
             from . import report
             with tempfile.TemporaryDirectory() as tmp:
                 a = App(tmp)
+                # Koemittausta ei tallenneta käyttäjän mittauskansioon
+                a.storage.save_settings({"mittaus_tallennus": False, "ilmoitukset_kaytossa": False})
                 src = a.connect("demo", soc=0.6, accel=60)
                 end = time.time() + 20
                 while time.time() < end and not (a.decoder.state.brick_count and a.decoder.state.nfp_kwh):

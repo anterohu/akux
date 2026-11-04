@@ -3,7 +3,9 @@ ilmoitukset, laaduntarkistus, varmuuskopio ja palautus, päivityspaketin tarkist
 import io
 import json
 import socket
+import os
 import sys
+import tempfile as _tf
 import tempfile
 import threading
 import time
@@ -15,6 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+os.environ.setdefault("AKUX_MITTAUSKANSIO", _tf.mkdtemp(prefix="akux-testi-"))
 
 from akux import server  # noqa: E402
 from akux.server import Api, bind_server  # noqa: E402
@@ -142,6 +145,9 @@ def test_yllapito():
         bad = [c for c in q["tarkistukset"] if c["tila"] == "virhe" and c["nimi"] not in skip]
         assert not bad, bad
         print("Laaduntarkistus:", [(c["nimi"], c["tila"]) for c in q["tarkistukset"]])
+        folder = Path(os.environ["AKUX_MITTAUSKANSIO"])
+        extra = [p.name for p in folder.glob("*Laaduntarkistus*")] if folder.exists() else []
+        assert not extra, f"laaduntarkistus tallensi tiedostoja mittauskansioon: {extra}"
 
         # ohjeet
         _, o = call(base, "/api/ohjeet")
@@ -189,7 +195,6 @@ def test_yllapito():
         threading.Thread(target=h3.serve_forever, daemon=True).start()
         lan = server.lan_addresses()
         if lan:
-            import os
             os.environ["NO_PROXY"] = os.environ["no_proxy"] = ",".join(lan)
             opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
             ext = f"http://{lan[0]}:{api3.port}"

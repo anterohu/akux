@@ -5,13 +5,16 @@ OBDLink EX Androidin USB-rajapinnan takana.
 """
 import json
 import socket
+import os
 import sys
+import tempfile as _tf
 import tempfile
 import time
 import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+os.environ.setdefault("AKUX_MITTAUSKANSIO", _tf.mkdtemp(prefix="akux-testi-"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from test_obdlink import FakeSerial  # noqa: E402
