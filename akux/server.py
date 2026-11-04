@@ -26,6 +26,16 @@ WEB = Path(__file__).parent / "web"
 FONTS = Path(__file__).parent / "data" / "fonts"
 
 
+def platform_name() -> str:
+    import os
+    import sys
+    if os.environ.get("AKUX_ALUSTA"):
+        return os.environ["AKUX_ALUSTA"]
+    if sys.platform.startswith("win"):
+        return "windows"
+    return "mac" if sys.platform == "darwin" else "linux"
+
+
 class ApiError(Exception):
     def __init__(self, msg, code=400):
         super().__init__(msg)
@@ -157,7 +167,7 @@ class Api:
 
     def tietoja(self, q, body):
         import platform
-        return {"nimi": NIMI, "versio": VERSIO, "datakansio": str(self.app.storage.dir),
+        return {"nimi": NIMI, "versio": VERSIO, "datakansio": str(self.app.storage.dir), "alusta": platform_name(),
                 "python": platform.python_version(), "jarjestelma": f"{platform.system()} {platform.release()}"}
 
     def tila(self, q, body):
@@ -170,7 +180,7 @@ class Api:
             v = a.storage.find_vehicle_by_vin(snap["vin"])
             known = {"id": v["id"], "nimi": v["nimi"]} if v else None
         return {
-            "nimi": NIMI, "versio": VERSIO,
+            "nimi": NIMI, "versio": VERSIO, "alusta": platform_name(),
             "yhteys": {
                 "kaynnissa": bool(src and src.running), "lahde": src.name if src else None,
                 "tila": src.status if src else "Ei yhteyttä", "virhe": src.error if src else None,
@@ -196,13 +206,15 @@ class Api:
         return {"kennot": self.app.decoder.bricks_list()}
 
     def portit(self, q, body):
+        from . import sources
         try:
-            import serial  # noqa: F401
+            if not sources.SERIAL_FACTORY:
+                import serial  # noqa: F401
             ok = True
         except ImportError:
             ok = False
-        import sys
-        return {"portit": list_ports(), "pyserial": ok, "windows": sys.platform.startswith("win")}
+        return {"portit": list_ports(), "pyserial": ok, "windows": platform_name() == "windows",
+                "alusta": platform_name()}
 
     def yhdista(self, q, body):
         kind = body.get("tyyppi", "obdlink")
@@ -211,10 +223,12 @@ class Api:
         else:
             port = body.get("portti") or self.app.settings.get("portti")
             baud = int(body.get("baud") or 0) or None
-            try:
-                import serial  # noqa: F401
-            except ImportError:
-                raise ApiError("Sarjaporttikirjasto puuttuu. Asenna se komennolla: pip install pyserial")
+            from . import sources
+            if not sources.SERIAL_FACTORY:
+                try:
+                    import serial  # noqa: F401
+                except ImportError:
+                    raise ApiError("Sovittimen yhteysosa puuttuu ohjelmasta. Asenna ohjelma uudelleen.")
             self.app.connect("obdlink", port=port, baud=baud)
             self.app.storage.save_settings({"portti": port})
         return {"ok": True}

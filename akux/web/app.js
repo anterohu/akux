@@ -9,6 +9,7 @@ let current = null;      // aktiivinen näkymä
 let pollTimer = null;
 
 // ---------- apufunktiot ----------
+const ANDROID = !!window.AkuxAndroid;
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
@@ -172,11 +173,11 @@ views.yleiskuva = {
         ${ports.pyserial && !ports.portit.length ? `<div class="notice warn"><b>Sovitinta ei löytynyt.</b> Tarkista, että OBDLink on kytketty USB-kaapelilla. ${ports.windows ? "Windows asentaa sovittimen ajurin yleensä itse ensimmäisellä kytkentäkerralla, kun tietokone on verkossa. Odota hetki ja paina Päivitä portit. Jos sovitin ei vieläkään näy, asenna FTDI:n VCP-ajuri osoitteesta <b>ftdichip.com/drivers/vcp-drivers</b>." : ""}</div>` : ""}
         <div class="grid g2">
           <div>
-            <label class="f"><span>OBDLink-sovittimen portti</span>
+            <label class="f"><span>${ANDROID ? "OBDLink-sovitin" : "OBDLink-sovittimen portti"}</span>
               <select id="port">${opts || `<option value="">Sovitinta ei löytynyt</option>`}</select></label>
             <div class="row"><button class="btn primary" id="bConnect" ${opts ? "" : "disabled"}>Yhdistä autoon</button>
               <button class="btn" id="bRefresh">Päivitä portit</button></div>
-            <p class="small muted" style="margin-top:10px">Kytke sovitin auton OBD-liitäntään ja tietokoneeseen. Auton on oltava hereillä, esimerkiksi ovi avattuna tai ilmastointi päällä. <a href="#/ohjeet/yhdistaminen">Ohje</a></p>
+            <p class="small muted" style="margin-top:10px">${ANDROID ? "Kytke sovitin auton OBD-liitäntään ja USB-C-sovittimella puhelimeen. Kun Android kysyy lupaa käyttää sovitinta, valitse Salli." : "Kytke sovitin auton OBD-liitäntään ja tietokoneeseen."} Auton on oltava hereillä, esimerkiksi ovi avattuna tai ilmastointi päällä. <a href="#/ohjeet/yhdistaminen">Ohje</a></p>
           </div>
           <div>
             <label class="f"><span>Esittelytila ilman autoa</span></label>
@@ -194,7 +195,7 @@ views.yleiskuva = {
     } else {
       c.innerHTML = `
         <div class="row"><div><h2 style="margin:0">${y.simuloitu ? "Esittelytila" : "Yhdistetty sovittimeen"}</h2>
-          <div class="small muted" id="connInfo"></div></div><span class="spacer"></span>
+          <div class="small muted" id="connInfo"></div><div class="notice warn small" id="connErr" hidden style="margin:8px 0 0"></div></div><span class="spacer"></span>
           <button class="btn" id="bDisc">Katkaise yhteys</button></div>
         ${y.simuloitu ? demoControls() : ""}`;
       $("#bDisc").onclick = () => {
@@ -210,6 +211,12 @@ views.yleiskuva = {
     if (!el) return;
     const t = y.tiedot || {};
     el.textContent = [y.tila, t.sovitin, t.portti && t.portti !== "-" ? t.portti : null, S.vaylatesti ? `${n(S.vaylatesti.kehyksia, 0)} viestiä vastaanotettu` : null].filter(Boolean).join(" · ");
+    const er = $("#connErr");
+    if (er) {
+      const msg = y.virhe && !S.vaylatesti ? y.virhe : "";
+      er.textContent = msg;
+      er.hidden = !msg;
+    }
     updateDemo();
   },
   update(S) {
@@ -696,15 +703,15 @@ views.asetukset = {
         </div>
       </div>
 
-      <div class="grid g2">
-        <div class="card"><h2>Käyttö puhelimella</h2>
+      <div class="grid ${ANDROID ? "" : "g2"}">
+        ${ANDROID ? "" : `<div class="card"><h2>Käyttö puhelimella</h2>
           <label class="check"><input type="checkbox" name="puhelin_kaytossa" ${s.puhelin_kaytossa ? "checked" : ""}><span>Salli käyttö puhelimella samassa verkossa</span></label>
           ${!!s.puhelin_kaytossa !== !!ph.kaytossa ? `<div class="notice warn small">Muutos tulee voimaan, kun ohjelma käynnistetään uudelleen.<div style="margin-top:8px"><button class="btn sm" id="sRestart" type="button">Tallenna ja käynnistä uudelleen</button></div></div>` : ""}
           ${ph.kaytossa ? `<p class="small">Avaa puhelimen selaimella:</p>
             ${(ph.osoitteet || []).map(u => `<div class="addr">${esc(u)}</div>`).join("") || `<div class="small muted">Tietokone ei ole yhteydessä verkkoon.</div>`}
             <p class="small muted" style="margin-top:8px">Suojakoodi <b>${esc(ph.avain)}</b>. Koodi kysytään kerran kullakin puhelimella.</p>`
           : `<p class="small muted">Kun käyttö on sallittu, puhelimen osoite ja suojakoodi näkyvät tässä. <a href="#/ohjeet/puhelin">Lue lisää</a></p>`}
-        </div>
+        </div>`}
         <div class="card"><h2>Puhelinilmoitukset</h2>
           <label class="check"><input type="checkbox" name="ilmoitukset_kaytossa" ${s.ilmoitukset_kaytossa ? "checked" : ""}><span>Lähetä ilmoitukset puhelimeen</span></label>
           <label class="f"><span>Ilmoitusaiheen osoite (ntfy)</span><input name="ilmoitus_osoite" id="nUrl" value="${esc(s.ilmoitus_osoite)}" placeholder="https://ntfy.sh/akux-oma-aihe"></label>
@@ -767,8 +774,8 @@ views.yllapito = {
       <div class="grid g2">
         <div class="card"><h2>Päivitys</h2>
           <p class="small">Käytössä on versio <b>${esc(info.versio)}</b>.</p>
-          <p class="small muted">Valitse uusi Akux-paketti (zip). Ohjelma sulkeutuu, asentaa uuden version ja avautuu uudelleen. Autot, mittaukset, raportit ja asetukset säilyvät.</p>
-          <label class="btn" style="cursor:pointer">Valitse päivityspaketti<input type="file" id="uFile" accept=".zip" hidden></label>
+          ${ANDROID ? `<p class="small muted">Päivitä Akux asentamalla uusi sovellusversio vanhan päälle. Autot, mittaukset, raportit ja asetukset säilyvät.</p>` : `<p class="small muted">Valitse uusi Akux-paketti (zip). Ohjelma sulkeutuu, asentaa uuden version ja avautuu uudelleen. Autot, mittaukset, raportit ja asetukset säilyvät.</p>
+          <label class="btn" style="cursor:pointer">Valitse päivityspaketti<input type="file" id="uFile" accept=".zip" hidden></label>`}
           <div id="uRes" style="margin-top:12px"></div></div>
         <div class="card"><h2>Varmuuskopiot</h2>
           <p class="small muted">Ohjelma tekee varmuuskopion automaattisesti kerran viikossa ja säilyttää viisi uusinta. Tallenna kopio välillä myös muistitikulle tai pilvipalveluun.</p>
@@ -783,7 +790,7 @@ views.yllapito = {
         <dt>Ohjelma</dt><dd>${esc(info.nimi)} ${esc(info.versio)}</dd>
         <dt>Tietojen sijainti</dt><dd style="word-break:break-all">${esc(info.datakansio)}</dd>
         <dt>Järjestelmä</dt><dd>${esc(info.jarjestelma)}</dd></dl>
-        <p class="small muted" style="margin-top:12px">Viestimäärittelyt perustuvat Tesla-omistajien yhteisön ylläpitämään avoimeen aineistoon. Tesla, Model 3 ja Model Y ovat Tesla, Inc:n tavaramerkkejä. Akux ei ole Teslan tekemä eikä hyväksymä.</p></div>`;
+        <p class="small muted" style="margin-top:12px">${ANDROID ? "Tiedot säilyvät sovelluksen omassa tallennustilassa. Raportit ja varmuuskopiot tallentuvat myös Lataukset/Akux-kansioon, kun avaat ne. " : ""}Viestimäärittelyt perustuvat Tesla-omistajien yhteisön ylläpitämään avoimeen aineistoon. Tesla, Model 3 ja Model Y ovat Tesla, Inc:n tavaramerkkejä. Akux ei ole Teslan tekemä eikä hyväksymä.</p></div>`;
 
     $("#qRun").onclick = async () => {
       const b = $("#qRun");
@@ -803,7 +810,7 @@ views.yllapito = {
       b.textContent = "Aja tarkistus uudelleen";
     };
 
-    $("#uFile").onchange = async e => {
+    if ($("#uFile")) $("#uFile").onchange = async e => {
       const f = e.target.files[0];
       if (!f) return;
       const box = $("#uRes");
@@ -876,7 +883,7 @@ async function quitApp() {
   try { await api("/api/sulje", { method: "POST", body }); } catch (e) { toast(e.message, true); return; }
   clearInterval(pollTimer);
   document.body.innerHTML = `<div style="padding:40px;font-family:Inter,system-ui;color:var(--ink)"><h1>Akux on suljettu</h1><p class="muted">Voit sulkea tämän ikkunan.</p></div>`;
-  setTimeout(() => window.close(), 400);
+  setTimeout(() => { if (ANDROID) window.AkuxAndroid.close(); else window.close(); }, 400);
 }
 $("#quit").onclick = quitApp;
 

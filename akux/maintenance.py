@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import gzip
 import hashlib
+import os
 import io
 import json
 import re
@@ -148,6 +149,8 @@ def start_update(data: bytes) -> dict:
     """Purkaa päivityspaketin ja käynnistää sen asennuksen. Asennus sulkee
     ohjelman, asentaa uuden version ja avaa sen. Tiedot säilyvät."""
     info = inspect_update(data)
+    if os.environ.get("AKUX_ALUSTA") == "android":
+        raise ValueError("Android-sovellus päivitetään asentamalla uusi sovellusversio.")
     if not sys.platform.startswith("win"):
         raise ValueError("Päivitys ohjelmasta toimii Windowsissa. Pura paketti ja aja asennus käsin.")
     base = Path(tempfile.gettempdir()) / f"akux-paivitys-{info['versio']}"
@@ -201,8 +204,10 @@ def selftest(app, full: bool = True) -> dict:
     out.append(_check("Levytila", disk))
 
     def serial_ok():
+        from . import sources
         try:
-            import serial  # noqa: F401
+            if not sources.SERIAL_FACTORY:
+                import serial  # noqa: F401
             from .sources import list_ports
         except ImportError:
             return "virhe", "Sarjaporttiosa puuttuu. Asenna ohjelma uudelleen."

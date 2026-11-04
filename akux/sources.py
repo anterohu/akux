@@ -9,6 +9,14 @@ from .decoder import KAYTETYT_TUNNISTEET
 
 FrameCallback = Callable[[float, int, bytes], None]
 
+# Android-sovellus korvaa sarjaportin omalla USB-toteutuksellaan (ks. android.py)
+SERIAL_FACTORY = None
+PORT_LISTER = None
+
+
+class AdapterUnavailable(Exception):
+    """Sovitin ei ole käytettävissä (puuttuu tai käyttölupa odottaa). Viesti näytetään käyttäjälle sellaisenaan."""
+
 
 class Source:
     name = "lähde"
@@ -47,6 +55,8 @@ class Source:
 
 # ----------------------------------------------------------------------
 def list_ports() -> list[dict]:
+    if PORT_LISTER:
+        return PORT_LISTER()
     try:
         from serial.tools import list_ports as lp
     except ImportError:
@@ -93,12 +103,16 @@ class ObdLinkSource(Source):
         return buf.decode("ascii", "ignore").replace(">", "").strip()
 
     def _open(self):
-        import serial  # pyserial
+        if SERIAL_FACTORY:
+            factory = SERIAL_FACTORY
+        else:
+            import serial  # pyserial
+            factory = serial.Serial
         bauds = [self.baud] if self.baud else list(self.BAUDS)
         last = None
         for b in bauds:
             try:
-                self.ser = serial.Serial(self.port, b, timeout=0.2)
+                self.ser = factory(self.port, b, timeout=0.2)
                 self.ser.write(b"\r")
                 time.sleep(0.1)
                 resp = self._cmd("ATI", 1.0)
@@ -106,6 +120,8 @@ class ObdLinkSource(Source):
                     self.baud = b
                     return
                 self.ser.close()
+            except AdapterUnavailable:
+                raise
             except Exception as e:  # noqa: BLE001
                 last = e
                 try:
@@ -180,6 +196,11 @@ class ObdLinkSource(Source):
                         self.status = "Väylä hiljaa – onko auto hereillä?"
                         last_frame = now
                         self._start_monitor()
+            except AdapterUnavailable as e:
+                self.error = str(e)
+                self.status = "Odotetaan sovitinta"
+                self._stop.wait(2)
+                continue
             except Exception as e:  # noqa: BLE001
                 self.error = str(e)
                 self.status = "Yhteys katkesi, yritetään uudelleen"

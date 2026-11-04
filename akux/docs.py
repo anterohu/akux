@@ -126,6 +126,25 @@ OHJE = [
         ],
     },
     {
+        "id": "android", "otsikko": "Akux Android-puhelimessa",
+        "osat": [
+            ("p", "Android-sovelluksella koko mittauksen voi tehdä pelkällä puhelimella tai tabletilla. Sovelluksessa "
+                  "on samat toiminnot, mittaukset ja raportit kuin tietokoneohjelmassa."),
+            ("ol", [
+                "Kytke OBDLink EX auton OBD-liitäntään ja USB-C-sovittimella (OTG) puhelimeen.",
+                "Kun Android kysyy, saako Akux käyttää sovitinta, valitse <b>Salli</b>. Voit valita, että Akux avautuu aina, kun sovitin kytketään.",
+                "Paina <b>Yleiskuva</b>-sivulla <b>Yhdistä autoon</b> ja jatka kuten tietokoneella.",
+            ]),
+            ("ul", [
+                "Akux toimii taustalla, ja ilmoitusalueella näkyy merkintä <b>Akux on käynnissä</b>. Mittaus jatkuu, vaikka näyttö sammuu tai vaihdat toiseen sovellukseen.",
+                "Pidä puhelin laturissa pitkän kapasiteettimittauksen ajan. Auton USB-liitäntä käy hyvin.",
+                "Raportit ja varmuuskopiot tallentuvat avattaessa puhelimen <b>Lataukset/Akux</b>-kansioon, josta ne voi jakaa sähköpostilla tai viestillä.",
+                "Sovellus päivitetään asentamalla uusi versio vanhan päälle. Tiedot säilyvät.",
+            ]),
+            ("note", "Kaikki USB-C-sovittimet eivät välitä virtaa ja dataa oikein. Käytä OTG-tuettua sovitinta. Jos sovitin ei näy, kokeile toista sovitinta tai kaapelia."),
+        ],
+    },
+    {
         "id": "ilmoitukset", "otsikko": "Puhelinilmoitukset",
         "osat": [
             ("p", "Ohjelma voi lähettää puhelimeen ilmoituksen, kun mittauksen vaihe vaihtuu, kun mittaus on valmis "
