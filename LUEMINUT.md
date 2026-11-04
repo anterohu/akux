@@ -1,4 +1,4 @@
-# Akux 1.1
+# Akux 1.2
 
 Akux mittaa Tesla Model 3:n ja Model Y:n ajoakun kunnon ja kapasiteetin OBDLink-sovittimella ja tekee tuloksista selkeän ja yksityiskohtaisen PDF-raportin ostajalle, asiakkaalle tai omaan käyttöön.
 
@@ -12,6 +12,14 @@ Asennus tekee kaiken itse: lataa tarvittavat osat, rakentaa sovelluksen **Akux.e
 Asennuksen jälkeen ohjelma avataan pikakuvakkeesta **Akux**. Se avautuu omaan ikkunaansa, eikä erillistä komentoikkunaa ole. Purkamasi kansion voi poistaa asennuksen jälkeen.
 
 Sovellus rakennetaan omalla tietokoneellasi, joten Windowsin SmartScreen ei varoita siitä. Asennus poistaa purettujen tiedostojen latauseston itse.
+
+## Asennus Android-puhelimeen tai -tablettiin
+
+1. Avaa puhelimella GitHubista Akux-repon **Releases**-sivu ja lataa uusin **Akux-x.y.z.apk**.
+2. Avaa ladattu tiedosto. Android kysyy kerran luvan asentaa sovelluksia tästä lähteestä. Salli se.
+3. Avaa Akux. Kytke OBDLink EX auton OBD-liitäntään ja USB-C-sovittimella (OTG) puhelimeen ja salli Akuxille pääsy sovittimeen.
+
+Vaatimus: Android 10 tai uudempi. Päivitys asennetaan samalla tavalla uuden version päälle, ja tiedot säilyvät.
 
 ## Mitä ohjelmassa on
 
@@ -61,7 +69,14 @@ python tests/test_kokonaisuus.py     # pikatarkastus ja kapasiteettimittaus simu
 python tests/test_reunatapaukset.py  # lataustauko, datakatko, ohitukset, keskeytykset
 python tests/test_obdlink.py         # sovittimen alustus ja viestien luku
 python tests/test_yllapito.py        # asetukset, ilmoitukset, varmuuskopio, päivitys, puhelinsuojaus
+python tests/test_android_silta.py   # Android-sovelluksen USB-yhteys ja käynnistys
 ```
+
+GitHub ajaa jokaisen muutoksen jälkeen kaikki testit, oikean Windows-asennuksen sekä Android-sovelluksen rakennuksen ja kokonaistestin Android-emulaattorissa. Hyväksytty Android-versio julkaistaan Releases-sivulle.
+
+## Android-sovelluksen allekirjoitusavain
+
+Android hyväksyy päivityksen vain, jos se on allekirjoitettu samalla avaimella kuin aiempi versio. Avain on repon kansiossa `android/` (`akux.jks` ja `signing.properties`). Säilytä avaimesta varmuuskopio turvallisessa paikassa, ja pidä repo yksityisenä.
 
 ## Lähteet ja lisenssit
 
