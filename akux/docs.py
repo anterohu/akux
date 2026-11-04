@@ -141,11 +141,11 @@ OHJE = [
             ]),
             ("ul", [
                 "Akux toimii taustalla, ja ilmoitusalueella näkyy merkintä <b>Akux on käynnissä</b>. Mittaus jatkuu, vaikka näyttö sammuu tai vaihdat toiseen sovellukseen.",
-                "Pidä puhelin laturissa pitkän kapasiteettimittauksen ajan. Auton USB-liitäntä käy hyvin.",
+                "Kapasiteettimittaus kestää 8–14 tuntia, joten puhelimen on oltava laturissa. Koska EX käyttää puhelimen USB-C-portin, tarvitaan OTG-sovitin, jossa on latausportti (USB-C-hubi, jossa lataus läpi eli PD). Kytke hubiin EX ja laturi.",
                 "Raportit ja varmuuskopiot tallentuvat avattaessa puhelimen <b>Lataukset/Akux</b>-kansioon, josta ne voi jakaa sähköpostilla tai viestillä.",
                 "Sovellus päivitetään asentamalla uusi versio vanhan päälle. Tiedot säilyvät.",
             ]),
-            ("note", "Kaikki USB-C-sovittimet eivät välitä virtaa ja dataa oikein. Käytä OTG-tuettua sovitinta. Jos sovitin ei näy, kokeile toista sovitinta tai kaapelia."),
+            ("note", "Kaikki USB-C-sovittimet eivät välitä dataa ja latausvirtaa yhtä aikaa. Valitse OTG-tuettu sovitin, jossa on PD-latausportti. Jos EX ei näy, kokeile toista sovitinta tai kaapelia. Lyhyeen pikatarkastukseen riittää tavallinen OTG-sovitin."),
         ],
     },
     {

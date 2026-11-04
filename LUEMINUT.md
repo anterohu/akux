@@ -8,7 +8,7 @@ Valmiit ohjelmat ovat GitHubin **Releases**-sivulla: https://github.com/anterohu
 
 **Windows:** lataa `Akux-asennus-x.y.z.exe` ja aja se. Asennus lisää pikakuvakkeen työpöydälle ja Käynnistä-valikkoon. Jos Windows näyttää ilmoituksen *Windows suojasi tietokonettasi*, valitse **Lisätietoja → Suorita silti**. Ilmoitus tulee vain asennusohjelmasta kerran jokaista uutta versiota kohden, ei itse ohjelmasta.
 
-**Android (10 tai uudempi):** lataa `Akux-x.y.z.apk` puhelimeen ja avaa se. Android kysyy kerran luvan asentaa sovelluksia tästä lähteestä. Kytke OBDLink EX välikaapelilla auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen ja salli Akuxille pääsy sovittimeen. Diagnostiikkaliitin on keskikonsolin takapäässä: vuosien 2019–2020 autoissa 20-pinninen ja 2021 alkaen 26-pinninen. Jalkatilan OBD-liitäntä ei välitä akun tietoja.
+**Android (10 tai uudempi):** lataa `Akux-x.y.z.apk` puhelimeen ja avaa se. Android kysyy kerran luvan asentaa sovelluksia tästä lähteestä. Kytke OBDLink EX välikaapelilla auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen ja salli Akuxille pääsy sovittimeen. Diagnostiikkaliitin on keskikonsolin takapäässä: vuosien 2019–2020 autoissa 20-pinninen ja 2021 alkaen 26-pinninen. Jalkatilan OBD-liitäntä ei välitä akun tietoja. Kapasiteettimittaukseen (8–14 h) tarvitaan OTG-sovitin, jossa on PD-latausportti, jotta puhelin latautuu mittauksen ajan.
 
 **Päivitys:** lataa uusi versio samasta paikasta ja asenna se vanhan päälle. Autot, mittaukset, raportit ja asetukset säilyvät. Mitään tiedostoja ei tarvitse poistaa, siirtää eikä nimetä uudelleen.
 
