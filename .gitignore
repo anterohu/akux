@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+rakennus/
+build/
+dist/
+*.egg-info/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/

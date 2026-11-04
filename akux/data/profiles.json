@@ -1,0 +1,102 @@
+{
+  "selite": "Automallipohjat. Viitekapasiteetit ovat likiarvoja, joita käytetään vain, jos auton akunhallinta ei ilmoita alkuperäistä energiaa. Ohjelma tarkentaa auton tiedot ensimmäisen mittauksen jälkeen.",
+  "kemiat": {
+    "NCA": {
+      "nimi": "NCA (nikkeli-koboltti-alumiini)",
+      "kenno_v_min": 2.5,
+      "kenno_v_max": 4.2,
+      "ocv": [3.00, 3.40, 3.50, 3.58, 3.64, 3.71, 3.80, 3.88, 3.97, 4.07, 4.17],
+      "ocv_soc_arvio": true
+    },
+    "NMC": {
+      "nimi": "NMC/NCMA (nikkeli-mangaani-koboltti)",
+      "kenno_v_min": 2.5,
+      "kenno_v_max": 4.2,
+      "ocv": [3.10, 3.45, 3.55, 3.61, 3.66, 3.73, 3.82, 3.91, 4.00, 4.09, 4.18],
+      "ocv_soc_arvio": true
+    },
+    "LFP": {
+      "nimi": "LFP (litiumrautafosfaatti)",
+      "kenno_v_min": 2.5,
+      "kenno_v_max": 3.65,
+      "ocv": [2.80, 3.20, 3.25, 3.28, 3.29, 3.30, 3.31, 3.32, 3.33, 3.35, 3.55],
+      "ocv_soc_arvio": false
+    }
+  },
+  "takuu": {
+    "vakio": {"vuotta": 8, "km": 160000, "sailyvyys_pct": 70},
+    "pitka": {"vuotta": 8, "km": 192000, "sailyvyys_pct": 70}
+  },
+  "mallit": [
+    {
+      "id": "m3-srplus-2019-nca",
+      "nimi": "Model 3 Standard Range Plus (2019–2020)",
+      "malli_koodi": "3", "vuodet": [2019, 2020], "tehtaat": ["Fremont"], "veto": ["RWD"],
+      "kemia": "NCA", "kennovalmistaja": "Panasonic", "sarjakennot": 96,
+      "viite_kwh": 55.0, "takuu": "vakio"
+    },
+    {
+      "id": "m3-lr-2019-2020-nca",
+      "nimi": "Model 3 Long Range / Performance (2019–2020)",
+      "malli_koodi": "3", "vuodet": [2019, 2020], "tehtaat": ["Fremont"], "veto": ["AWD", "PERF", "RWD"],
+      "kemia": "NCA", "kennovalmistaja": "Panasonic", "sarjakennot": 96,
+      "viite_kwh": 80.5, "takuu": "pitka"
+    },
+    {
+      "id": "m3-lr-2021-panasonic",
+      "nimi": "Model 3 Long Range / Performance (2021–2023, Fremont)",
+      "malli_koodi": "3", "vuodet": [2021, 2022, 2023], "tehtaat": ["Fremont"], "veto": ["AWD", "PERF"],
+      "kemia": "NCA", "kennovalmistaja": "Panasonic", "sarjakennot": 96,
+      "viite_kwh": 82.0, "takuu": "pitka"
+    },
+    {
+      "id": "m3-lr-2021-lg",
+      "nimi": "Model 3 Long Range / Performance (2021–2023, Shanghai)",
+      "malli_koodi": "3", "vuodet": [2021, 2022, 2023], "tehtaat": ["Shanghai"], "veto": ["AWD", "PERF"],
+      "kemia": "NMC", "kennovalmistaja": "LG Energy Solution", "sarjakennot": 96,
+      "viite_kwh": 78.8, "takuu": "pitka"
+    },
+    {
+      "id": "m3-srplus-2021-lfp",
+      "nimi": "Model 3 Standard Range Plus LFP (2021)",
+      "malli_koodi": "3", "vuodet": [2020, 2021], "tehtaat": ["Shanghai"], "veto": ["RWD"],
+      "kemia": "LFP", "kennovalmistaja": "CATL", "sarjakennot": 106,
+      "viite_kwh": 55.0, "takuu": "vakio"
+    },
+    {
+      "id": "m3-rwd-2022-lfp",
+      "nimi": "Model 3 RWD LFP (2022–2023)",
+      "malli_koodi": "3", "vuodet": [2022, 2023], "tehtaat": ["Shanghai"], "veto": ["RWD"],
+      "kemia": "LFP", "kennovalmistaja": "CATL", "sarjakennot": 106,
+      "viite_kwh": 60.0, "takuu": "vakio"
+    },
+    {
+      "id": "m3-highland-rwd-lfp",
+      "nimi": "Model 3 RWD LFP (2024–)",
+      "malli_koodi": "3", "vuodet": [2024, 2025, 2026], "tehtaat": ["Shanghai"], "veto": ["RWD"],
+      "kemia": "LFP", "kennovalmistaja": "CATL", "sarjakennot": 106,
+      "viite_kwh": 60.0, "takuu": "vakio"
+    },
+    {
+      "id": "m3-highland-lr",
+      "nimi": "Model 3 Long Range / Performance (2024–)",
+      "malli_koodi": "3", "vuodet": [2024, 2025, 2026], "tehtaat": ["Shanghai", "Fremont"], "veto": ["AWD", "PERF", "RWD"],
+      "kemia": "NMC", "kennovalmistaja": "LG Energy Solution", "sarjakennot": 96,
+      "viite_kwh": 78.8, "takuu": "pitka"
+    },
+    {
+      "id": "my-lr-nmc",
+      "nimi": "Model Y Long Range / Performance (2021–)",
+      "malli_koodi": "Y", "vuodet": [2021, 2022, 2023, 2024, 2025, 2026], "tehtaat": ["Berliini", "Shanghai", "Fremont"], "veto": ["AWD", "PERF", "RWD"],
+      "kemia": "NMC", "kennovalmistaja": "LG Energy Solution / Panasonic", "sarjakennot": 96,
+      "viite_kwh": 78.8, "takuu": "pitka"
+    },
+    {
+      "id": "my-rwd-lfp",
+      "nimi": "Model Y RWD LFP (2022–)",
+      "malli_koodi": "Y", "vuodet": [2022, 2023, 2024, 2025, 2026], "tehtaat": ["Shanghai", "Berliini"], "veto": ["RWD"],
+      "kemia": "LFP", "kennovalmistaja": "CATL / BYD", "sarjakennot": 106,
+      "viite_kwh": 60.0, "takuu": "vakio"
+    }
+  ]
+}

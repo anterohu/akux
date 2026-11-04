@@ -1,0 +1,83 @@
+name: Akux
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  testit:
+    name: Testit (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Kokonaisuus
+        run: python tests/test_kokonaisuus.py
+      - name: Reunatapaukset
+        run: python tests/test_reunatapaukset.py
+      - name: Sovitin
+        run: python tests/test_obdlink.py
+      - name: Ylläpito
+        run: python tests/test_yllapito.py
+
+  windows:
+    name: Windows-asennus
+    runs-on: windows-latest
+    needs: testit
+    steps:
+      - uses: actions/checkout@v4
+      - name: Aja Asenna.bat
+        shell: cmd
+        run: call Asenna.bat
+      - name: Tarkista asennus ja käynnistys
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:LOCALAPPDATA "Programs\Akux\Akux.exe"
+          if (-not (Test-Path $exe)) { throw "Akux.exe puuttuu" }
+          $lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) "Akux.lnk"
+          if (-not (Test-Path $lnk)) { throw "Pikakuvake puuttuu" }
+          $ok = $false
+          for ($i = 0; $i -lt 60; $i++) {
+            try { $r = Invoke-RestMethod http://127.0.0.1:8765/api/tila -TimeoutSec 2; if ($r.nimi -eq "Akux") { $ok = $true; break } } catch {}
+            Start-Sleep 2
+          }
+          if (-not $ok) {
+            Get-Content (Join-Path $env:APPDATA "Akux\loki.txt") -ErrorAction SilentlyContinue
+            throw "Akux ei käynnistynyt"
+          }
+          Write-Host "Akux $($r.versio) käynnissä"
+      - name: Laaduntarkistus asennetussa sovelluksessa
+        shell: pwsh
+        run: |
+          $q = Invoke-RestMethod "http://127.0.0.1:8765/api/yllapito/tarkistus" -TimeoutSec 180
+          $q.tarkistukset | Format-Table nimi, tila, tieto -AutoSize | Out-String -Width 200 | Write-Host
+          $bad = $q.tarkistukset | Where-Object { $_.tila -eq "virhe" -and $_.nimi -ne "Sovittimen yhteys" }
+          if ($bad) { throw "Laaduntarkistuksessa virheitä" }
+          $s = $q.tarkistukset | Where-Object { $_.nimi -eq "Sovittimen yhteys" }
+          if ($s.tieto -like "*puuttuu*") { throw "Sarjaporttiosa puuttuu sovelluksesta" }
+      - name: Mittaus ja raportti asennetussa sovelluksessa
+        shell: pwsh
+        run: |
+          $b = "http://127.0.0.1:8765"
+          Invoke-RestMethod "$b/api/yhdista" -Method Post -ContentType "application/json" -Body '{"tyyppi":"demo","soc":60,"nopeutus":60}' | Out-Null
+          Start-Sleep 6
+          $t = Invoke-RestMethod "$b/api/tila"
+          $v = Invoke-RestMethod "$b/api/ajoneuvot" -Method Post -ContentType "application/json" -Body (@{vin=$t.live.vin; rekisteri="CI-1"} | ConvertTo-Json)
+          $m = Invoke-RestMethod "$b/api/mittaukset" -Method Post -ContentType "application/json" -Body (@{ajoneuvo_id=$v.id; tyyppi="pikatarkastus"} | ConvertTo-Json)
+          for ($i = 0; $i -lt 60; $i++) { $t = Invoke-RestMethod "$b/api/tila"; if (-not $t.mittaus) { break }; Start-Sleep 2 }
+          $r = Invoke-RestMethod "$b/api/mittaukset/$($m.id)"
+          if ($r.tila -ne "valmis") { throw "Mittaus ei valmistunut: $($r.tila)" }
+          Invoke-WebRequest "$b/api/mittaukset/$($m.id)/raportti.pdf" -OutFile raportti.pdf
+          if ((Get-Item raportti.pdf).Length -lt 50000) { throw "Raportti liian pieni" }
+          Write-Host "Kunto $($r.tulos.yhteenveto.kunto_pct) %"
+          Invoke-RestMethod "$b/api/sulje" -Method Post -ContentType "application/json" -Body '{}' | Out-Null
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-raportti
+          path: raportti.pdf
+          if-no-files-found: ignore
