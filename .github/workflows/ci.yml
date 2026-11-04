@@ -29,7 +29,6 @@ jobs:
   windows:
     name: Windows-asennus
     runs-on: windows-latest
-    needs: testit
     steps:
       - uses: actions/checkout@v4
       - name: Aja Asenna.bat
@@ -97,7 +96,6 @@ jobs:
   android:
     name: Android-sovellus
     runs-on: ubuntu-latest
-    needs: testit
     permissions:
       contents: write
     steps:
