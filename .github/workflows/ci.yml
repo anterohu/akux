@@ -161,7 +161,9 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -memory 4096
-          script: gradle -p android --no-daemon connectedDebugAndroidTest
+          script: |
+            adb logcat -c || true
+            gradle -p android --no-daemon connectedDebugAndroidTest || { echo "=== LOKI ==="; adb logcat -d | grep -iE "akux|python|chaquopy|AndroidRuntime|FATAL|lowmemory|am_kill|died" | tail -n 300; exit 1; }
       - name: Nimeä sovellus
         run: |
           V=$(python3 -c "import re;print(re.search(r'VERSIO = \"([^\"]+)\"', open('akux/__init__.py').read()).group(1))")
