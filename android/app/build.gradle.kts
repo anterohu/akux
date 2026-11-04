@@ -72,6 +72,7 @@ val copyAkux by tasks.registering(Copy::class) {
     into(layout.buildDirectory.dir("pysrc/akux"))
 }
 tasks.named("preBuild") { dependsOn(copyAkux) }
+tasks.matching { it.name.contains("Python") && it.name != "copyAkux" }.configureEach { dependsOn(copyAkux) }
 
 chaquopy {
     defaultConfig {
