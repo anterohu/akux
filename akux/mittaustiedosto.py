@@ -130,7 +130,7 @@ def inspect(data: bytes) -> dict:
     return m
 
 
-def import_file(storage, data: bytes) -> dict:
+def import_file(storage, data: bytes, merkitse: bool = True) -> dict:
     """Avaa mittaustiedoston ohjelmaan. Auto yhdistetään valmistenumeron perusteella.
     Jos sama mittaus on jo ohjelmassa, sitä ei tuoda uudelleen."""
     m = inspect(data)
@@ -173,5 +173,6 @@ def import_file(storage, data: bytes) -> dict:
         storage.add_snapshot(tid, s["t"], s["nimi"], s["data"])
     for e in json.loads(z.read("tapahtumat.json")):
         storage.add_event(tid, e["t"], e["teksti"])
-    storage.add_event(tid, time.time(), f"Mittaus avattiin tiedostosta (tallennettu versiolla {m.get('ohjelman_versio')})")
+    if merkitse:
+        storage.add_event(tid, time.time(), f"Mittaus avattiin tiedostosta (tallennettu versiolla {m.get('ohjelman_versio')})")
     return {"id": tid, "uusi": True, "ajoneuvo_id": vid, "uusi_ajoneuvo": new_vehicle}

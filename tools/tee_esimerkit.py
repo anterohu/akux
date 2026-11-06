@@ -20,9 +20,9 @@ OUT = ROOT / "akux" / "data" / "esimerkit"
 
 AUTOT = [
     # auto, nimi, rekisteri, käyttöönotto, mittarilukema, kapasiteetti?, lähtövaraus
-    ("m3-lfp", "Esimerkki: Model 3 SR+ LFP", "ESIM-301", "15.12.2020", 98500, True, 0.09),
-    ("my-lr", "Esimerkki: Model Y Long Range", "ESIM-302", "3.6.2022", 64200, False, 0.62),
-    ("ms-85", "Esimerkki: Model S 85", "ESIM-303", "20.4.2015", 187000, True, 0.11),
+    ("m3-lfp", "Model 3 SR+ LFP", "ESIM-301", "15.12.2020", 98500, True, 0.09),
+    ("my-lr", "Model Y Long Range", "ESIM-302", "3.6.2022", 64200, False, 0.62),
+    ("ms-85", "Model S 85", "ESIM-303", "20.4.2015", 187000, True, 0.11),
 ]
 
 

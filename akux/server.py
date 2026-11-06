@@ -503,8 +503,11 @@ class Api:
         folder = Path(__file__).parent / "data" / "esimerkit"
         n = 0
         for f in sorted(folder.glob("*.akux")):
-            r = mittaustiedosto.import_file(st, f.read_bytes())
+            r = mittaustiedosto.import_file(st, f.read_bytes(), merkitse=False)
             st.learn(r["ajoneuvo_id"], {"esimerkki": True})
+            v = st.vehicle(r["ajoneuvo_id"]) or {}
+            if (v.get("nimi") or "").startswith("Esimerkki: "):
+                st.update_vehicle(r["ajoneuvo_id"], {"nimi": v["nimi"][len("Esimerkki: "):]})
             t = st.test(r["id"])
             meta = (t.get("tulos") or {}).get("meta")
             if meta:

@@ -59,7 +59,7 @@ ST = {
     "cell": ParagraphStyle("cell", fontName="Inter", fontSize=8.4, leading=11, textColor=INK),
     "cellb": ParagraphStyle("cellb", fontName="Inter-Medium", fontSize=8.4, leading=11, textColor=INK),
     "cellr": ParagraphStyle("cellr", fontName="Inter", fontSize=8.4, leading=11, textColor=INK, alignment=TA_RIGHT),
-    "kpi_val": ParagraphStyle("kpi_val", fontName="Inter-SemiBold", fontSize=22, leading=26, textColor=INK),
+    "kpi_val": ParagraphStyle("kpi_val", fontName="Inter-SemiBold", fontSize=17, leading=21, textColor=INK),
     "kpi_unit": ParagraphStyle("kpi_unit", fontName="Inter", fontSize=8, leading=11, textColor=MUTED),
     "mono": ParagraphStyle("mono", fontName="Inter", fontSize=7, leading=9.5, textColor=MUTED),
 }
@@ -69,14 +69,20 @@ def P(text, style="body"):
     return Paragraph(text, ST[style] if isinstance(style, str) else style)
 
 
+GRADE_LEVEL = {"Erinomainen": 4, "Kunnossa": 4, "Hyvä": 3, "Tyydyttävä": 2, "Huomioitava": 2,
+               "Heikentynyt": 1, "Poikkeava": 1, "Takuurajan alittava": 1}
+GRADE_TONE = {4: "#1F4E79", 3: "#1F4E79", 2: "#B7791F", 1: "#B42318"}
+
+
 class Pill(Flowable):
+    """Luokan merkintä: neliportainen tasomittari ja luokan nimi."""
+
     def __init__(self, text):
         super().__init__()
         self.text = text or ""
-        bg, fg = CLASS_COLORS.get(self.text, ("#EEF0F3", "#454E5A"))
-        self.bg, self.fg = colors.HexColor(bg), colors.HexColor(fg)
-        self.w = pdfmetrics.stringWidth(self.text, "Inter-Medium", 7.6) + 10
-        self.h = 13
+        self.level = GRADE_LEVEL.get(self.text, 0)
+        self.w = 13 + pdfmetrics.stringWidth(self.text, "Inter-Medium", 7.6)
+        self.h = 10
 
     def wrap(self, aw, ah):
         return (self.w, self.h) if self.text else (0, 0)
@@ -85,42 +91,86 @@ class Pill(Flowable):
         if not self.text:
             return
         c = self.canv
-        c.setFillColor(self.bg)
-        c.roundRect(0, 0, self.w, self.h, 6.5, stroke=0, fill=1)
-        c.setFillColor(self.fg)
+        tone = colors.HexColor(GRADE_TONE.get(self.level, "#6B7480"))
+        for k in range(4):
+            hh = 3 + k * 1.7
+            c.setFillColor(tone if k < self.level else LINE)
+            c.rect(k * 2.4, 1.2, 1.6, hh, stroke=0, fill=1)
+        c.setFillColor(INK)
         c.setFont("Inter-Medium", 7.6)
-        c.drawString(5, 3.9, self.text)
+        c.drawString(13, 2, self.text)
 
 
-class SohBar(Flowable):
-    def __init__(self, pct, width, unc=None):
+class SohHero(Flowable):
+    """Etusivun kuntonäyttö: suuri prosenttiluku ja viisiportainen luokka-asteikko."""
+    SEGMENTS = [(0, 70, "Alle 70 %", "Takuurajan alittava"), (70, 80, "70–80 %", "Heikentynyt"),
+                (80, 85, "80–85 %", "Tyydyttävä"), (85, 90, "85–90 %", "Hyvä"), (90, 101, "90–100 %", "Erinomainen")]
+
+    def __init__(self, pct, width, caption, note=""):
         super().__init__()
-        self.pct, self.width, self.unc = pct, width, unc
+        self.pct, self.width, self.caption, self.note = pct, width, caption, note
+        self.height = 43 * mm
 
     def wrap(self, aw, ah):
-        return self.width, 16
+        return self.width, self.height
 
     def draw(self):
         c = self.canv
-        lo = 60.0
-        x = lambda p: (min(100, max(lo, p)) - lo) / (100 - lo) * self.width  # noqa: E731
-        bands = [(lo, 70, "#F3D3CF"), (70, 80, "#F7E2C4"), (80, 90, "#DCE8F3"), (90, 100, "#D5EBDD")]
-        for a, b, col in bands:
-            c.setFillColor(colors.HexColor(col))
-            c.rect(x(a), 8, x(b) - x(a), 5, stroke=0, fill=1)
-        if self.unc:
-            c.setFillColor(colors.HexColor("#1B2430"))
-            c.setFillAlpha(0.18)
-            c.rect(x(self.pct - self.unc), 6.5, max(1, x(self.pct + self.unc) - x(self.pct - self.unc)), 8,
-                   stroke=0, fill=1)
-            c.setFillAlpha(1)
-        px = x(self.pct)
-        c.setFillColor(INK)
-        c.rect(px - 1, 5.5, 2, 10, stroke=0, fill=1)
-        c.setFont("Inter", 6.2)
+        w, h = self.width, self.height
+        c.setFillColor(PANEL)
+        c.roundRect(0, 0, w, h, 2.5 * mm, stroke=0, fill=1)
+        cx = w / 2
         c.setFillColor(MUTED)
-        for p in (60, 70, 80, 90, 100):
-            c.drawCentredString(x(p), 0, f"{p}")
+        c.setFont("Inter-Medium", 7.4)
+        c.drawCentredString(cx, h - 6.5 * mm, "AKUN KUNTO (SOH)")
+        if self.pct is None:
+            c.setFont("Inter-SemiBold", 30)
+            c.setFillColor(INK)
+            c.drawCentredString(cx, h - 21 * mm, "–")
+            return
+        val = fmt(self.pct)
+        c.setFillColor(INK)
+        c.setFont("Inter-SemiBold", 40)
+        vw = pdfmetrics.stringWidth(val, "Inter-SemiBold", 40)
+        uw = pdfmetrics.stringWidth(" %", "Inter-SemiBold", 22)
+        x0 = cx - (vw + uw) / 2
+        c.drawString(x0, h - 20.5 * mm, val)
+        c.setFont("Inter-SemiBold", 22)
+        c.setFillColor(MUTED)
+        c.drawString(x0 + vw, h - 20.5 * mm, " %")
+        # asteikko
+        sw = min(w - 24 * mm, 150 * mm)
+        sx = cx - sw / 2
+        sy = 11 * mm
+        seg_w = sw / len(self.SEGMENTS)
+        gap = 1.2
+        active = next(k for k, (lo, hi, _, _) in enumerate(self.SEGMENTS) if lo <= self.pct < hi or
+                      (k == len(self.SEGMENTS) - 1 and self.pct >= lo))
+        for k, (lo, hi, rng, name) in enumerate(self.SEGMENTS):
+            x = sx + k * seg_w
+            on = k == active
+            c.setFillColor(ACCENT if on else colors.HexColor("#DDE2E8"))
+            c.rect(x + gap / 2, sy, seg_w - gap, 2.4 * mm, stroke=0, fill=1)
+            c.setFont("Inter-SemiBold" if on else "Inter", 7.0)
+            c.setFillColor(INK if on else MUTED)
+            c.drawCentredString(x + seg_w / 2, sy - 4.2 * mm, name)
+            c.setFont("Inter", 6.4)
+            c.setFillColor(MUTED)
+            c.drawCentredString(x + seg_w / 2, sy - 7.4 * mm, rng)
+        # merkki aktiivisen lohkon kohdalle
+        lo, hi = self.SEGMENTS[active][0], min(self.SEGMENTS[active][1], 100)
+        frac = 0.5 if hi <= lo else (min(max(self.pct, lo), hi) - lo) / (hi - lo)
+        mx = sx + active * seg_w + gap / 2 + frac * (seg_w - gap)
+        c.setFillColor(INK)
+        pth = c.beginPath()
+        pth.moveTo(mx - 1.6 * mm, sy + 4.4 * mm)
+        pth.lineTo(mx + 1.6 * mm, sy + 4.4 * mm)
+        pth.lineTo(mx, sy + 2.7 * mm)
+        pth.close()
+        c.drawPath(pth, stroke=0, fill=1)
+        c.setFont("Inter", 7.2)
+        c.setFillColor(MUTED)
+        c.drawCentredString(cx, 18 * mm, self.caption)
 
 
 def _table(rows, widths, header=True, zebra=False, valign="MIDDLE", pad=4):
@@ -393,7 +443,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         head += [Spacer(1, 2), P(f"Rekisterinumero <b>{reg}</b>", "sub")]
     photo = storage.vehicle_photo(test["vehicle_id"])
     if photo.exists():
-        pw, ph = 62 * mm, 38 * mm
+        pw, ph = 56 * mm, 32 * mm
         try:
             img = _photo(photo, pw, ph)
         except Exception:  # noqa: BLE001
@@ -423,31 +473,31 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
             cell += [Spacer(1, 4), extra]
         return cell
 
-    kw = CW / 3
     if soh is not None:
-        unc_pct = (cap.get("soh_epavarmuus_pct") if summ.get("kunto_lahde") == "Kapasiteettimittaus" else None)
-        lahde_txt = {"Kapasiteettimittaus": "kapasiteettimittaus",
+        lahde_txt = {"Kapasiteettimittaus": "Kapasiteettimittaus",
                      "Akunhallinnan arvio": "Teslan akunhallinta"}.get(summ.get("kunto_lahde"),
-                                                                              (summ.get("kunto_lahde") or "").lower())
-        kpis.append(kpi("AKUN KUNTO (SOH)", f"{fmt(soh)} %",
-                        f"{summ.get('kunto_luokka')}  ·  {lahde_txt}",
-                        SohBar(soh, kw - 10 * mm, unc_pct)))
+                                                                       summ.get("kunto_lahde") or "")
+        cap_pct = cap.get("soh_epavarmuus_pct") if summ.get("kunto_lahde") == "Kapasiteettimittaus" else None
+        caption = lahde_txt + (f"  ·  ±{fmt(cap_pct)} %-yks." if cap_pct else "")
     else:
-        kpis.append(kpi("AKUN KUNTO (SOH)", "–", "Ei laskettavissa"))
+        caption = "Ei laskettavissa"
+    E.append(SohHero(soh, CW, caption))
+    E.append(Spacer(1, 3 * mm))
     _kk = r.get("kapasiteetit") or {}
-    _net = f"netto {fmt(_kk['netto_nyt'])} kWh" if _kk.get("netto_nyt") else None
-    kpis.append(kpi("KAPASITEETTI (BRUTTO)", f"{fmt(kwh)} kWh" if kwh else "–",
-                    "  ·  ".join(x for x in ((f"±{fmt(unc)} kWh" if unc else None), _net) if x)
-                    or f"Uutena {fmt(r['viite']['kwh'])} kWh"))
+    kw = CW / 3
+    kpis.append(kpi("KAPASITEETTI NYT (BRUTTO)", f"{fmt(kwh)} kWh" if kwh else "–",
+                    (f"±{fmt(unc)} kWh  ·  " if unc else "") + f"uutena {fmt(r['viite']['kwh'])} kWh"))
+    kpis.append(kpi("KÄYTETTÄVÄ ENERGIA (NETTO)", f"{fmt(_kk['netto_nyt'])} kWh" if _kk.get("netto_nyt") else "–",
+                    f"Puskuri {fmt(_kk['puskuri_kwh'], 1)} kWh" if _kk.get("puskuri_kwh") is not None else ""))
     kpis.append(kpi("KENNORYHMIEN JÄNNITE-ERO", f"{fmt(cs['ero_mv'], 0)} mV" if cs else "–",
                     f"{cs['luokka']}  ·  {cs['lkm']} kennoryhmää" if cs else "Ei mitattu"))
     kt = Table([kpis], colWidths=[kw, kw, kw], hAlign="LEFT")
     kt.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), PANEL),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 5 * mm), ("RIGHTPADDING", (0, 0), (-1, -1), 4 * mm),
-        ("TOPPADDING", (0, 0), (-1, -1), 4.5 * mm), ("BOTTOMPADDING", (0, 0), (-1, -1), 4.5 * mm),
-        ("LINEAFTER", (0, 0), (1, 0), 0.8, colors.white),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4 * mm), ("RIGHTPADDING", (0, 0), (-1, -1), 3 * mm),
+        ("TOPPADDING", (0, 0), (-1, -1), 2.5 * mm), ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5 * mm),
+        ("LINEAFTER", (0, 0), (1, 0), 0.6, LINE),
+        ("LINEBELOW", (0, 0), (-1, -1), 0.6, LINE),
     ]))
     E.append(kt)
     E.append(Spacer(1, 2.2 * mm))
@@ -462,11 +512,8 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     if tesla:
         src_line = "Teslan akunhallinta: " + ", ".join(tesla) + ". " + src_line
     E.append(P(src_line, "small"))
-    E.append(Spacer(1, 4.5 * mm))
-    E.append(P("Yhteenveto", "h3"))
-    E.append(P(summ.get("teksti", ""), "body"))
+    E.append(Spacer(1, 4 * mm))
     if summ.get("tulkinta"):
-        E.append(Spacer(1, 3 * mm))
         box = Table([[P("MITÄ TULOS TARKOITTAA", "label")], [P(summ["tulkinta"], "smallink")]], colWidths=[CW])
         box.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, -1), PANEL), ("LINEBEFORE", (0, 0), (0, -1), 2.2, ACCENT),
@@ -512,6 +559,9 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     for a in r.get("arviot", []):
         rows.append([P(a["nimi"], "cellb"), P(a["arvo"], "cell"), Pill(a.get("luokka")), P(a["kuvaus"], "small")])
     E.append(PageBreak())
+    E.append(P("Yhteenveto", "h2"))
+    E.append(P(summ.get("teksti", ""), "body"))
+    E.append(Spacer(1, 5 * mm))
     E.append(P("Arviot", "h2"))
     E.append(P("Jokainen arvio on luokiteltu menetelmäsivulla kuvattujen rajojen mukaan. Luokat: erinomainen, "
                "hyvä, tyydyttävä, heikentynyt ja poikkeava.", "small"))
