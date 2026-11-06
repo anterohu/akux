@@ -91,7 +91,8 @@
       "sarjakennot": 96,
       "viite_kwh": 55.0,
       "takuu": "vakio",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA"
     },
     {
       "id": "m3-lr-2019-2020-nca",
@@ -114,7 +115,8 @@
       "sarjakennot": 96,
       "viite_kwh": 80.5,
       "takuu": "pitka",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA"
     },
     {
       "id": "m3-lr-2021-panasonic",
@@ -137,7 +139,8 @@
       "sarjakennot": 96,
       "viite_kwh": 82.0,
       "takuu": "pitka",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA"
     },
     {
       "id": "m3-lr-2021-lg",
@@ -160,7 +163,8 @@
       "sarjakennot": 96,
       "viite_kwh": 78.8,
       "takuu": "pitka",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "LG Energy Solution 2170 -lieriökenno, NMC"
     },
     {
       "id": "m3-srplus-2021-lfp",
@@ -181,7 +185,8 @@
       "sarjakennot": 106,
       "viite_kwh": 55.0,
       "takuu": "vakio",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "CATL prismaattinen kenno, LFP"
     },
     {
       "id": "m3-rwd-2022-lfp",
@@ -202,7 +207,8 @@
       "sarjakennot": 106,
       "viite_kwh": 60.0,
       "takuu": "vakio",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "CATL prismaattinen kenno, LFP"
     },
     {
       "id": "m3-highland-rwd-lfp",
@@ -225,7 +231,8 @@
       "sarjakennot": 106,
       "viite_kwh": 60.0,
       "takuu": "vakio",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "CATL prismaattinen kenno, LFP"
     },
     {
       "id": "m3-highland-lr",
@@ -249,9 +256,10 @@
       "kemia": "NMC",
       "kennovalmistaja": "LG Energy Solution",
       "sarjakennot": 96,
-      "viite_kwh": 78.8,
+      "viite_kwh": 82.0,
       "takuu": "pitka",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "LG Energy Solution 2170 -lieriökenno, NMC"
     },
     {
       "id": "my-lr-nmc",
@@ -280,32 +288,31 @@
       "sarjakennot": 96,
       "viite_kwh": 78.8,
       "takuu": "pitka",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "LG Energy Solution 2170 -lieriökenno, NMC"
     },
     {
       "id": "my-rwd-lfp",
-      "nimi": "Model Y RWD LFP (2022–)",
+      "nimi": "Model Y RWD LFP (2022–2024, Shanghai)",
       "malli_koodi": "Y",
       "vuodet": [
         2022,
         2023,
-        2024,
-        2025,
-        2026
+        2024
       ],
       "tehtaat": [
-        "Shanghai",
-        "Berliini"
+        "Shanghai"
       ],
       "veto": [
         "RWD"
       ],
       "kemia": "LFP",
-      "kennovalmistaja": "CATL / BYD",
+      "kennovalmistaja": "CATL",
       "sarjakennot": 106,
-      "viite_kwh": 60.0,
+      "viite_kwh": 62.5,
       "takuu": "vakio",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "CATL prismaattinen kenno, LFP"
     },
     {
       "id": "m3-mr-2019-nca",
@@ -326,7 +333,8 @@
       "sarjakennot": 96,
       "viite_kwh": 62.0,
       "takuu": "vakio",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA"
     },
     {
       "id": "m3-lr-2017-2018-nca",
@@ -349,7 +357,8 @@
       "sarjakennot": 96,
       "viite_kwh": 80.5,
       "takuu": "pitka",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA"
     },
     {
       "id": "my-lr-fremont-nca",
@@ -374,7 +383,8 @@
       "sarjakennot": 96,
       "viite_kwh": 81.0,
       "takuu": "pitka",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA"
     },
     {
       "id": "my-4680",
@@ -396,7 +406,8 @@
       "sarjakennot": null,
       "viite_kwh": 67.5,
       "takuu": "vakio",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "Tesla 4680 -lieriökenno, NMC"
     },
     {
       "id": "my-juniper-lr",
@@ -419,11 +430,12 @@
         "RWD"
       ],
       "kemia": "NMC",
-      "kennovalmistaja": "LG Energy Solution / Panasonic",
+      "kennovalmistaja": "LG Energy Solution",
       "sarjakennot": 96,
-      "viite_kwh": 78.4,
+      "viite_kwh": 84.0,
       "takuu": "pitka",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "LG Energy Solution 2170 -lieriökenno, NMC"
     },
     {
       "id": "my-juniper-lfp",
@@ -442,11 +454,12 @@
         "RWD"
       ],
       "kemia": "LFP",
-      "kennovalmistaja": "CATL / BYD",
+      "kennovalmistaja": "CATL",
       "sarjakennot": 106,
       "viite_kwh": 62.5,
       "takuu": "vakio",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "CATL prismaattinen kenno, LFP"
     },
     {
       "id": "sx-60",
@@ -472,7 +485,9 @@
       "viite_kwh": 58.5,
       "takuu": "vakio",
       "alusta": "sx",
-      "likiarvo": true
+      "likiarvo": true,
+      "kennotyyppi": "Panasonic 18650 -lieriökenno, NCA",
+      "akku_lyhyt": "60 kWh akku"
     },
     {
       "id": "sx-70",
@@ -498,7 +513,9 @@
       "viite_kwh": 68.5,
       "takuu": "vakio",
       "alusta": "sx",
-      "likiarvo": true
+      "likiarvo": true,
+      "kennotyyppi": "Panasonic 18650 -lieriökenno, NCA",
+      "akku_lyhyt": "70 kWh akku"
     },
     {
       "id": "sx-75",
@@ -523,7 +540,9 @@
       "viite_kwh": 72.6,
       "takuu": "vakio",
       "alusta": "sx",
-      "likiarvo": true
+      "likiarvo": true,
+      "kennotyyppi": "Panasonic 18650 -lieriökenno, NCA",
+      "akku_lyhyt": "75 kWh akku"
     },
     {
       "id": "sx-85",
@@ -550,7 +569,9 @@
       "viite_kwh": 81.5,
       "takuu": "vakio",
       "alusta": "sx",
-      "likiarvo": true
+      "likiarvo": true,
+      "kennotyyppi": "Panasonic 18650 -lieriökenno, NCA",
+      "akku_lyhyt": "85 kWh akku"
     },
     {
       "id": "sx-90",
@@ -574,7 +595,9 @@
       "viite_kwh": 85.8,
       "takuu": "vakio",
       "alusta": "sx",
-      "likiarvo": true
+      "likiarvo": true,
+      "kennotyyppi": "Panasonic 18650 -lieriökenno, NCA",
+      "akku_lyhyt": "90 kWh akku"
     },
     {
       "id": "sx-100",
@@ -600,7 +623,9 @@
       "viite_kwh": 98.4,
       "takuu": "vakio",
       "alusta": "sx",
-      "likiarvo": true
+      "likiarvo": true,
+      "kennotyyppi": "Panasonic 18650 -lieriökenno, NCA",
+      "akku_lyhyt": "100 kWh akku"
     },
     {
       "id": "sx2021-lr",
@@ -627,7 +652,8 @@
       "sarjakennot": 96,
       "viite_kwh": 99.0,
       "takuu": "pitka",
-      "alusta": "m3"
+      "alusta": "m3",
+      "kennotyyppi": "Panasonic 18650 -lieriökenno, NCA"
     },
     {
       "id": "ct-awd",
@@ -654,7 +680,30 @@
       "viite_kwh": 123.0,
       "takuu": "pitka",
       "alusta": "m3",
-      "kokeellinen": true
+      "kokeellinen": true,
+      "kennotyyppi": "Tesla 4680 -lieriökenno, NMC"
+    },
+    {
+      "id": "my-rwd-lfp-byd",
+      "nimi": "Model Y RWD LFP (2023–2024, Berliini)",
+      "malli_koodi": "Y",
+      "vuodet": [
+        2023,
+        2024
+      ],
+      "tehtaat": [
+        "Berliini"
+      ],
+      "veto": [
+        "RWD"
+      ],
+      "kemia": "LFP",
+      "kennovalmistaja": "BYD",
+      "kennotyyppi": "BYD Blade -prismaattinen kenno, LFP",
+      "sarjakennot": null,
+      "viite_kwh": 60.0,
+      "takuu": "vakio",
+      "alusta": "m3"
     }
   ]
 }

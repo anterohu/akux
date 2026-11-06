@@ -203,6 +203,7 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
             "kemia": chem_key,
             "kemia_nimi": profiles.chemistry(chem_key)["nimi"],
             "kennovalmistaja": (model or {}).get("kennovalmistaja"),
+            "kennotyyppi": (model or {}).get("kennotyyppi"),
             "kennoryhmat": brick_count,
             "tunnistus": reasons,
             "mittarilukema_km": odo,
@@ -263,8 +264,21 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
         _analyze_capacity(res, snaps, samples, meta, chem_key, ref_kwh, nfp, buffer)
 
     _summarize(res)
+    res["kapasiteetit"] = _gross_net(res, ref_kwh, buffer)
     res["tarkiste"] = test.get("tarkiste")
     return res
+
+
+def _gross_net(res, ref_kwh, buffer) -> dict:
+    """Brutto = akun koko energia, netto = käytettävissä oleva energia (brutto miinus akunhallinnan puskuri)."""
+    y = res.get("yhteenveto") or {}
+    now = y.get("kapasiteetti_kwh")
+    b = buffer if (buffer is not None and 0 <= buffer < 15) else None
+    out = {"puskuri_kwh": b,
+           "brutto_uutena": ref_kwh, "netto_uutena": (ref_kwh - b) if (ref_kwh and b is not None) else None,
+           "brutto_nyt": now, "netto_nyt": (now - b) if (now and b is not None) else None,
+           "uutena_lahde": res["viite"]["lahde"], "nyt_lahde": y.get("kunto_lahde")}
+    return out
 
 
 def _analyze_quick(res, snaps, samples):

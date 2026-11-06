@@ -244,7 +244,8 @@ def selftest(app, full: bool = True) -> dict:
         def chain():
             from .app import App
             from . import report
-            with tempfile.TemporaryDirectory() as tmp:
+            # Windows voi pitää tiedostoa hetken varattuna; väliaikaiskansion siivous ei saa kaataa tarkistusta
+            with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
                 a = App(tmp)
                 # Koemittausta ei tallenneta käyttäjän mittauskansioon
                 a.storage.save_settings({"mittaus_tallennus": False, "ilmoitukset_kaytossa": False})
@@ -263,9 +264,11 @@ def selftest(app, full: bool = True) -> dict:
                 soh = (r.get("bms") or {}).get("soh_pct")
                 if t["tila"] != "valmis" or not soh or abs(soh - src.nfp / src.bol * 100) > 0.3:
                     return "virhe", "Mittauksen laskenta ei tuottanut odotettua tulosta."
-                pdf = report.build(a.storage, tid)
-                size = pdf.stat().st_size
-                a.storage.close()
+                try:
+                    pdf = report.build(a.storage, tid)
+                    size = pdf.stat().st_size
+                finally:
+                    a.storage.close()
                 return "ok", f"Simuloitu pikatarkastus ja raportti onnistuivat ({size // 1024} kt)."
         out.append(_check("Mittaus ja raportti", chain))
 

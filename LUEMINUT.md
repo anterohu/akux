@@ -29,6 +29,7 @@ Mittaustiedosto sisältää kaiken: auton tiedot, mittausnäytteet, kennoryhmien
 
 - **Yleiskuva:** yhteys autoon, akun tiedot reaaliajassa, kennoryhmäkaavio ja yhteystesti. Ensimmäisellä käyttökerralla näkyy käyttöönoton tarkistuslista.
 - **Mittaus:** pikatarkastus (1–3 min) tai ohjattu kapasiteettimittaus. Vaiheet etenevät itsestään, ja mittausolosuhteet tarkistetaan koko ajan.
+- **Esimerkkiautot:** Autot-sivulta saa kolme esimerkkiautoa valmiine mittauksineen ja raportteineen, joten ohjelmaa voi tutkia ilman autoa.
 - **Autot:** ohjelma tunnistaa auton valmistenumerosta ja oppii akun tiedot ensimmäisessä mittauksessa. Mittaus estetään, jos kytketty auto ei ole sama kuin valittu.
 - **Mittaukset:** tulokset, raportit, mittausdata ja raakadatan eheyden tarkistus.
 - **Ohjeet:** koko käyttöohje ohjelmassa ja PDF-muodossa.

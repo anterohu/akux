@@ -22,6 +22,9 @@ OHJE = [
                 "Lisää auto. Ohjelma lukee valmistenumeron autosta ja tunnistaa mallin.",
                 "Tee autolle pikatarkastus. Sen jälkeen voit tehdä kapasiteettimittauksen.",
             ]),
+            ("p", "<b>Esimerkkiautot:</b> Autot-sivun painike <b>Lisää esimerkkiautot</b> tuo ohjelmaan kolme autoa "
+                  "valmiine mittauksineen ja raportteineen. Niillä näkee heti, miltä raportit ja ohjelman eri näkymät "
+                  "näyttävät. Esimerkit poistetaan samasta kohdasta, eikä poisto koske omia autoja."),
             ("note", "Ohjelma ainoastaan lukee tietoja. Se ei lähetä autolle mitään eikä muuta auton asetuksia."),
         ],
     },
@@ -216,9 +219,11 @@ OHJE = [
 ]
 
 SANASTO = [
+    ("Brutto", "Akun koko energiasisältö, jonka akunhallinta ilmoittaa (täyden akun energia). Sisältää puskurin."),
+    ("Netto", "Käytettävissä oleva energia: brutto vähennettynä akunhallinnan puskurilla."),
     ("Akun kunto (SOH)", "Akun nykyinen kapasiteetti prosentteina alkuperäisestä kapasiteetista."),
-    ("Kapasiteetti", "Energiamäärä, jonka täysi akku sisältää, kilowattitunteina (kWh)."),
-    ("Käytettävä energia", "Kapasiteetti vähennettynä puskurilla. Tämä energia on ajossa käytettävissä."),
+    ("Kapasiteetti", "Energiamäärä, jonka täysi akku sisältää, kilowattitunteina (kWh). Raportissa kapasiteetti on bruttoarvo."),
+    ("Käytettävä energia", "Sama kuin nettokapasiteetti: kapasiteetti vähennettynä puskurilla. Tämä energia on ajossa käytettävissä."),
     ("Puskuri", "Akunhallinnan varaama energia, jota ei näytetä käyttäjälle ja joka suojaa akkua syväpurkaukselta."),
     ("Kennoryhmä", "Rinnan kytkettyjen kennojen ryhmä. Teslan akuissa on tavallisesti 84, 96 tai 106 sarjaan kytkettyä ryhmää."),
     ("Jännite-ero", "Suurimman ja pienimmän kennoryhmän jännitteen ero. Pieni ero kertoo tasaisesti varautuneesta akusta."),
@@ -229,6 +234,7 @@ SANASTO = [
     ("Epävarmuus", "Arvio siitä, kuinka paljon mitattu tulos voi poiketa todellisesta arvosta."),
     ("Tarkiste", "Raakadatasta laskettu tunniste, jonka avulla voidaan todentaa, ettei aineistoa ole muutettu."),
 ]
+SANASTO.sort(key=lambda x: x[0].lower())
 
 
 def as_html() -> list[dict]:

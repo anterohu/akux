@@ -16,7 +16,7 @@ from reportlab.platypus import (BaseDocTemplate, CondPageBreak, Flowable, Frame,
                                 NextPageTemplate, PageBreak, PageTemplate, Paragraph, Spacer, Table,
                                 TableStyle)
 
-from . import NIMI, VERSIO, charts
+from . import NIMI, VERSIO, charts, profiles
 from .analysis import fmt
 
 FONT_DIR = Path(__file__).parent / "data" / "fonts"
@@ -186,6 +186,12 @@ def _photo(path, width, height):
     bg.save(buf, "JPEG", quality=88)
     buf.seek(0)
     return Image(buf, width=width, height=height)
+
+
+def _bn(brutto, netto):
+    if not brutto:
+        return None
+    return f"{fmt(brutto)} kWh / {fmt(netto)} kWh" if netto else f"{fmt(brutto)} kWh / –"
 
 
 def _date(ts, with_time=True):
@@ -375,6 +381,9 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     import re as _re
     base_name = _re.sub(r"\s*\([^)]*\d{4}[^)]*\)\s*$", "", model_name)     # mallipohjan vuosiväli pois
     sub = f"Tesla {base_name}" if not base_name.startswith("Tesla") else base_name
+    _prof = profiles.get(veh.get("malli_id")) or {}
+    if _prof.get("akku_lyhyt") and vi.get("malli"):
+        sub = f"Tesla {vi['malli']}  ·  {_prof['akku_lyhyt']}"
     year = vehicle.get("vuosimalli") or vi.get("vuosimalli")
     if year:
         sub += f"  ·  vuosimalli {year}"
@@ -425,9 +434,11 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
                         SohBar(soh, kw - 10 * mm, unc_pct)))
     else:
         kpis.append(kpi("AKUN KUNTO (SOH)", "–", "Ei laskettavissa"))
-    kpis.append(kpi("KAPASITEETTI", f"{fmt(kwh)} kWh" if kwh else "–",
-                    (f"±{fmt(unc)} kWh  ·  uutena {fmt(r['viite']['kwh'])} kWh" if unc else
-                     f"Uutena {fmt(r['viite']['kwh'])} kWh")))
+    _kk = r.get("kapasiteetit") or {}
+    _net = f"netto {fmt(_kk['netto_nyt'])} kWh" if _kk.get("netto_nyt") else None
+    kpis.append(kpi("KAPASITEETTI (BRUTTO)", f"{fmt(kwh)} kWh" if kwh else "–",
+                    "  ·  ".join(x for x in ((f"±{fmt(unc)} kWh" if unc else None), _net) if x)
+                    or f"Uutena {fmt(r['viite']['kwh'])} kWh"))
     kpis.append(kpi("KENNORYHMIEN JÄNNITE-ERO", f"{fmt(cs['ero_mv'], 0)} mV" if cs else "–",
                     f"{cs['luokka']}  ·  {cs['lkm']} kennoryhmää" if cs else "Ei mitattu"))
     kt = Table([kpis], colWidths=[kw, kw, kw], hAlign="LEFT")
@@ -477,12 +488,14 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         ("Mittarilukema", f"{fmt(odo, 0)} km" if odo else None),
         ("Käyttöönotto", (r.get("takuu") or {}).get("kayttoonotto")),
     ]
+    kk = r.get("kapasiteetit") or {}
     right = [
-        ("Akkukemia", veh.get("kemia_nimi")),
-        ("Kennovalmistaja", veh.get("kennovalmistaja")),
+        ("Akkutyyppi", veh.get("kennotyyppi") or veh.get("kemia_nimi")),
         ("Kennoryhmiä sarjassa", str(veh.get("kennoryhmat") or "–")),
-        ("Alkuperäinen kapasiteetti", f"{fmt(r['viite']['kwh'])} kWh ({r['viite']['lahde'].lower()})"
-         if r["viite"]["kwh"] else None),
+        ("Uutena, brutto / netto", (_bn(kk.get("brutto_uutena"), kk.get("netto_uutena")) or "") + (
+            "" if r["viite"]["lahde"].startswith("Auton akunhallinta") or not kk.get("brutto_uutena")
+            else (" (ilmoitettu)" if r["viite"]["lahde"].startswith("Käyttäjän") else " (likiarvo)")) or None),
+        ("Nyt, brutto / netto", _bn(kk.get("brutto_nyt"), kk.get("netto_nyt"))),
         ("Mittauspäivä", _date(test["aloitettu"])),
         ("Mittaaja", test.get("mittaaja") or s.get("mittaaja")),
     ]
@@ -620,8 +633,6 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
                 ct.setStyle(TableStyle([("BACKGROUND", (0, hr), (-1, hr), PANEL)]))
             E.append(ct)
 
-            E.append(CondPageBreak(60 * mm))
-            E.append(P("Mittauksen luotettavuus", "h3"))
             qrows = [[P("Tarkistus", "label"), P("Tulos", "label"), P("", "label")]]
             for q in cap.get("laatu", []):
                 qrows.append([P(q["nimi"], "cell"), P(q["arvo"], "cell"),
@@ -641,7 +652,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
                          colWidths=[92 * mm, CW - 92 * mm], hAlign="LEFT")
             side.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"),
                                       ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
-            E.append(side)
+            E.append(KeepTogether([Spacer(1, 3 * mm), P("Mittauksen luotettavuus", "h3"), side]))
         if samples:
             E.append(CondPageBreak(55 * mm))
             E.append(Spacer(1, 4 * mm))
@@ -794,7 +805,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     hist = [t for t in storage.tests(test["vehicle_id"]) if t["tila"] == "valmis" and t["tulos"]
             and (t["tulos"].get("yhteenveto") or {}).get("kunto_pct") and t["mittarilukema"]]
     pts = sorted({(t["mittarilukema"], t["tulos"]["yhteenveto"]["kunto_pct"]) for t in hist})
-    if len(pts) >= 2:
+    if len({km for km, _ in pts}) >= 2:
         E.append(Spacer(1, 4 * mm))
         E.append(_img(charts.trend_chart(pts), CW))
 

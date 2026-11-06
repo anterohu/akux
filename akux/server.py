@@ -16,7 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import NIMI, VERSIO, docs, maintenance, mittaustiedosto, profiles, report
+from . import NIMI, VERSIO, analysis, docs, maintenance, mittaustiedosto, profiles, report
 from . import vin as vinmod
 from .app import App
 from .decoder import KAIKKI_PAKOLLISET
@@ -488,6 +488,36 @@ class Api:
                 body[k] = _num(body[k])
         return self.app.storage.save_settings(body)
 
+    def esimerkit(self, q, body):
+        """Lisää ohjelmaan esimerkkiautot valmiine mittauksineen tai poistaa ne."""
+        st = self.app.storage
+        ex = [v for v in st.vehicles() if (v.get("opitut") or {}).get("esimerkki")]
+        if body.get("poista"):
+            if self.app.recorder.active and self.app.recorder.vehicle_id in {v["id"] for v in ex}:
+                raise ApiError("Esimerkkiautolla on käynnissä oleva mittaus.")
+            for v in ex:
+                st.delete_vehicle(v["id"])
+            return {"ok": True, "poistettu": len(ex)}
+        if ex:
+            return {"ok": True, "lisatty": 0, "autoja": len(ex)}
+        folder = Path(__file__).parent / "data" / "esimerkit"
+        n = 0
+        for f in sorted(folder.glob("*.akux")):
+            r = mittaustiedosto.import_file(st, f.read_bytes())
+            st.learn(r["ajoneuvo_id"], {"esimerkki": True})
+            t = st.test(r["id"])
+            meta = (t.get("tulos") or {}).get("meta")
+            if meta:
+                # Tulos lasketaan tämän version laskennalla, jotta esimerkit vastaavat ohjelmaa
+                try:
+                    res = analysis.analyze_test(st, r["id"], meta)
+                    st.update_test(r["id"], tulos=res)
+                except Exception:  # noqa: BLE001
+                    traceback.print_exc()
+            n += 1
+        return {"ok": True, "lisatty": n,
+                "autoja": len([v for v in st.vehicles() if (v.get("opitut") or {}).get("esimerkki")])}
+
     def auton_kuva(self, q, body, vid):
         if not self.app.storage.vehicle(vid):
             raise ApiError("Ajoneuvoa ei löydy.", 404)
@@ -536,6 +566,7 @@ ROUTES = [
     ("GET", r"/api/asetukset", "asetukset"), ("POST", r"/api/asetukset", "tallenna_asetukset"),
     ("POST", r"/api/vaylakartoitus", "aloita_kartoitus"), ("GET", r"/api/vaylakartoitus", "kartoitus"),
     ("POST", r"/api/ajoneuvot/(\d+)/kuva", "auton_kuva"),
+    ("POST", r"/api/esimerkit", "esimerkit"),
     ("POST", r"/api/logo", "logo"), ("POST", r"/api/sulje", "sulje"), ("POST", r"/api/uudelleen", "uudelleen"),
     ("GET", r"/api/yllapito/tarkistus", "tarkistus"), ("GET", r"/api/yllapito/loki", "loki"),
     ("GET", r"/api/yllapito/varmuuskopiot", "varmuuskopiot"),

@@ -197,7 +197,8 @@ views.yleiskuva = {
             <select id="demoCar"><option value="m3-lr">Model 3 Long Range 2020 (NCA)</option><option value="m3-lfp">Model 3 SR+ 2020, LFP-akku</option>
               <option value="my-lr">Model Y Long Range 2022 (NMC)</option><option value="ms-85">Model S 85 2015</option></select>
             <p class="small muted" style="margin-top:8px">Esittelytilassa voit kokeilla kaikkia toimintoja ja nähdä esimerkkiraportin ilman autoa. Aika kulkee nopeutettuna.</p>
-            <button class="btn" id="bDemo">Käynnistä esittelytila</button>
+            <div class="row"><button class="btn" id="bDemo">Käynnistä esittelytila</button>
+              <button class="btn" id="bEx">Esimerkkiraportit</button></div>
           </div>
         </div>`;
       const sel = $("#port");
@@ -206,6 +207,7 @@ views.yleiskuva = {
       }
       $("#bRefresh").onclick = () => { this.connRendered = null; this.renderConnCard(); };
       $("#bConnect").onclick = () => act(() => api("/api/yhdista", { method: "POST", body: { tyyppi: "obdlink", portti: $("#port").value } }), "Yhdistetään…").then(poll);
+      $("#bEx").onclick = () => act(() => api("/api/esimerkit", { method: "POST", body: {} }), "Esimerkkiautot ovat käytettävissä").then(() => (location.hash = "#/mittaukset"));
       $("#bDemo").onclick = () => act(() => api("/api/yhdista", { method: "POST", body: { tyyppi: "demo", soc: 12, nopeutus: 60, auto: $("#demoCar").value } }), "Esittelytila käynnistetty").then(poll);
     } else {
       c.innerHTML = `
@@ -525,10 +527,18 @@ views.autot = {
     this.renderList();
   },
   async renderList() {
-    view.innerHTML = `<div class="head"><div><h1>Autot</h1><div class="muted">Tallennetut autot ja niiden mittaushistoria</div></div><a class="btn primary" href="#/autot/uusi">Lisää auto</a></div><div class="card" id="vList"></div>`;
     const { ajoneuvot } = await api("/api/ajoneuvot");
+    const hasEx = ajoneuvot.some(v => v.opitut && v.opitut.esimerkki);
+    view.innerHTML = `<div class="head"><div><h1>Autot</h1><div class="muted">Tallennetut autot ja niiden mittaushistoria</div></div>
+      <div class="row"><button class="btn" id="vEx">${hasEx ? "Poista esimerkkiautot" : "Lisää esimerkkiautot"}</button><a class="btn primary" href="#/autot/uusi">Lisää auto</a></div></div>
+      ${hasEx ? "" : `<p class="small muted" style="margin:-8px 0 16px">Esimerkkiautoissa on valmiit mittaukset ja raportit (Model 3 LFP, Model Y ja Model S), joten näet heti, miltä kaikki näyttää.</p>`}
+      <div class="card" id="vList"></div>`;
+    $("#vEx").onclick = () => hasEx
+      ? (confirm("Poistetaanko esimerkkiautot ja niiden mittaukset? Omiin autoihisi ei kosketa.") &&
+         act(() => api("/api/esimerkit", { method: "POST", body: { poista: true } }), "Esimerkkiautot poistettu").then(() => this.renderList()))
+      : act(() => api("/api/esimerkit", { method: "POST", body: {} }), "Esimerkkiautot lisätty").then(() => this.renderList());
     $("#vList").innerHTML = ajoneuvot.length ? `<table class="t"><tr><th>Auto</th><th class="hide-m">Valmistenumero</th><th>Rekisteri</th><th class="num">Kunto</th><th class="num hide-m">Mittauksia</th><th class="hide-m">Viimeisin</th></tr>
-      ${ajoneuvot.map(v => `<tr class="click" data-id="${v.id}"><td><b>${esc(v.nimi)}</b><div class="small muted">${esc(v.malli || "Malli tunnistetaan mittauksessa")}</div></td>
+      ${ajoneuvot.map(v => `<tr class="click" data-id="${v.id}"><td><b>${esc(v.nimi)}</b>${v.opitut && v.opitut.esimerkki ? ` <span class="pill">Esimerkki</span>` : ""}<div class="small muted">${esc(v.malli || "Malli tunnistetaan mittauksessa")}</div></td>
         <td class="hide-m">${esc(v.vin || "–")}</td><td>${esc(v.rekisteri || "–")}</td>
         <td class="num">${v.opitut && v.opitut.viimeisin_kunto_pct ? n(v.opitut.viimeisin_kunto_pct) + " %" : "–"}</td>
         <td class="num hide-m">${v.mittauksia}</td><td class="hide-m">${date(v.viimeisin, false)}</td></tr>`).join("")}</table>`
@@ -601,7 +611,7 @@ views.autot = {
           <dt>Käyttöönotto</dt><dd>${esc(v.kayttoonotto || "–")}</dd>
           <dt>Tehdas</dt><dd>${esc((v.vin_tiedot || {}).tehdas || "–")}</dd><dt>Voimalinja</dt><dd>${esc((v.vin_tiedot || {}).voimalinja || "–")}</dd></dl></div>
         <div class="card"><h2>Akku</h2><dl class="kv">
-          <dt>Kemia</dt><dd>${esc(m.kemia || o.kemia || "–")}</dd><dt>Kennovalmistaja</dt><dd>${esc(m.kennovalmistaja || "–")}</dd>
+          <dt>Akkutyyppi</dt><dd>${esc(m.kennotyyppi || m.kemia || o.kemia || "–")}</dd>
           <dt>Kennoryhmiä</dt><dd>${esc(o.kennoryhmat || cellsTxt(m.sarjakennot) || "–")}${o.kennoryhmat ? " (mitattu)" : (m.sarjakennot ? " (mallipohja)" : "")}</dd>
           <dt>Alkuperäinen kapasiteetti</dt><dd>${o.bol_kwh ? n(o.bol_kwh) + " kWh (akunhallinta)" : (o.viite_kayttaja ? n(o.viite_kayttaja) + " kWh (ilmoitettu)" : (m.viite_kwh ? n(m.viite_kwh) + " kWh (mallitaulukko)" : "–"))}</dd>
           <dt>Viimeisin kunto</dt><dd>${o.viimeisin_kunto_pct ? n(o.viimeisin_kunto_pct) + " %" : "–"}</dd></dl></div>

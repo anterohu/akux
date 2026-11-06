@@ -82,7 +82,9 @@ def identify(vin_info: dict | None = None, *, bol_kwh: float | None = None,
                 reasons.append(f"voimalinja {vin_info.get('voimalinja')}")
 
     if brick_count:
-        by_cells = [m for m in cands if _cells_match(m, brick_count)]
+        # Tarkka osuma ensin; pohjat, joiden kennoryhmämäärää ei tunneta, kelpaavat varalle
+        by_cells = [m for m in cands if _cells_match(m, brick_count)] or \
+            [m for m in cands if m.get("sarjakennot") is None]
         if by_cells:
             cands = by_cells
             reasons.append(f"{brick_count} sarjaan kytkettyä kennoryhmää")
