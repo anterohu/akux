@@ -92,7 +92,7 @@ class IkkunaApi:
 
     def __init__(self, base: str):
         self._base = base
-        self.window = None
+        self._window = None
 
     def _fetch(self, path: str):
         if not path.startswith("/api/"):
@@ -122,7 +122,7 @@ class IkkunaApi:
             name, data = self._fetch(path)
             import webview  # noqa: PLC0415
             mode = getattr(getattr(webview, "FileDialog", None), "SAVE", None) or webview.SAVE_DIALOG
-            res = self.window.create_file_dialog(mode, save_filename=name)
+            res = self._window.create_file_dialog(mode, save_filename=name)
             if not res:
                 return {"ok": False, "peruttu": True}
             target = Path(res[0] if isinstance(res, (list, tuple)) else res)
@@ -132,8 +132,8 @@ class IkkunaApi:
             return {"ok": False, "virhe": str(e)}
 
     def sulje(self) -> None:
-        if self.window:
-            close_window(self.window)
+        if self._window:
+            close_window(self._window)
 
 
 def close_window(win, code: int = 0, grace: float = 8.0):
@@ -165,7 +165,7 @@ def run_window(wv, url: str | None, test: bool = False, on_start=None) -> int:
     win = wv.create_window("Akux", url=url, html=None if url else LATAUS_HTML, js_api=api,
                            width=1320, height=880, min_size=(380, 560), background_color="#F5F6F8",
                            text_select=True)
-    api.window = win
+    api._window = win
     result = {"koodi": 0}
     if test:
         print("Ikkunatesti: ikkuna luotu", flush=True)
