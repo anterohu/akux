@@ -54,7 +54,7 @@ jobs:
             --icon akux.ico `
             --add-data "akux\web;akux\web" --add-data "akux\data;akux\data" `
             --hidden-import serial.tools.list_ports --collect-submodules akux --exclude-module tkinter `
-            --collect-all webview --hidden-import clr --hidden-import clr_loader `
+            --collect-all webview --hidden-import clr --hidden-import clr_loader --collect-submodules reportlab.graphics `
             --distpath dist --workpath build Akux.pyw
           if (-not (Test-Path dist\Akux\Akux.exe)) { throw "Akux.exe puuttuu" }
       - name: Rakenna asennusohjelma
@@ -96,7 +96,7 @@ jobs:
           Write-Host "Sovellusikkuna avautui ja käyttöliittymä latautui"
 
           $q = Invoke-RestMethod "$b/api/yllapito/tarkistus" -TimeoutSec 600
-          $q.tarkistukset | Format-Table nimi, tila, tieto -AutoSize | Out-String -Width 200 | Write-Host
+          $q.tarkistukset | ForEach-Object { Write-Host "$($_.nimi): $($_.tila) – $($_.tieto)" }
           if ($q.tarkistukset | Where-Object { $_.tila -eq "virhe" }) { throw "Laaduntarkistuksessa virheitä" }
 
           Invoke-RestMethod "$b/api/yhdista" -Method Post -ContentType "application/json" -Body '{"tyyppi":"demo","soc":60,"nopeutus":60}' | Out-Null

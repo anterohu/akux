@@ -51,6 +51,7 @@ if exist "%BUILD%\dist" rmdir /s /q "%BUILD%\dist"
   --collect-all webview ^
   --hidden-import clr ^
   --hidden-import clr_loader ^
+  --collect-submodules reportlab.graphics ^
   --paths "%APPDIR%." ^
   --exclude-module tkinter ^
   --distpath "%BUILD%\dist" --workpath "%BUILD%\work" --specpath "%BUILD%" ^
