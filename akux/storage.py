@@ -48,6 +48,7 @@ OLETUSASETUKSET = {
     "mittaus_kansio": "",
     "qr_osoite": "",
     "raportin_ulkoasu": "b",
+    "vesileima": "iso",
 }
 
 SCHEMA = """

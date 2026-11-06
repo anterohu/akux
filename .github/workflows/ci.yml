@@ -95,7 +95,7 @@ jobs:
           if ($w.ExitCode -ne 0) { throw "Sovellusikkuna ei avautunut oikein (koodi $($w.ExitCode))" }
           Write-Host "Sovellusikkuna avautui ja käyttöliittymä latautui"
 
-          $q = Invoke-RestMethod "$b/api/yllapito/tarkistus" -TimeoutSec 180
+          $q = Invoke-RestMethod "$b/api/yllapito/tarkistus" -TimeoutSec 600
           $q.tarkistukset | Format-Table nimi, tila, tieto -AutoSize | Out-String -Width 200 | Write-Host
           if ($q.tarkistukset | Where-Object { $_.tila -eq "virhe" }) { throw "Laaduntarkistuksessa virheitä" }
 
@@ -129,6 +129,10 @@ jobs:
           Start-Sleep 4
           if (Get-Process Akux -ErrorAction SilentlyContinue) { throw "Akux ei sulkeutunut" }
           Write-Host "Akux sulkeutui hallitusti"
+      - name: Ohjelman loki
+        if: failure()
+        shell: pwsh
+        run: Get-Content (Join-Path $env:APPDATA "Akux\loki.txt") -Tail 120 -ErrorAction SilentlyContinue
       - uses: actions/upload-artifact@v4
         with:
           name: Akux-windows

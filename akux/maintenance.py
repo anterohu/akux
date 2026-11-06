@@ -130,7 +130,9 @@ def _check(name, fn):
         status, detail = fn()
     except Exception as e:  # noqa: BLE001
         status, detail = "virhe", f"{type(e).__name__}: {e}"
-    return {"nimi": name, "tila": status, "tieto": detail, "kesto_s": round(time.time() - t0, 2)}
+    dt = round(time.time() - t0, 2)
+    print(f"Laaduntarkistus: {name}: {status} ({dt} s)", flush=True)
+    return {"nimi": name, "tila": status, "tieto": detail, "kesto_s": dt}
 
 
 def selftest(app, full: bool = True) -> dict:

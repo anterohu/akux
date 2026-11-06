@@ -430,6 +430,34 @@ def draw_logo(c, x, y, h, wordmark=True, ink=None, watermark=False):
     return w
 
 
+def draw_watermark(c, style):
+    """Vino, läpikuultava Akux-vesileima sivun päälle. style: iso, toisto, rivit tai ei."""
+    if style not in ("iso", "toisto", "rivit"):
+        return
+    c.saveState()
+    c.setFillColor(colors.Color(0x1F / 255, 0x4E / 255, 0x79 / 255, alpha=0.055 if style == "iso" else 0.06))
+    c.translate(W / 2, H / 2)
+    c.rotate(35)
+    if style == "iso":
+        size = 150
+        c.setFont("Inter-SemiBold", size)
+        c.drawCentredString(0, -size * 0.35, NIMI)
+    elif style == "toisto":
+        size = 22
+        c.setFont("Inter-SemiBold", size)
+        step_x, step_y = 62 * mm, 30 * mm
+        for row in range(-9, 10):
+            off = (row % 2) * step_x / 2
+            for col in range(-6, 7):
+                c.drawCentredString(col * step_x + off, row * step_y, NIMI)
+    else:
+        size = 34
+        c.setFont("Inter-SemiBold", size)
+        for row in range(-4, 5):
+            c.drawCentredString(0, row * 70 * mm, "   ·   ".join([NIMI] * 6))
+    c.restoreState()
+
+
 # ----------------------------------------------------------------------
 class ReportDoc(BaseDocTemplate):
     def __init__(self, path, ctx):
@@ -441,8 +469,9 @@ class ReportDoc(BaseDocTemplate):
                       topPadding=0, bottomPadding=0)
         first = Frame(M, 44 * mm, CW, H - 70 * mm, id="f1", leftPadding=0, rightPadding=0,
                       topPadding=0, bottomPadding=0)
-        self.addPageTemplates([PageTemplate(id="first", frames=[first], onPage=self._first),
-                               PageTemplate(id="page", frames=[frame], onPage=self._decorate)])
+        wm = lambda c, d: draw_watermark(c, ctx.get("vesileima"))  # noqa: E731
+        self.addPageTemplates([PageTemplate(id="first", frames=[first], onPage=self._first, onPageEnd=wm),
+                               PageTemplate(id="page", frames=[frame], onPage=self._decorate, onPageEnd=wm)])
 
     def _first(self, c, doc):
         self._decorate(c, doc)
@@ -478,9 +507,6 @@ class ReportDoc(BaseDocTemplate):
     def _decorate(self, c, doc):
         ctx = self.ctx
         # Himmeä Akux-vesileima sivun taustalle (piirretään ennen sisältöä)
-        wh = 26 * mm
-        ww = wh * 1.28 + pdfmetrics.stringWidth(NIMI, "Inter-SemiBold", wh * 0.78)
-        draw_logo(c, (W - ww) / 2, H * 0.36, wh, watermark=True)
         c.saveState()
         y = H - 14 * mm
         logo = ctx.get("logo")
@@ -551,7 +577,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     test_kind = "Akun kapasiteettimittaus" if is_cap else "Akun pikatarkastus"
     ctx = {
         "company": s.get("yritys_nimi"), "company_line": company_line, "logo": s.get("logo"),
-        "title": f"{title}  ·  {test_kind}", "report_no": report_no, "date": _date(test.get("paattynyt") or test["aloitettu"], False),
+        "title": f"{title}  ·  {test_kind}", "report_no": report_no, "vesileima": s.get("vesileima") or "iso", "date": _date(test.get("paattynyt") or test["aloitettu"], False),
         "footer": s.get("raportin_alatunniste") or (
             f"{VERSIO}  ·  Tiedot: auton akunhallinta  ·  Raakadatan tarkiste {(test.get('tarkiste') or '')[:16]}…"),
     }

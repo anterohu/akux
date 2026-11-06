@@ -771,6 +771,8 @@ views.asetukset = {
       <div class="card"><h2>Raportin etusivu</h2>
         <label class="f"><span>Kunnon esitystapa</span><select name="raportin_ulkoasu">
           ${[["b", "Kaarimittari (oletus)"], ["a", "Akkukuva ja luokka-asteikko"], ["c", "Tumma tunnuslukukaista"]].map(([k, t]) => `<option value="${k}" ${(s.raportin_ulkoasu || "b") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        <label class="f"><span>Vesileima</span><select name="vesileima">
+          ${[["iso", "Suuri vino Akux (oletus)"], ["toisto", "Pienet toistuvat"], ["rivit", "Harvat vinot rivit"], ["ei", "Ei vesileimaa"]].map(([k, t]) => `<option value="${k}" ${(s.vesileima || "iso") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
       </div>
 
       <div class="card"><h2>Raportin QR-koodi</h2>
