@@ -270,7 +270,7 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
 
 
 def _gross_net(res, ref_kwh, buffer) -> dict:
-    """Brutto = akun koko energia, netto = käytettävissä oleva energia (brutto miinus akunhallinnan puskuri)."""
+    """Brutto = akun koko energia, netto = käytettävissä oleva energia (brutto miinus akunhallinnan suojavara)."""
     y = res.get("yhteenveto") or {}
     now = y.get("kapasiteetti_kwh")
     b = buffer if (buffer is not None and 0 <= buffer < 15) else None

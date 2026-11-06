@@ -400,10 +400,15 @@ def _dur(s):
 BRAND_GREEN = colors.HexColor("#6CC193")
 
 
-def draw_logo(c, x, y, h, wordmark=True, ink=None):
-    """Akux-merkki (sama kuin ohjelman kuvake) ja nimi. (x, y) = vasen alakulma, h = merkin korkeus."""
+def draw_logo(c, x, y, h, wordmark=True, ink=None, watermark=False):
+    """Akux-merkki (sama kuin ohjelman kuvake) ja nimi. (x, y) = vasen alakulma, h = merkin korkeus.
+    watermark=True piirtää saman merkin hyvin vaaleana taustakuviona."""
     c.saveState()
-    c.setFillColor(ACCENT)
+    base = colors.HexColor("#F0F2F5") if watermark else ACCENT
+    green = colors.HexColor("#EAF1EC") if watermark else BRAND_GREEN
+    if watermark:
+        ink = colors.HexColor("#F0F2F5")
+    c.setFillColor(base)
     c.roundRect(x, y, h, h, h * 0.22, stroke=0, fill=1)
     bw, bh = h * 0.62, h * 0.36
     bx, by = x + h * 0.15, y + (h - bh) / 2
@@ -412,7 +417,7 @@ def draw_logo(c, x, y, h, wordmark=True, ink=None):
     c.roundRect(bx, by, bw, bh, h * 0.06, stroke=1, fill=0)
     c.setFillColor(colors.white)
     c.roundRect(bx + bw + h * 0.035, y + h * 0.43, h * 0.07, h * 0.14, h * 0.02, stroke=0, fill=1)
-    c.setFillColor(BRAND_GREEN)
+    c.setFillColor(green)
     pad = h * 0.07
     c.roundRect(bx + pad, by + pad, bw * 0.5, bh - 2 * pad, h * 0.03, stroke=0, fill=1)
     w = h
@@ -472,6 +477,10 @@ class ReportDoc(BaseDocTemplate):
 
     def _decorate(self, c, doc):
         ctx = self.ctx
+        # Himmeä Akux-vesileima sivun taustalle (piirretään ennen sisältöä)
+        wh = 26 * mm
+        ww = wh * 1.28 + pdfmetrics.stringWidth(NIMI, "Inter-SemiBold", wh * 0.78)
+        draw_logo(c, (W - ww) / 2, H * 0.36, wh, watermark=True)
         c.saveState()
         y = H - 14 * mm
         logo = ctx.get("logo")
@@ -624,12 +633,12 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         caption = lahde_txt + (f"  ·  ±{fmt(cap_pct)} %-yks." if cap_pct else "")
     else:
         caption = "Ei laskettavissa"
-    style_ = (s.get("raportin_ulkoasu") or "a").lower()
+    style_ = (s.get("raportin_ulkoasu") or "b").lower()
     _kk0 = r.get("kapasiteetit") or {}
     if style_ == "c":
         items = [("BRUTTO", f"{fmt(kwh)} kWh" if kwh else "–", f"uutena {fmt(r['viite']['kwh'])} kWh"),
                  ("NETTO", f"{fmt(_kk0['netto_nyt'])} kWh" if _kk0.get("netto_nyt") else "–",
-                  f"puskuri {fmt(_kk0.get('puskuri_kwh'), 1)} kWh" if _kk0.get("puskuri_kwh") is not None else ""),
+                  f"suojavara {fmt(_kk0.get('puskuri_kwh'), 1)} kWh" if _kk0.get("puskuri_kwh") is not None else ""),
                  ("JÄNNITE-ERO", f"{fmt(cs['ero_mv'], 0)} mV" if cs else "–",
                   f"{cs['lkm']} kennoryhmää" if cs else "")]
         E.append(SohBand(soh, CW, caption, summ.get("kunto_luokka"), items))
@@ -645,7 +654,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     kpis.append(kpi("KAPASITEETTI NYT (BRUTTO)", f"{fmt(kwh)} kWh" if kwh else "–",
                     (f"±{fmt(unc)} kWh  ·  " if unc else "") + f"uutena {fmt(r['viite']['kwh'])} kWh"))
     kpis.append(kpi("KÄYTETTÄVÄ ENERGIA (NETTO)", f"{fmt(_kk['netto_nyt'])} kWh" if _kk.get("netto_nyt") else "–",
-                    f"Puskuri {fmt(_kk['puskuri_kwh'], 1)} kWh" if _kk.get("puskuri_kwh") is not None else ""))
+                    f"Suojavara {fmt(_kk['puskuri_kwh'], 1)} kWh" if _kk.get("puskuri_kwh") is not None else ""))
     kpis.append(kpi("KENNORYHMIEN JÄNNITE-ERO", f"{fmt(cs['ero_mv'], 0)} mV" if cs else "–",
                     f"{cs['luokka']}  ·  {cs['lkm']} kennoryhmää" if cs else "Ei mitattu"))
     kt = Table([kpis], colWidths=[kw, kw, kw], hAlign="LEFT") if style_ != "c" else Spacer(1, 0)
@@ -829,7 +838,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
                 f"Epävarmuus noin ±{fmt(cap['epavarmuus_kwh'])} kWh", strong=True)
             if cap.get("kaytettava_kwh") is not None:
                 add("Käytettävissä oleva energia", f"{fmt(cap['kaytettava_kwh'], 1)} kWh",
-                    f"Kokonaiskapasiteetti vähennettynä akunhallinnan puskurilla ({fmt(bms.get('puskuri_kwh'))} kWh)")
+                    f"Kokonaiskapasiteetti vähennettynä akunhallinnan suojavaralla ({fmt(bms.get('puskuri_kwh'))} kWh)")
             if bms.get("nfp_kwh"):
                 add("Teslan akunhallinnan oma arvio", f"{fmt(bms['nfp_kwh'], 1)} kWh",
                     f"Ero mitattuun {fmt(cap.get('ero_bms_pct'))} %")
@@ -977,10 +986,10 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     add("Alkuperäinen energia", f"{fmt(r['viite']['kwh'])} kWh" if r["viite"]["kwh"] else "–", r["viite"]["lahde"])
     if bms.get("soh_pct"):
         add("Kunto akunhallinnan mukaan", f"{fmt(bms['soh_pct'])} %", "Täyden akun energia / alkuperäinen energia")
-    add("Puskuri", f"{fmt(bms.get('puskuri_kwh'), 2)} kWh" if bms.get("puskuri_kwh") is not None else "–",
+    add("Suojavara", f"{fmt(bms.get('puskuri_kwh'), 2)} kWh" if bms.get("puskuri_kwh") is not None else "–",
         "Energia, jota ei näytetä käyttäjälle")
     add("Käytettävä energia", f"{fmt(bms.get('kaytettava_kwh'))} kWh" if bms.get("kaytettava_kwh") else "–",
-        "Täyden akun energia vähennettynä puskurilla")
+        "Täyden akun energia vähennettynä suojavaralla")
     add("Varaustila (näytöllä)", f"{fmt(bms.get('soc_ui'))} %" if bms.get("soc_ui") is not None else "–",
         "Mittauksen lopussa")
     add("Varaustila (kennojen keskiarvo)", f"{fmt(bms.get('soc_avg'))} %" if bms.get("soc_avg") is not None else "–",

@@ -770,7 +770,7 @@ views.asetukset = {
 
       <div class="card"><h2>Raportin etusivu</h2>
         <label class="f"><span>Kunnon esitystapa</span><select name="raportin_ulkoasu">
-          ${[["a", "A: akkukuva ja luokka-asteikko"], ["b", "B: kaarimittari"], ["c", "C: tumma tunnuslukukaista"]].map(([k, t]) => `<option value="${k}" ${(s.raportin_ulkoasu || "a") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+          ${[["b", "Kaarimittari (oletus)"], ["a", "Akkukuva ja luokka-asteikko"], ["c", "Tumma tunnuslukukaista"]].map(([k, t]) => `<option value="${k}" ${(s.raportin_ulkoasu || "b") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
       </div>
 
       <div class="card"><h2>Raportin QR-koodi</h2>

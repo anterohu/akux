@@ -219,17 +219,17 @@ OHJE = [
 ]
 
 SANASTO = [
-    ("Brutto", "Akun koko energiasisältö, jonka akunhallinta ilmoittaa (täyden akun energia). Sisältää puskurin."),
-    ("Netto", "Käytettävissä oleva energia: brutto vähennettynä akunhallinnan puskurilla."),
+    ("Brutto", "Akun koko energiasisältö, jonka akunhallinta ilmoittaa (täyden akun energia). Sisältää suojavaran."),
+    ("Netto", "Käytettävissä oleva energia: brutto vähennettynä akunhallinnan suojavaralla."),
     ("Akun kunto (SOH)", "Akun nykyinen kapasiteetti prosentteina alkuperäisestä kapasiteetista."),
     ("Kapasiteetti", "Energiamäärä, jonka täysi akku sisältää, kilowattitunteina (kWh). Raportissa kapasiteetti on bruttoarvo."),
-    ("Käytettävä energia", "Sama kuin nettokapasiteetti: kapasiteetti vähennettynä puskurilla. Tämä energia on ajossa käytettävissä."),
-    ("Puskuri", "Akunhallinnan varaama energia, jota ei näytetä käyttäjälle ja joka suojaa akkua syväpurkaukselta."),
+    ("Käytettävä energia", "Sama kuin nettokapasiteetti: kapasiteetti vähennettynä suojavaralla. Tämä energia on ajossa käytettävissä."),
+    ("Suojavara", "Akunhallinnan varaama energia, jota ei anneta käyttöön. Se suojaa akkua syväpurkaukselta. Teslan termi on energy buffer."),
     ("Kennoryhmä", "Rinnan kytkettyjen kennojen ryhmä. Teslan akuissa on tavallisesti 84, 96 tai 106 sarjaan kytkettyä ryhmää."),
     ("Jännite-ero", "Suurimman ja pienimmän kennoryhmän jännitteen ero. Pieni ero kertoo tasaisesti varautuneesta akusta."),
     ("Lepojännite", "Kennon jännite, kun akusta ei ole hetkeen otettu eikä siihen ole ladattu virtaa."),
     ("Akunhallinta (BMS)", "Akun ohjausjärjestelmä, joka valvoo kennoja ja laskee akun varaustilan ja energian."),
-    ("Varaustila", "Akun varaus prosentteina. Raportissa käytetään kennoryhmien keskiarvoa, joka sisältää puskurin."),
+    ("Varaustila", "Akun varaus prosentteina. Raportissa käytetään kennoryhmien keskiarvoa, joka sisältää suojavaran."),
     ("Sisäinen resistanssi", "Akun sisäinen vastus. Siinä syntyy latauksessa lämpöä, joka ei varastoidu akkuun."),
     ("Epävarmuus", "Arvio siitä, kuinka paljon mitattu tulos voi poiketa todellisesta arvosta."),
     ("Tarkiste", "Raakadatasta laskettu tunniste, jonka avulla voidaan todentaa, ettei aineistoa ole muutettu."),
