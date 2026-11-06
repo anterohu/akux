@@ -768,6 +768,11 @@ views.asetukset = {
           ${s.logo ? `<button class="btn sm" id="sLogoDel" type="button">Poista logo</button>` : ""}</div>
       </div>
 
+      <div class="card"><h2>Raportin QR-koodi</h2>
+        <p class="small muted">QR-koodi sisältää oletuksena raportin tunnistetiedot: raportin numeron, valmistenumeron, kunnon, kapasiteetin ja raakadatan tarkisteen. Jos annat verkko-osoitteen, QR-koodi vie siihen osoitteeseen, ja raportin numero ja tarkiste lisätään linkin loppuun.</p>
+        <label class="f"><span>Verkko-osoite (valinnainen)</span><input name="qr_osoite" value="${esc(s.qr_osoite || "")}" placeholder="https://"></label>
+      </div>
+
       <div class="card"><h2>Mittausten tallennus</h2>
         <p class="small muted">Jokainen valmis mittaus tallennetaan mittaustiedostona (.akux) ja PDF-raporttina. Mittaustiedosto sisältää kaikki mittauksen tiedot ja raakadatan, ja sen voi avata missä tahansa Akux-versiossa kohdasta Mittaukset → Avaa mittaustiedosto.</p>
         <label class="check"><input type="checkbox" name="mittaus_tallennus" ${s.mittaus_tallennus ? "checked" : ""}><span>Tallenna jokainen valmis mittaus automaattisesti</span></label>

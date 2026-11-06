@@ -46,6 +46,7 @@ OLETUSASETUKSET = {
     "ilmoitus_ongelmat": True,
     "mittaus_tallennus": True,
     "mittaus_kansio": "",
+    "qr_osoite": "",
 }
 
 SCHEMA = """

@@ -296,7 +296,7 @@ def draw_logo(c, x, y, h, wordmark=True, ink=None):
 class ReportDoc(BaseDocTemplate):
     def __init__(self, path, ctx):
         super().__init__(str(path), pagesize=A4, leftMargin=M, rightMargin=M, topMargin=26 * mm,
-                         bottomMargin=20 * mm, title=ctx["title"], author=ctx["company"] or NIMI,
+                         bottomMargin=20 * mm, title=ctx["title"].replace("  ·  ", " – "), author=ctx["company"] or NIMI,
                          subject="Ajoakun kuntoraportti", creator=f"{NIMI} {VERSIO}")
         self.ctx = ctx
         frame = Frame(M, 20 * mm, CW, H - 46 * mm, id="f", leftPadding=0, rightPadding=0,
@@ -322,7 +322,7 @@ class ReportDoc(BaseDocTemplate):
             c.saveState()
             c.setFont("Inter", 5.6)
             c.setFillColor(MUTED)
-            c.drawRightString(W - M, H - 23 * mm - size - 2.6 * mm, "Raportin tunnistetiedot")
+            c.drawRightString(W - M, H - 23 * mm - size - 2.6 * mm, self.ctx.get("qr_label") or "Raportin tunnistetiedot")
             c.restoreState()
         c.saveState()
         y = 22 * mm
@@ -405,16 +405,26 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     company_line = "  ·  ".join(x for x in (s.get("yritys_osoite"), s.get("yritys_puhelin"),
                                             s.get("yritys_sahkoposti"), s.get("yritys_www")) if x)
     report_no = f"{time.strftime('%Y', time.localtime(test['aloitettu']))}-{tid:05d}"
-    title = "Akun kapasiteettimittaus" if is_cap else "Akun kuntotarkastus"
+    title = "Akux-testi"
+    test_kind = "Akun kapasiteettimittaus" if is_cap else "Akun pikatarkastus"
     ctx = {
         "company": s.get("yritys_nimi"), "company_line": company_line, "logo": s.get("logo"),
-        "title": title, "report_no": report_no, "date": _date(test.get("paattynyt") or test["aloitettu"], False),
+        "title": f"{title}  ·  {test_kind}", "report_no": report_no, "date": _date(test.get("paattynyt") or test["aloitettu"], False),
         "footer": s.get("raportin_alatunniste") or (
             f"{VERSIO}  ·  Tiedot: auton akunhallinta  ·  Raakadatan tarkiste {(test.get('tarkiste') or '')[:16]}…"),
     }
     _y = r.get("yhteenveto") or {}
-    ctx["qr"] = "\n".join(x for x in (
-        f"AKUX-RAPORTTI {report_no}",
+    qr_url = (s.get("qr_osoite") or "").strip()
+    if qr_url.startswith(("https://", "http://")):
+        from urllib.parse import urlencode
+        ctx["qr"] = qr_url + ("&" if "?" in qr_url else "?") + urlencode(
+            {"raportti": report_no, "tarkiste": (test.get("tarkiste") or "")[:16]})
+        ctx["qr_label"] = "Tarkista raportti"
+    else:
+        ctx["qr_label"] = "Raportin tunnistetiedot"
+    ctx["qr"] = ctx.get("qr") or "\n".join(x for x in (
+        f"AKUX-TESTI {report_no}",
+        test_kind,
         f"VIN {(r.get('ajoneuvo') or {}).get('vin') or '-'}",
         f"Rekisteri {vehicle.get('rekisteri')}" if vehicle.get("rekisteri") else None,
         f"Päiväys {ctx['date']}",
@@ -438,7 +448,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     if year:
         sub += f"  ·  vuosimalli {year}"
     reg = (vehicle.get("rekisteri") or "").strip()
-    head = [P(title, "h1"), P(sub, "sub")]
+    head = [P(title, "h1"), P(f"<b>{test_kind}</b>", "sub"), P(sub, "sub")]
     if reg:
         head += [Spacer(1, 2), P(f"Rekisterinumero <b>{reg}</b>", "sub")]
     photo = storage.vehicle_photo(test["vehicle_id"])
