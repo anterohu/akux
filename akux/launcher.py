@@ -133,7 +133,23 @@ class IkkunaApi:
 
     def sulje(self) -> None:
         if self.window:
-            self.window.destroy()
+            close_window(self.window)
+
+
+def close_window(win, code: int = 0, grace: float = 8.0):
+    """Sulkee sovellusikkunan. Jos WebView2 ei vapaudu ajoissa, ohjelma päätetään hallitusti."""
+    def force():
+        time.sleep(grace)
+        try:
+            sys.stdout.flush()
+        except Exception:  # noqa: BLE001
+            pass
+        os._exit(code)
+    threading.Thread(target=force, daemon=True).start()
+    try:
+        win.destroy()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _storage_dir() -> str:
@@ -158,23 +174,33 @@ def run_window(wv, url: str | None, test: bool = False, on_start=None) -> int:
         if test:
             # Ikkunatesti: käyttöliittymän pitää latautua ja vastata
             ok = False
-            for _ in range(60):
+            end = time.time() + 40
+            while time.time() < end and not ok:
                 time.sleep(0.5)
-                try:
-                    ok = win.evaluate_js("document.querySelector('#view') ? 'ok' : ''") == "ok"
-                except Exception:  # noqa: BLE001
-                    ok = False
-                if ok:
-                    break
+                box = {}
+
+                def probe():
+                    try:
+                        box["v"] = win.evaluate_js("document.querySelector('#view') ? 'ok' : ''")
+                    except Exception:  # noqa: BLE001
+                        box["v"] = None
+                t = threading.Thread(target=probe, daemon=True)
+                t.start()
+                t.join(5)
+                ok = box.get("v") == "ok"
             result["koodi"] = 0 if ok else 4
-            print("Ikkunatesti:", "ok" if ok else "käyttöliittymä ei latautunut")
-            win.destroy()
+            print("Ikkunatesti:", "ok" if ok else "käyttöliittymä ei latautunut", flush=True)
+            close_window(win, result["koodi"])
 
     try:
         wv.settings["ALLOW_DOWNLOADS"] = True
         wv.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True
     except Exception:  # noqa: BLE001
         pass
+    if test:
+        # Ikkunatesti ei saa jäädä odottamaan, vaikka ikkuna ei koskaan aukeaisi
+        threading.Thread(target=lambda: (time.sleep(90), print("Ikkunatesti: aikaraja", flush=True), os._exit(6)),
+                         daemon=True).start()
     wv.start(started, private_mode=False, storage_path=_storage_dir())
     return result["koodi"]
 
@@ -212,12 +238,12 @@ def main():
         state = {"ikkuna": None, "toiminto": None}
 
         def server_thread():
-            state["toiminto"] = serve(port=PORT, open_window=None, open_browser=False, idle_exit=IDLE_EXIT_S)
-            try:
-                if state["ikkuna"]:
-                    state["ikkuna"].destroy()
-            except Exception:  # noqa: BLE001
-                pass
+            action_ = serve(port=PORT, open_window=None, open_browser=False, idle_exit=IDLE_EXIT_S)
+            state["toiminto"] = action_
+            if action_ == "uudelleen":
+                _restart(with_window=True)
+            if state["ikkuna"]:
+                close_window(state["ikkuna"])
 
         th = threading.Thread(target=server_thread, name="akux-palvelin")
 
@@ -234,13 +260,16 @@ def main():
         th.start()
         run_window(wv, None, on_start=on_start)
         th.join()            # käynnissä oleva mittaus jatkuu, vaikka ikkuna suljetaan
-        action = state["toiminto"]
-    else:
-        action = serve(port=PORT, open_window=None if no_window else open_window, open_browser=False,
-                       idle_exit=IDLE_EXIT_S)
+        return
+    action = serve(port=PORT, open_window=None if no_window else open_window, open_browser=False,
+                   idle_exit=IDLE_EXIT_S)
     if action == "uudelleen":
-        args = [sys.executable] + ([] if getattr(sys, "frozen", False) else ["-m", "akux.launcher"])
-        subprocess.Popen(args + ([] if wv else ["--ei-ikkunaa"]), close_fds=True)
+        _restart(with_window=False)
+
+
+def _restart(with_window: bool):
+    args = [sys.executable] + ([] if getattr(sys, "frozen", False) else ["-m", "akux.launcher"])
+    subprocess.Popen(args + ([] if with_window else ["--ei-ikkunaa"]), close_fds=True)
 
 
 if __name__ == "__main__":
