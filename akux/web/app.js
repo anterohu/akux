@@ -768,6 +768,11 @@ views.asetukset = {
           ${s.logo ? `<button class="btn sm" id="sLogoDel" type="button">Poista logo</button>` : ""}</div>
       </div>
 
+      <div class="card"><h2>Raportin etusivu</h2>
+        <label class="f"><span>Kunnon esitystapa</span><select name="raportin_ulkoasu">
+          ${[["a", "A: akkukuva ja luokka-asteikko"], ["b", "B: kaarimittari"], ["c", "C: tumma tunnuslukukaista"]].map(([k, t]) => `<option value="${k}" ${(s.raportin_ulkoasu || "a") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+      </div>
+
       <div class="card"><h2>Raportin QR-koodi</h2>
         <p class="small muted">QR-koodi sisältää oletuksena raportin tunnistetiedot: raportin numeron, valmistenumeron, kunnon, kapasiteetin ja raakadatan tarkisteen. Jos annat verkko-osoitteen, QR-koodi vie siihen osoitteeseen, ja raportin numero ja tarkiste lisätään linkin loppuun.</p>
         <label class="f"><span>Verkko-osoite (valinnainen)</span><input name="qr_osoite" value="${esc(s.qr_osoite || "")}" placeholder="https://"></label>

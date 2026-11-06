@@ -89,8 +89,9 @@ jobs:
           # Toinen käynnistys avaa vain uuden sovellusikkunan. Ikkunatesti varmistaa, että
           # Windowsin WebView2-ikkuna aukeaa ja käyttöliittymä latautuu siihen.
           $w = Start-Process $exe -ArgumentList "--ikkunatesti" -PassThru
-          if (-not $w.WaitForExit(120000)) { $w.Kill(); throw "Ikkunatesti ei päättynyt" }
-          Get-Content (Join-Path $env:APPDATA "Akux\loki.txt") -Tail 5 -ErrorAction SilentlyContinue
+          $done = $w.WaitForExit(150000)
+          Get-Content (Join-Path $env:APPDATA "Akux\loki.txt") -Tail 15 -ErrorAction SilentlyContinue
+          if (-not $done) { $w.Kill(); throw "Ikkunatesti ei päättynyt" }
           if ($w.ExitCode -ne 0) { throw "Sovellusikkuna ei avautunut oikein (koodi $($w.ExitCode))" }
           Write-Host "Sovellusikkuna avautui ja käyttöliittymä latautui"
 

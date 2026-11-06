@@ -152,8 +152,8 @@ def close_window(win, code: int = 0, grace: float = 8.0):
         pass
 
 
-def _storage_dir() -> str:
-    d = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "Akux" / "ikkuna"
+def _storage_dir(second: bool = False) -> str:
+    d = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "Akux" / ("ikkuna-2" if second else "ikkuna")
     d.mkdir(parents=True, exist_ok=True)
     return str(d)
 
@@ -167,8 +167,12 @@ def run_window(wv, url: str | None, test: bool = False, on_start=None) -> int:
                            text_select=True)
     api.window = win
     result = {"koodi": 0}
+    if test:
+        print("Ikkunatesti: ikkuna luotu", flush=True)
 
     def started():
+        if test:
+            print("Ikkunatesti: ikkuna auki", flush=True)
         if on_start:
             on_start(win)
         if test:
@@ -197,11 +201,9 @@ def run_window(wv, url: str | None, test: bool = False, on_start=None) -> int:
         wv.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True
     except Exception:  # noqa: BLE001
         pass
-    if test:
-        # Ikkunatesti ei saa jäädä odottamaan, vaikka ikkuna ei koskaan aukeaisi
-        threading.Thread(target=lambda: (time.sleep(90), print("Ikkunatesti: aikaraja", flush=True), os._exit(6)),
-                         daemon=True).start()
-    wv.start(started, private_mode=False, storage_path=_storage_dir())
+    # Toisella samanaikaisella ikkunalla on oma tallennuskansio: kaksi WebView2-prosessia ei voi
+    # käyttää samaa kansiota eri asetuksin
+    wv.start(started, private_mode=False, storage_path=_storage_dir(second=bool(url)))
     return result["koodi"]
 
 
@@ -222,7 +224,14 @@ def main():
         _log_to_file()
     url = f"http://127.0.0.1:{PORT}"
     test = "--ikkunatesti" in sys.argv
+    if test:
+        print("Ikkunatesti: käynnistys", flush=True)
+        # Ikkunatesti ei saa koskaan jäädä odottamaan
+        threading.Thread(target=lambda: (time.sleep(100), print("Ikkunatesti: aikaraja", flush=True), os._exit(6)),
+                         daemon=True).start()
     wv = _webview()
+    if test:
+        print("Ikkunatesti: näyttökomponentti", "löytyi" if wv else "puuttuu", flush=True)
     if _running(PORT):
         if wv:
             sys.exit(run_window(wv, url, test=test))

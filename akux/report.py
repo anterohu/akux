@@ -102,14 +102,157 @@ class Pill(Flowable):
 
 
 class SohHero(Flowable):
-    """Etusivun kuntonäyttö: suuri prosenttiluku ja viisiportainen luokka-asteikko."""
+    """Etusivun kuntonäyttö: akkukuva, kuntoprosentti ja viisiportainen luokka-asteikko."""
     SEGMENTS = [(0, 70, "Alle 70 %", "Takuurajan alittava"), (70, 80, "70–80 %", "Heikentynyt"),
                 (80, 85, "80–85 %", "Tyydyttävä"), (85, 90, "85–90 %", "Hyvä"), (90, 101, "90–100 %", "Erinomainen")]
 
     def __init__(self, pct, width, caption, note=""):
         super().__init__()
         self.pct, self.width, self.caption, self.note = pct, width, caption, note
-        self.height = 43 * mm
+        self.height = 38 * mm
+
+    def wrap(self, aw, ah):
+        return self.width, self.height
+
+    def _battery(self, c, x, y, bw, bh):
+        """Akku, jonka kymmenen lohkoa täyttyvät kunnon mukaan."""
+        c.setStrokeColor(INK)
+        c.setLineWidth(1.4)
+        c.setFillColor(colors.white)
+        c.roundRect(x, y, bw, bh, 2.2 * mm, stroke=1, fill=1)
+        c.setFillColor(INK)
+        c.roundRect(x + bw + 0.8 * mm, y + bh * 0.3, 2.2 * mm, bh * 0.4, 0.8 * mm, stroke=0, fill=1)
+        pad, gap, n = 1.6 * mm, 0.9 * mm, 10
+        sw = (bw - 2 * pad - (n - 1) * gap) / n
+        sh = bh - 2 * pad
+        level = 0 if self.pct is None else max(0.0, min(100.0, self.pct)) / 10
+        for k in range(n):
+            sx = x + pad + k * (sw + gap)
+            c.setFillColor(colors.HexColor("#E3E7EC"))
+            c.roundRect(sx, y + pad, sw, sh, 0.7 * mm, stroke=0, fill=1)
+            fill = max(0.0, min(1.0, level - k))
+            if fill > 0:
+                c.setFillColor(ACCENT if level >= 7 else colors.HexColor("#B42318"))
+                c.roundRect(sx, y + pad, sw * fill, sh, 0.7 * mm, stroke=0, fill=1)
+
+    def draw(self):
+        c = self.canv
+        w, h = self.width, self.height
+        c.setFillColor(PANEL)
+        c.roundRect(0, 0, w, h, 2.5 * mm, stroke=0, fill=1)
+        # vasemmalla akkukuva
+        bw, bh = 40 * mm, 17 * mm
+        bx, by = 7 * mm, (h - bh) / 2
+        self._battery(c, bx, by, bw, bh)
+        # oikealla luku ja asteikko
+        x0 = bx + bw + 12 * mm
+        x1 = w - 7 * mm
+        c.setFillColor(MUTED)
+        c.setFont("Inter-Medium", 7.4)
+        c.drawString(x0, h - 8 * mm, "AKUN KUNTO (SOH)")
+        if self.pct is None:
+            c.setFont("Inter-SemiBold", 24)
+            c.setFillColor(INK)
+            c.drawString(x0, h - 18 * mm, "–")
+            return
+        val = fmt(self.pct)
+        c.setFillColor(INK)
+        c.setFont("Inter-SemiBold", 28)
+        c.drawString(x0, h - 18.5 * mm, val)
+        vw = pdfmetrics.stringWidth(val, "Inter-SemiBold", 28)
+        c.setFont("Inter-SemiBold", 15)
+        c.setFillColor(MUTED)
+        c.drawString(x0 + vw + 1.2 * mm, h - 18.5 * mm, "%")
+        c.setFont("Inter", 7.2)
+        c.drawString(x0 + vw + 8 * mm, h - 15.2 * mm, self.caption)
+        # asteikko
+        sx, sw = x0, x1 - x0
+        sy = 10 * mm
+        seg_w = sw / len(self.SEGMENTS)
+        gap = 1.0
+        active = next(k for k, (lo, hi, _, _) in enumerate(self.SEGMENTS) if lo <= self.pct < hi or
+                      (k == len(self.SEGMENTS) - 1 and self.pct >= lo))
+        for k, (lo, hi, rng, name) in enumerate(self.SEGMENTS):
+            x = sx + k * seg_w
+            on = k == active
+            c.setFillColor(ACCENT if on else colors.HexColor("#DDE2E8"))
+            c.rect(x + gap / 2, sy, seg_w - gap, 2.0 * mm, stroke=0, fill=1)
+            c.setFont("Inter-SemiBold" if on else "Inter", 6.8)
+            c.setFillColor(INK if on else MUTED)
+            c.drawCentredString(x + seg_w / 2, sy - 3.8 * mm, name)
+            c.setFont("Inter", 6.2)
+            c.setFillColor(MUTED)
+            c.drawCentredString(x + seg_w / 2, sy - 6.6 * mm, rng)
+        lo, hi = self.SEGMENTS[active][0], min(self.SEGMENTS[active][1], 100)
+        frac = 0.5 if hi <= lo else (min(max(self.pct, lo), hi) - lo) / (hi - lo)
+        mx = sx + active * seg_w + gap / 2 + frac * (seg_w - gap)
+        c.setFillColor(INK)
+        pth = c.beginPath()
+        pth.moveTo(mx - 1.4 * mm, sy + 3.7 * mm)
+        pth.lineTo(mx + 1.4 * mm, sy + 3.7 * mm)
+        pth.lineTo(mx, sy + 2.2 * mm)
+        pth.close()
+        c.drawPath(pth, stroke=0, fill=1)
+
+
+class SohGauge(Flowable):
+    """Vaihtoehto B: kaarimittari, jonka keskellä kuntoprosentti."""
+    BANDS = [(60, 70, "#C8CED6"), (70, 80, "#AAB4C0"), (80, 85, "#8C99A8"), (85, 90, "#5C7A99"), (90, 100, "#1F4E79")]
+
+    def __init__(self, pct, width, caption, luokka):
+        super().__init__()
+        self.pct, self.width, self.caption, self.luokka = pct, width, caption, luokka
+        self.height = 52 * mm
+
+    def wrap(self, aw, ah):
+        return self.width, self.height
+
+    def draw(self):
+        import math
+        c = self.canv
+        w, h = self.width, self.height
+        cx, cy, r = w / 2, 14 * mm, 30 * mm
+        lo, hi = 60.0, 100.0
+
+        def ang(p):
+            return 180 - (min(hi, max(lo, p)) - lo) / (hi - lo) * 180
+        c.setLineCap(0)
+        for a_, b_, col in self.BANDS:
+            c.setStrokeColor(colors.HexColor(col))
+            c.setLineWidth(4.2 * mm)
+            c.arc(cx - r, cy - r, cx + r, cy + r, startAng=ang(b_) + 0.6, extent=ang(a_) - ang(b_) - 1.2)
+        c.setFont("Inter", 6.4)
+        c.setFillColor(MUTED)
+        for p_ in (60, 70, 80, 90, 100):
+            t = math.radians(ang(p_))
+            c.drawCentredString(cx + (r + 5.5 * mm) * math.cos(t), cy + (r + 5.5 * mm) * math.sin(t) - 1, f"{p_}")
+        if self.pct is not None:
+            t = math.radians(ang(self.pct))
+            c.setStrokeColor(INK)
+            c.setLineWidth(1.6)
+            c.line(cx + (r - 3.6 * mm) * math.cos(t), cy + (r - 3.6 * mm) * math.sin(t),
+                   cx + (r + 2.6 * mm) * math.cos(t), cy + (r + 2.6 * mm) * math.sin(t))
+        c.setFillColor(MUTED)
+        c.setFont("Inter-Medium", 7.4)
+        c.drawCentredString(cx, cy + 15 * mm, "AKUN KUNTO (SOH)")
+        c.setFillColor(INK)
+        c.setFont("Inter-SemiBold", 30)
+        val = fmt(self.pct) + " %" if self.pct is not None else "–"
+        c.drawCentredString(cx, cy + 2.5 * mm, val)
+        c.setFont("Inter-SemiBold", 9.5)
+        c.drawCentredString(cx, cy - 3.8 * mm, self.luokka or "")
+        c.setFont("Inter", 7.2)
+        c.setFillColor(MUTED)
+        c.drawCentredString(cx, cy - 8.6 * mm, self.caption)
+
+
+class SohBand(Flowable):
+    """Vaihtoehto C: tumma tunnusluku-kaista koko leveydeltä."""
+
+    def __init__(self, pct, width, caption, luokka, items):
+        super().__init__()
+        self.pct, self.width, self.caption, self.luokka, self.items = pct, width, caption, luokka, items
+        self.height = 34 * mm
 
     def wrap(self, aw, ah):
         return self.width, self.height
@@ -117,60 +260,50 @@ class SohHero(Flowable):
     def draw(self):
         c = self.canv
         w, h = self.width, self.height
-        c.setFillColor(PANEL)
+        c.setFillColor(ACCENT)
         c.roundRect(0, 0, w, h, 2.5 * mm, stroke=0, fill=1)
-        cx = w / 2
-        c.setFillColor(MUTED)
+        light = colors.HexColor("#C9D7E6")
+        c.setFillColor(light)
         c.setFont("Inter-Medium", 7.4)
-        c.drawCentredString(cx, h - 6.5 * mm, "AKUN KUNTO (SOH)")
-        if self.pct is None:
-            c.setFont("Inter-SemiBold", 30)
-            c.setFillColor(INK)
-            c.drawCentredString(cx, h - 21 * mm, "–")
-            return
-        val = fmt(self.pct)
-        c.setFillColor(INK)
-        c.setFont("Inter-SemiBold", 40)
-        vw = pdfmetrics.stringWidth(val, "Inter-SemiBold", 40)
-        uw = pdfmetrics.stringWidth(" %", "Inter-SemiBold", 22)
-        x0 = cx - (vw + uw) / 2
-        c.drawString(x0, h - 20.5 * mm, val)
-        c.setFont("Inter-SemiBold", 22)
-        c.setFillColor(MUTED)
-        c.drawString(x0 + vw, h - 20.5 * mm, " %")
-        # asteikko
-        sw = min(w - 24 * mm, 150 * mm)
-        sx = cx - sw / 2
-        sy = 11 * mm
-        seg_w = sw / len(self.SEGMENTS)
-        gap = 1.2
-        active = next(k for k, (lo, hi, _, _) in enumerate(self.SEGMENTS) if lo <= self.pct < hi or
-                      (k == len(self.SEGMENTS) - 1 and self.pct >= lo))
-        for k, (lo, hi, rng, name) in enumerate(self.SEGMENTS):
-            x = sx + k * seg_w
-            on = k == active
-            c.setFillColor(ACCENT if on else colors.HexColor("#DDE2E8"))
-            c.rect(x + gap / 2, sy, seg_w - gap, 2.4 * mm, stroke=0, fill=1)
-            c.setFont("Inter-SemiBold" if on else "Inter", 7.0)
-            c.setFillColor(INK if on else MUTED)
-            c.drawCentredString(x + seg_w / 2, sy - 4.2 * mm, name)
-            c.setFont("Inter", 6.4)
-            c.setFillColor(MUTED)
-            c.drawCentredString(x + seg_w / 2, sy - 7.4 * mm, rng)
-        # merkki aktiivisen lohkon kohdalle
-        lo, hi = self.SEGMENTS[active][0], min(self.SEGMENTS[active][1], 100)
-        frac = 0.5 if hi <= lo else (min(max(self.pct, lo), hi) - lo) / (hi - lo)
-        mx = sx + active * seg_w + gap / 2 + frac * (seg_w - gap)
-        c.setFillColor(INK)
-        pth = c.beginPath()
-        pth.moveTo(mx - 1.6 * mm, sy + 4.4 * mm)
-        pth.lineTo(mx + 1.6 * mm, sy + 4.4 * mm)
-        pth.lineTo(mx, sy + 2.7 * mm)
-        pth.close()
-        c.drawPath(pth, stroke=0, fill=1)
+        c.drawString(7 * mm, h - 8 * mm, "AKUN KUNTO (SOH)")
+        c.setFillColor(colors.white)
+        c.setFont("Inter-SemiBold", 32)
+        val = fmt(self.pct) if self.pct is not None else "–"
+        c.drawString(7 * mm, h - 19 * mm, val)
+        vw = pdfmetrics.stringWidth(val, "Inter-SemiBold", 32)
+        c.setFont("Inter-SemiBold", 16)
+        c.drawString(7 * mm + vw + 1.5 * mm, h - 19 * mm, "%")
+        c.setFont("Inter-SemiBold", 9)
+        c.drawString(7 * mm, 4.5 * mm, self.luokka or "")
+        c.setFillColor(light)
         c.setFont("Inter", 7.2)
-        c.setFillColor(MUTED)
-        c.drawCentredString(cx, 18 * mm, self.caption)
+        c.drawString(7 * mm + pdfmetrics.stringWidth((self.luokka or "") + "  ", "Inter-SemiBold", 9), 4.5 * mm,
+                     self.caption)
+        # palkki kunnosta 0–100 %
+        bx, by, bw = 7 * mm, 10.5 * mm, 62 * mm
+        c.setFillColor(colors.HexColor("#3D6890"))
+        c.roundRect(bx, by, bw, 1.6 * mm, 0.8 * mm, stroke=0, fill=1)
+        if self.pct is not None:
+            c.setFillColor(colors.white)
+            c.roundRect(bx, by, bw * max(0, min(100, self.pct)) / 100, 1.6 * mm, 0.8 * mm, stroke=0, fill=1)
+        # oikealla kolme tunnuslukua
+        x = 82 * mm
+        cw = (w - x - 4 * mm) / len(self.items)
+        for k, (lab, v, sub_) in enumerate(self.items):
+            xx = x + k * cw
+            if k:
+                c.setStrokeColor(colors.HexColor("#3D6890"))
+                c.setLineWidth(0.6)
+                c.line(xx - 3 * mm, 6 * mm, xx - 3 * mm, h - 6 * mm)
+            c.setFillColor(light)
+            c.setFont("Inter-Medium", 6.8)
+            c.drawString(xx, h - 8 * mm, lab)
+            c.setFillColor(colors.white)
+            c.setFont("Inter-SemiBold", 15)
+            c.drawString(xx, h - 17 * mm, v)
+            c.setFillColor(light)
+            c.setFont("Inter", 6.8)
+            c.drawString(xx, h - 22.5 * mm, sub_)
 
 
 def _table(rows, widths, header=True, zebra=False, valign="MIDDLE", pad=4):
@@ -445,12 +578,12 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     if _prof.get("akku_lyhyt") and vi.get("malli"):
         sub = f"Tesla {vi['malli']}  ·  {_prof['akku_lyhyt']}"
     year = vehicle.get("vuosimalli") or vi.get("vuosimalli")
-    if year:
-        sub += f"  ·  vuosimalli {year}"
     reg = (vehicle.get("rekisteri") or "").strip()
     head = [P(title, "h1"), P(f"<b>{test_kind}</b>", "sub"), P(sub, "sub")]
-    if reg:
-        head += [Spacer(1, 2), P(f"Rekisterinumero <b>{reg}</b>", "sub")]
+    meta_line = "  ·  ".join(x for x in ((f"Vuosimalli {year}" if year else None),
+                                         (f"Rekisterinumero <b>{reg}</b>" if reg else None)) if x)
+    if meta_line:
+        head += [Spacer(1, 2), P(meta_line, "sub")]
     photo = storage.vehicle_photo(test["vehicle_id"])
     if photo.exists():
         pw, ph = 56 * mm, 32 * mm
@@ -491,8 +624,22 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         caption = lahde_txt + (f"  ·  ±{fmt(cap_pct)} %-yks." if cap_pct else "")
     else:
         caption = "Ei laskettavissa"
-    E.append(SohHero(soh, CW, caption))
-    E.append(Spacer(1, 3 * mm))
+    style_ = (s.get("raportin_ulkoasu") or "a").lower()
+    _kk0 = r.get("kapasiteetit") or {}
+    if style_ == "c":
+        items = [("BRUTTO", f"{fmt(kwh)} kWh" if kwh else "–", f"uutena {fmt(r['viite']['kwh'])} kWh"),
+                 ("NETTO", f"{fmt(_kk0['netto_nyt'])} kWh" if _kk0.get("netto_nyt") else "–",
+                  f"puskuri {fmt(_kk0.get('puskuri_kwh'), 1)} kWh" if _kk0.get("puskuri_kwh") is not None else ""),
+                 ("JÄNNITE-ERO", f"{fmt(cs['ero_mv'], 0)} mV" if cs else "–",
+                  f"{cs['lkm']} kennoryhmää" if cs else "")]
+        E.append(SohBand(soh, CW, caption, summ.get("kunto_luokka"), items))
+        E.append(Spacer(1, 3 * mm))
+    elif style_ == "b":
+        E.append(SohGauge(soh, CW, caption, summ.get("kunto_luokka")))
+        E.append(Spacer(1, 2 * mm))
+    else:
+        E.append(SohHero(soh, CW, caption))
+        E.append(Spacer(1, 3 * mm))
     _kk = r.get("kapasiteetit") or {}
     kw = CW / 3
     kpis.append(kpi("KAPASITEETTI NYT (BRUTTO)", f"{fmt(kwh)} kWh" if kwh else "–",
@@ -501,8 +648,9 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
                     f"Puskuri {fmt(_kk['puskuri_kwh'], 1)} kWh" if _kk.get("puskuri_kwh") is not None else ""))
     kpis.append(kpi("KENNORYHMIEN JÄNNITE-ERO", f"{fmt(cs['ero_mv'], 0)} mV" if cs else "–",
                     f"{cs['luokka']}  ·  {cs['lkm']} kennoryhmää" if cs else "Ei mitattu"))
-    kt = Table([kpis], colWidths=[kw, kw, kw], hAlign="LEFT")
-    kt.setStyle(TableStyle([
+    kt = Table([kpis], colWidths=[kw, kw, kw], hAlign="LEFT") if style_ != "c" else Spacer(1, 0)
+    if style_ != "c":
+        kt.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 4 * mm), ("RIGHTPADDING", (0, 0), (-1, -1), 3 * mm),
         ("TOPPADDING", (0, 0), (-1, -1), 2.5 * mm), ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5 * mm),
@@ -556,7 +704,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         ("Mittauspäivä", _date(test["aloitettu"])),
         ("Mittaaja", test.get("mittaaja") or s.get("mittaaja")),
     ]
-    two = Table([[_kv(left, (36 * mm, CW / 2 - 40 * mm)), _kv(right, (40 * mm, CW / 2 - 40 * mm))]],
+    two = Table([[_kv(left, (32 * mm, CW / 2 - 35 * mm)), _kv(right, (34 * mm, CW / 2 - 34 * mm))]],
                 colWidths=[CW / 2, CW / 2], hAlign="LEFT")
     two.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                              ("VALIGN", (0, 0), (-1, -1), "TOP")]))
@@ -576,7 +724,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     E.append(P("Jokainen arvio on luokiteltu menetelmäsivulla kuvattujen rajojen mukaan. Luokat: erinomainen, "
                "hyvä, tyydyttävä, heikentynyt ja poikkeava.", "small"))
     E.append(Spacer(1, 3 * mm))
-    E.append(_table(rows, [44 * mm, 28 * mm, 30 * mm, CW - 102 * mm]))
+    E.append(_table(rows, [52 * mm, 25 * mm, 29 * mm, CW - 106 * mm]))
 
     if r.get("huomiot"):
         E.append(Spacer(1, 4 * mm))
@@ -614,7 +762,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
             cond("Kennojännitteiden näytteitä", f"{cs['naytteita']} kpl kennoryhmää kohden", "Tulos on näytteiden keskiarvo")
     src_info = meta.get("sovitin") or {}
     cond("Tietolähde", src_info.get("sovitin") or meta.get("lahde"), "Auton akunhallinta diagnostiikkaliitännän kautta")
-    E.append(_table(rows_c, [62 * mm, 50 * mm, CW - 112 * mm]))
+    E.append(_table(rows_c, [50 * mm, 64 * mm, CW - 114 * mm]))
 
     # Tietojen alkuperä ja vastuu
     E.append(Spacer(1, 6 * mm))
@@ -635,7 +783,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         ("TOPPADDING", (0, 0), (-1, 0), 3 * mm), ("BOTTOMPADDING", (0, -1), (-1, -1), 3 * mm),
         ("TOPPADDING", (0, 1), (-1, 1), 1), ("BOTTOMPADDING", (0, 0), (-1, 0), 1),
     ]))
-    E.append(KeepTogether(ob))
+    origin_box = KeepTogether(ob)
 
     # ---------------- Sivu 3: kapasiteettimittaus ----------------------
     if is_cap and cap:
@@ -872,6 +1020,8 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     # ---------------- Menetelmä ja tietolähteet -----------------------
     E.append(PageBreak())
     E.append(P("Menetelmä ja tietolähteet", "h2"))
+    E.append(origin_box)
+    E.append(Spacer(1, 5 * mm))
     meth = [
         ("Tiedonkeruu", "Tiedot luettiin auton CAN-väylältä diagnostiikkaliitännän kautta. Ohjelma ainoastaan kuuntelee "
          "väylää eikä lähetä autolle viestejä tai muuta sen asetuksia. Viestien sisältö puretaan avoimien, "
@@ -931,16 +1081,17 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         ("Tallennettuja näytteitä", f"{len(samples)} kpl"),
         ("Raakadatan SHA-256", test.get("tarkiste") or "–"),
     ], (52 * mm, CW - 52 * mm)))
+    tail = []
     if events:
-        E.append(P("Tapahtumat", "h3"))
         t0 = events[0]["t"]
         rows = [[P("Aika", "label"), P("Tapahtuma", "label")]]
         for ev in events:
             rows.append([P(_dur(ev["t"] - t0) if ev["t"] - t0 >= 60 else "0 min", "small"), P(ev["teksti"], "smallink")])
-        E.append(_table(rows, [24 * mm, CW - 24 * mm]))
-    E.append(Spacer(1, 5 * mm))
-    E.append(P("Raportti perustuu mittaushetken tietoihin. Akun kunto voi muuttua käytön ja ajan myötä. "
-               "Raportti ei ole valmistajan takuulausunto.", "small"))
+        tail += [P("Tapahtumat", "h3"), _table(rows, [24 * mm, CW - 24 * mm])]
+    tail += [Spacer(1, 5 * mm), P("Raportti perustuu mittaushetken tietoihin. Akun kunto voi muuttua käytön ja ajan "
+                                  "myötä. Raportti ei ole valmistajan takuulausunto.", "small")]
+    # Lyhyt tapahtumaluettelo pidetään yhtenäisenä; pitkä saa jatkua seuraavalle sivulle
+    E.extend([KeepTogether(tail)] if len(events) <= 25 else tail)
 
     # ---------------- Sanasto ------------------------------------------
     from .docs import SANASTO

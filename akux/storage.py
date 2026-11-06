@@ -47,6 +47,7 @@ OLETUSASETUKSET = {
     "mittaus_tallennus": True,
     "mittaus_kansio": "",
     "qr_osoite": "",
+    "raportin_ulkoasu": "a",
 }
 
 SCHEMA = """
