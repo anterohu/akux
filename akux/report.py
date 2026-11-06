@@ -435,7 +435,7 @@ def draw_watermark(c, style):
     if style not in ("iso", "toisto", "rivit"):
         return
     c.saveState()
-    c.setFillColor(colors.Color(0x1F / 255, 0x4E / 255, 0x79 / 255, alpha=0.055 if style == "iso" else 0.06))
+    c.setFillColor(colors.Color(0x1F / 255, 0x4E / 255, 0x79 / 255, alpha={"iso": 0.055, "toisto": 0.042}.get(style, 0.06)))
     c.translate(W / 2, H / 2)
     c.rotate(35)
     if style == "iso":
@@ -577,7 +577,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     test_kind = "Akun kapasiteettimittaus" if is_cap else "Akun pikatarkastus"
     ctx = {
         "company": s.get("yritys_nimi"), "company_line": company_line, "logo": s.get("logo"),
-        "title": f"{title}  ·  {test_kind}", "report_no": report_no, "vesileima": s.get("vesileima") or "iso", "date": _date(test.get("paattynyt") or test["aloitettu"], False),
+        "title": f"{title}  ·  {test_kind}", "report_no": report_no, "vesileima": s.get("vesileima") or "toisto", "date": _date(test.get("paattynyt") or test["aloitettu"], False),
         "footer": s.get("raportin_alatunniste") or (
             f"{VERSIO}  ·  Tiedot: auton akunhallinta  ·  Raakadatan tarkiste {(test.get('tarkiste') or '')[:16]}…"),
     }
