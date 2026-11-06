@@ -19,7 +19,7 @@ from urllib.parse import parse_qs, urlparse
 from . import NIMI, VERSIO, docs, maintenance, mittaustiedosto, profiles, report
 from . import vin as vinmod
 from .app import App
-from .decoder import PAKOLLISET
+from .decoder import KAIKKI_PAKOLLISET
 from .sources import list_ports
 
 WEB = Path(__file__).parent / "web"
@@ -136,22 +136,6 @@ class Api:
         self._stop("uudelleen")
         return meta
 
-    def tarkista_paivitys(self, q, body):
-        try:
-            return maintenance.inspect_update(body.get("_raw") or b"")
-        except ValueError as e:
-            raise ApiError(str(e))
-
-    def paivita(self, q, body):
-        if self.app.recorder.active:
-            raise ApiError("Mittaus on käynnissä. Päivitä ohjelma mittauksen jälkeen.")
-        try:
-            info = maintenance.start_update(body.get("_raw") or b"")
-        except ValueError as e:
-            raise ApiError(str(e))
-        self._stop("sulje")
-        return info
-
     def testi_ilmoitus(self, q, body):
         if body.get("osoite") is not None:
             self.app.storage.save_settings({"ilmoitus_osoite": body["osoite"].strip()})
@@ -220,7 +204,7 @@ class Api:
         src = self.app.source
         if not sc or not src:
             return {"tila": "ei"}
-        from .decoder import PAKOLLISET, TUNNISTE_KUVAUS
+        from .decoder import KAIKKI_PAKOLLISET, kuvaus
         running = src.scanning
         now = src.now()
         dur = max(0.5, (min(now, sc["alku"] + sc["kesto"] * (src.accel if src.simulated else 1))) - sc["alku"])
@@ -230,17 +214,16 @@ class Api:
             d = n - sc["perus"].get(cid, 0)
             if d > 0:
                 rows.append({"tunniste": f"0x{cid:03X}", "kpl": d, "taajuus_hz": round(d / dur, 1),
-                             "kuvaus": TUNNISTE_KUVAUS.get(cid), "akku": cid in PAKOLLISET})
+                             "kuvaus": kuvaus(cid, self.app.decoder.platform), "akku": cid in KAIKKI_PAKOLLISET})
         ids = {int(r["tunniste"], 16) for r in rows}
-        if any(cid in ids for cid in PAKOLLISET):
+        if any(cid in ids for cid in KAIKKI_PAKOLLISET):
             verdict = ("ok", "Liitäntä välittää akun tiedot. Mittaukset voidaan tehdä tämän liitännän kautta.")
         elif not rows:
             verdict = ("ei", "Väylällä ei liikkunut viestejä. Herätä auto avaamalla ovi tai käynnistämällä ilmastointi ja kartoita uudelleen.")
         else:
             verdict = ("rajattu", "Liitäntä välittää vain muutaman tiedon, kuten nopeuden ja virtatilan, mutta ei akun tietoja. "
-                       "Kytke sovitin Teslan diagnostiikkaliittimeen välikaapelilla. Liitin on keskikonsolin takapäässä "
-                       "takamatkustajien puolella paneelin takana: vuosien 2019–2020 autoissa 20-pinninen ja 2021 alkaen "
-                       "26-pinninen.")
+                       "Kytke sovitin auton diagnostiikkaliittimeen mallille sopivalla välikaapelilla. "
+                       + self._guide_text())
         return {"tila": "kaynnissa" if running else "valmis", "jaljella_s": max(0, round(sc["kesto"] - (time.time() - sc["seinakello"]))),
                 "viestit": rows, "lajeja": len(rows), "arvio": verdict[0], "teksti": verdict[1]}
 
@@ -261,7 +244,8 @@ class Api:
     def yhdista(self, q, body):
         kind = body.get("tyyppi", "obdlink")
         if kind == "demo":
-            self.app.connect("demo", soc=(_num(body.get("soc")) or 12) / 100, accel=_num(body.get("nopeutus")) or 60)
+            self.app.connect("demo", soc=(_num(body.get("soc")) or 12) / 100, accel=_num(body.get("nopeutus")) or 60,
+                             auto=body.get("auto"))
         else:
             port = body.get("portti") or self.app.settings.get("portti")
             baud = int(body.get("baud") or 0) or None
@@ -310,7 +294,8 @@ class Api:
         if "vuosimalli" in body:
             data["vuosimalli"] = int(body["vuosimalli"]) if body["vuosimalli"] else None
         if not data.get("malli_id") and data.get("vin"):
-            m, _ = profiles.identify(vinmod.decode(data["vin"]))
+            _vi = vinmod.decode(data["vin"])
+            m, _ = profiles.identify(_vi, platform=_vi.get("alusta_arvio"))
             data["malli_id"] = m["id"] if m else None
             if not data.get("vuosimalli"):
                 data["vuosimalli"] = vinmod.decode(data["vin"]).get("vuosimalli")
@@ -336,6 +321,11 @@ class Api:
             raise ApiError("Ajoneuvoa ei löydy.", 404)
         v["malli"] = profiles.get(v["malli_id"])
         v["vin_tiedot"] = vinmod.decode(v["vin"]) if v.get("vin") else None
+        v["kuva"] = self.app.storage.vehicle_photo(vid).exists()
+        vi = v["vin_tiedot"] or {}
+        v["liitanta"] = profiles.connection_guide(vi.get("malli_koodi") or ((v["malli"] or {}).get("malli_koodi") or "")[:1],
+                                                  vi.get("vuosimalli") or v.get("vuosimalli"),
+                                                  (v.get("opitut") or {}).get("alusta") or (v["malli"] or {}).get("alusta"))
         v["mittaukset"] = [self._test_row(t) for t in self.app.storage.tests(vid)]
         return v
 
@@ -354,8 +344,25 @@ class Api:
 
     def vin(self, q, body):
         info = vinmod.decode(body.get("vin", ""))
-        model, reasons = profiles.identify(info) if info["kelvollinen"] else (None, [])
-        return {"tiedot": info, "malli": model, "perusteet": reasons}
+        model, reasons = profiles.identify(info, platform=info.get("alusta_arvio")) if info["kelvollinen"] else (None, [])
+        guide = profiles.connection_guide(info.get("malli_koodi"), info.get("vuosimalli"),
+                                          (model or {}).get("alusta")) if info["kelvollinen"] else None
+        return {"tiedot": info, "malli": model, "perusteet": reasons, "liitanta": guide}
+
+    def _guide_text(self) -> str:
+        """Liitäntäohje valitun tai viimeksi kytketyn auton mukaan, muuten Model 3 / Y -ohje."""
+        v = None
+        vin_txt = self.app.decoder.state.vin
+        if vin_txt:
+            v = self.app.storage.find_vehicle_by_vin(vin_txt)
+        if not v:
+            vs = self.app.storage.vehicles()
+            v = vs[0] if len(vs) == 1 else None
+        info = vinmod.decode(v["vin"]) if v and v.get("vin") else {}
+        m = profiles.get((v or {}).get("malli_id"))
+        g = profiles.connection_guide(info.get("malli_koodi") or "3", info.get("vuosimalli") or (v or {}).get("vuosimalli"),
+                                      (m or {}).get("alusta"))
+        return g["ohje"]
 
     def mallit(self, q, body):
         return {"mallit": profiles.models()}
@@ -481,6 +488,24 @@ class Api:
                 body[k] = _num(body[k])
         return self.app.storage.save_settings(body)
 
+    def auton_kuva(self, q, body, vid):
+        if not self.app.storage.vehicle(vid):
+            raise ApiError("Ajoneuvoa ei löydy.", 404)
+        if body.get("poista"):
+            try:
+                self.app.storage.vehicle_photo(vid).unlink()
+            except OSError:
+                pass
+            return {"ok": True}
+        m = re.match(r"data:image/[\w.+-]+;base64,(.*)", body.get("data", ""), re.S)
+        if not m:
+            raise ApiError("Valitse kuvatiedosto (JPEG tai PNG).")
+        try:
+            self.app.storage.save_vehicle_photo(vid, base64.b64decode(m.group(1)))
+        except ValueError as e:
+            raise ApiError(str(e))
+        return {"ok": True}
+
     def logo(self, q, body):
         data = body.get("data", "")
         m = re.match(r"data:image/(png|jpeg);base64,(.*)", data)
@@ -510,11 +535,12 @@ ROUTES = [
     ("POST", r"/api/mittaukset/(\d+)/tallenna", "tallenna_kansioon"), ("GET", r"/api/mittaukset/(\d+)/tarkista", "tarkista"),
     ("GET", r"/api/asetukset", "asetukset"), ("POST", r"/api/asetukset", "tallenna_asetukset"),
     ("POST", r"/api/vaylakartoitus", "aloita_kartoitus"), ("GET", r"/api/vaylakartoitus", "kartoitus"),
+    ("POST", r"/api/ajoneuvot/(\d+)/kuva", "auton_kuva"),
     ("POST", r"/api/logo", "logo"), ("POST", r"/api/sulje", "sulje"), ("POST", r"/api/uudelleen", "uudelleen"),
     ("GET", r"/api/yllapito/tarkistus", "tarkistus"), ("GET", r"/api/yllapito/loki", "loki"),
     ("GET", r"/api/yllapito/varmuuskopiot", "varmuuskopiot"),
     ("POST", r"/api/yllapito/palauta/tarkista", "tarkista_palautus"), ("POST", r"/api/yllapito/palauta", "palauta"),
-    ("POST", r"/api/yllapito/paivitys/tarkista", "tarkista_paivitys"), ("POST", r"/api/yllapito/paivitys", "paivita"),
+
     ("POST", r"/api/ilmoitus/testi", "testi_ilmoitus"), ("GET", r"/api/ohjeet", "ohjeet"),
     ("GET", r"/api/tietoja", "tietoja"),
 ]
@@ -640,6 +666,13 @@ def make_handler(api: Api):
                         raise ApiError("Raakadataa ei löydy.", 404)
                     self._send(200, p.read_bytes(), "application/gzip",
                                {"Content-Disposition": f'attachment; filename="{p.name}"'})
+                return True
+            mk = re.fullmatch(r"/api/ajoneuvot/(\d+)/kuva\.jpg", path)
+            if mk:
+                p = st.vehicle_photo(int(mk.group(1)))
+                if not p.exists():
+                    raise ApiError("Autolla ei ole kuvaa.", 404)
+                self._send(200, p.read_bytes(), "image/jpeg", {"Cache-Control": "no-store"})
                 return True
             if path == "/api/yllapito/varmuuskopio":
                 p = maintenance.backup(st)

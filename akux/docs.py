@@ -5,9 +5,16 @@ OHJE = [
     {
         "id": "aloitus", "otsikko": "Aloitus",
         "osat": [
-            ("p", "Akux mittaa Tesla Model 3:n ja Model Y:n ajoakun kunnon ja kapasiteetin ja tekee tuloksista "
-                  "raportin, jonka voi antaa ostajalle, asiakkaalle tai pitää itsellä. Ohjelma lukee tiedot "
-                  "auton akunhallinnasta OBDLink-sovittimella."),
+            ("p", "Akux lukee Teslan ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta ja kokoaa tiedot "
+                  "raportiksi, jonka voi antaa ostajalle, asiakkaalle tai pitää itsellä. Kaikki mittausarvot ovat "
+                  "auton akunhallinnan luovuttamia. Akux ei käytä omia antureitaan eikä muuta arvoja."),
+            ("ul", [
+                "<b>Model 3 ja Model Y</b>, kaikki vuosimallit ja akkutyypit (NCA, NMC ja LFP).",
+                "<b>Model S ja Model X</b>: vuodesta 2021 valmistetut samalla tavalla kuin Model 3. Vuosien 2012–2021 "
+                "Model S ja 2015–2021 Model X käyttävät omaa viestirakennettaan, jonka Akux tunnistaa itse. Niiden "
+                "akunhallinta ei ilmoita akun alkuperäistä kapasiteettia, joten se kannattaa syöttää auton tietoihin.",
+                "<b>Cybertruck</b>: auto tunnistetaan, mutta mittaus on kokeellinen.",
+            ]),
             ("ol", [
                 "Avaa <b>Asetukset</b> ja täytä yrityksen tiedot, mittaajan nimi ja logo. Tiedot näkyvät jokaisessa raportissa.",
                 "Kytke OBDLink-sovitin välikaapelilla auton diagnostiikkaliittimeen ja USB-kaapelilla tietokoneeseen.",
@@ -21,13 +28,23 @@ OHJE = [
     {
         "id": "yhdistaminen", "otsikko": "Yhdistäminen autoon",
         "osat": [
-            ("p", "Akun tiedot luetaan Teslan diagnostiikkaliittimestä. Liitin on keskikonsolin takapäässä "
-                  "takamatkustajien puolella paneelin takana. Sovitin kytketään siihen välikaapelilla: vuosien "
-                  "2019–2020 autoissa liitin on yleensä 20-pinninen ja 2021 alkaen 26-pinninen. Tarkista pinnien "
-                  "määrä ennen kaapelin hankintaa."),
-            ("note", "Eurooppalaisten Model 3- ja Model Y -autojen jalkatilassa on myös tavallisen näköinen OBD-liitäntä. "
-                     "Se on tarkoitettu kolmannen osapuolen laitteille, ja se välittää vain muutaman tiedon, kuten nopeuden "
-                     "ja virtatilan, mutta ei akun tietoja. Yhteystesti ja väylän kartoitus kertovat tämän suoraan."),
+            ("p", "Akun tiedot luetaan auton diagnostiikkaliittimestä OBDLink-sovittimella ja mallille sopivalla "
+                  "välikaapelilla. Auton sivulla <b>Kytkentä autoon</b> kertoo juuri sen auton liittimen."),
+            ("ul", [
+                "<b>Model 3 ja Model Y (2019–2024):</b> liitin on keskikonsolin takapäässä takamatkustajien puolella "
+                "paneelin takana. Vuosien 2019–2020 autoissa se on 20-pinninen ja 2021 alkaen 26-pinninen. "
+                "Vuodenvaihteen 2020–2021 autoissa laske pinnit tai hanki sarja, jossa on molemmat kaapelit.",
+                "<b>Uudistettu Model 3 (2024–) ja Model Y (2025–):</b> liitin ja sen paikka poikkeavat. Varmista "
+                "välikaapelin myyjältä, että kaapeli on tehty juuri tälle mallille.",
+                "<b>Model S 2012–2021 ja Model X 2015–2021:</b> välikaapelin pitää tuoda voimalinjan CAN-väylä. "
+                "Liitin on erilainen vuosien 2012–09/2015 Model S:ssä ja sitä uudemmissa.",
+                "<b>Model S ja Model X 2021–04/2024:</b> sininen 20-napainen liitin kosketusnäytön alla langattoman "
+                "latausalustan yläpuolella. Tarvitaan Model S/X:lle tehty välikaapeli.",
+                "<b>Model S ja Model X 05/2024 alkaen:</b> sovitin kytketään suoraan kuljettajan jalkatilan OBD-liitäntään.",
+            ]),
+            ("note", "Model 3:n ja Model Y:n jalkatilassa on myös tavallisen näköinen OBD-liitäntä. Se on tarkoitettu "
+                     "kolmannen osapuolen laitteille, ja se välittää vain muutaman tiedon, kuten nopeuden ja virtatilan, "
+                     "mutta ei akun tietoja. Yhteystesti ja väylän kartoitus kertovat tämän suoraan."),
             ("ol", [
                 "Kytke sovitin auton liitäntään ja tietokoneeseen.",
                 "Herätä auto avaamalla ovi tai käynnistämällä ilmastointi Tesla-sovelluksesta. Sovitin saa virtaa vain, kun auto on hereillä.",
@@ -48,7 +65,9 @@ OHJE = [
                   "suoraan."),
             ("ul", [
                 "<b>Käyttöönottopäivä</b> tarvitaan akkutakuun voimassaolon laskemiseen. Sen löytää rekisteriotteesta.",
-                "<b>Alkuperäinen kapasiteetti</b> kannattaa syöttää käsin vain, jos auto ei ilmoita sitä itse.",
+                "<b>Alkuperäinen kapasiteetti</b> kannattaa syöttää käsin vain, jos auto ei ilmoita sitä itse. Näin on vuosien 2012–2021 Model S:ssä ja 2015–2021 Model X:ssä.",
+                "<b>Rekisterinumero</b> näkyy raportin etusivulla. Sitä ei voi lukea autosta, joten se syötetään käsin.",
+                "<b>Auton kuva</b> on vapaaehtoinen. Lisää se auton sivulla, niin kuva näkyy raportin etusivulla. Puhelimella otetun kuvan asento korjataan automaattisesti.",
                 "Auton sivulla näkyy kaikki sen mittaukset ja akun kunnon kehitys.",
             ]),
         ],
@@ -201,7 +220,7 @@ SANASTO = [
     ("Kapasiteetti", "Energiamäärä, jonka täysi akku sisältää, kilowattitunteina (kWh)."),
     ("Käytettävä energia", "Kapasiteetti vähennettynä puskurilla. Tämä energia on ajossa käytettävissä."),
     ("Puskuri", "Akunhallinnan varaama energia, jota ei näytetä käyttäjälle ja joka suojaa akkua syväpurkaukselta."),
-    ("Kennoryhmä", "Rinnan kytkettyjen kennojen ryhmä. Model 3:n ja Model Y:n akussa on 96 tai 106 sarjaan kytkettyä ryhmää."),
+    ("Kennoryhmä", "Rinnan kytkettyjen kennojen ryhmä. Teslan akuissa on tavallisesti 84, 96 tai 106 sarjaan kytkettyä ryhmää."),
     ("Jännite-ero", "Suurimman ja pienimmän kennoryhmän jännitteen ero. Pieni ero kertoo tasaisesti varautuneesta akusta."),
     ("Lepojännite", "Kennon jännite, kun akusta ei ole hetkeen otettu eikä siihen ole ladattu virtaa."),
     ("Akunhallinta (BMS)", "Akun ohjausjärjestelmä, joka valvoo kennoja ja laskee akun varaustilan ja energian."),

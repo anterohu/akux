@@ -1,12 +1,14 @@
-# Akux 1.2
+# Akux 1.3
 
-Akux mittaa Tesla Model 3:n ja Model Y:n ajoakun kunnon ja kapasiteetin OBDLink-sovittimella ja tekee tuloksista selkeän ja yksityiskohtaisen PDF-raportin ostajalle, asiakkaalle tai omaan käyttöön.
+Akux lukee Teslan ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta OBDLink-sovittimella ja tekee tuloksista selkeän ja yksityiskohtaisen PDF-raportin ostajalle, asiakkaalle tai omaan käyttöön. Kaikki mittausarvot ovat auton akunhallinnan luovuttamia.
+
+Tuetut autot: Model 3 ja Model Y (kaikki vuosimallit ja akkutyypit), Model S ja Model X (2012 alkaen; vuosien 2012–2021 vanhempi viestirakenne tunnistetaan automaattisesti) sekä Cybertruck kokeellisesti. Model S/X- ja Cybertruck-tukea ei ole vielä varmistettu oikealla autolla.
 
 ## Asennus
 
 Valmiit ohjelmat ovat GitHubin **Releases**-sivulla: https://github.com/anterohu/akux/releases/latest
 
-**Windows:** lataa `Akux-asennus-x.y.z.exe` ja aja se. Asennus lisää pikakuvakkeen työpöydälle ja Käynnistä-valikkoon. Jos Windows näyttää ilmoituksen *Windows suojasi tietokonettasi*, valitse **Lisätietoja → Suorita silti**. Ilmoitus tulee vain asennusohjelmasta kerran jokaista uutta versiota kohden, ei itse ohjelmasta.
+**Windows:** lataa `Akux-asennus-x.y.z.exe` ja aja se. Akux avautuu omaan sovellusikkunaansa, eikä selainta tarvita. Asennus lisää pikakuvakkeen työpöydälle ja Käynnistä-valikkoon. Jos Windows näyttää ilmoituksen *Windows suojasi tietokonettasi*, valitse **Lisätietoja → Suorita silti**. Ilmoitus tulee vain asennusohjelmasta kerran jokaista uutta versiota kohden, ei itse ohjelmasta.
 
 **Android (10 tai uudempi):** lataa `Akux-x.y.z.apk` puhelimeen ja avaa se. Android kysyy kerran luvan asentaa sovelluksia tästä lähteestä. Kytke OBDLink EX välikaapelilla auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen ja salli Akuxille pääsy sovittimeen. Diagnostiikkaliitin on keskikonsolin takapäässä: vuosien 2019–2020 autoissa 20-pinninen ja 2021 alkaen 26-pinninen. Jalkatilan OBD-liitäntä ei välitä akun tietoja. Kapasiteettimittaukseen (8–14 h) tarvitaan OTG-sovitin, jossa on PD-latausportti, jotta puhelin latautuu mittauksen ajan.
 
@@ -31,15 +33,15 @@ Mittaustiedosto sisältää kaiken: auton tiedot, mittausnäytteet, kennoryhmien
 - **Mittaukset:** tulokset, raportit, mittausdata ja raakadatan eheyden tarkistus.
 - **Ohjeet:** koko käyttöohje ohjelmassa ja PDF-muodossa.
 - **Asetukset:** raporttien yritystiedot ja logo, mittauksen raja-arvot, puhelinkäyttö ja puhelinilmoitukset.
-- **Ylläpito:** laaduntarkistus, päivitys zip-paketista, varmuuskopiot ja palautus sekä tapahtumaloki.
+- **Ylläpito:** laaduntarkistus, linkki uusimpaan versioon, varmuuskopiot ja palautus sekä tapahtumaloki.
 
 ## Raportti
 
-1. Yhteenveto: kunto, kapasiteetti, jännite-ero, sanallinen tulos, mitä tulos tarkoittaa ja auton tiedot. Sivulla on allekirjoituskohta.
+1. Yhteenveto: kunto, kapasiteetti, jännite-ero, Teslan akunhallinnan omat arvot, sanallinen tulos, mitä tulos tarkoittaa ja auton tiedot (myös rekisterinumero ja vapaaehtoinen auton kuva). Sivulla on allekirjoituskohta ja raportin tunnistetiedot QR-koodina.
 2. Arviot luokkineen (myös akkutakuu) ja mittausolosuhteet.
 3. Kapasiteettimittaus: latauskäyrä, laskennan jokainen vaihe, luotettavuuden tarkistukset ja epävarmuuden erittely.
 4. Kennoryhmät: kaaviot ja tunnusluvut, kapasiteettimittauksessa myös matalassa varauksessa.
-5. Jokaisen kennoryhmän jännitetaulukko.
+5. Jokaisen kennoryhmän jännitetaulukko tunnuslukuineen, kapasiteettimittauksessa myös matalassa varauksessa.
 6. Akunhallinnan tiedot, elinkaaren energialaskurit, vertailu ajomäärään ja kunnon kehitys.
 7. Menetelmä ja tietolähteet, mittauksen tapahtumat ja raakadatan tarkiste.
 8. Sanasto.
@@ -72,6 +74,7 @@ python tests/test_obdlink.py         # sovittimen alustus ja viestien luku
 python tests/test_yllapito.py        # asetukset, ilmoitukset, varmuuskopio, päivitys, puhelinsuojaus
 python tests/test_android_silta.py   # Android-sovelluksen USB-yhteys ja käynnistys
 python tests/test_mittaustiedosto.py # mittaustiedoston tallennus, avaus ja eheys
+python tests/test_mallit.py          # kaikki mallit, Model S/X:n vanha viestirakenne
 ```
 
 GitHub ajaa jokaisen muutoksen jälkeen kaikki testit, rakentaa Windows-asennusohjelman ja testaa asennuksen, mittauksen, raportin ja päivityksen oikealla Windows-koneella sekä rakentaa Android-sovelluksen ja testaa sen Android-emulaattorissa. Vasta kun kaikki on hyväksytty, versio julkaistaan Releases-sivulle.
@@ -83,8 +86,9 @@ Android hyväksyy päivityksen vain, jos se on allekirjoitettu samalla avaimella
 ## Lähteet ja lisenssit
 
 - CAN-viestien määrittelyt: Tesla Model 3 DBC, https://github.com/joshwardell/model3dbc (MIT-lisenssi).
+- Model S 2012–2021 / Model X 2015–2021: Open Vehicle Monitoring System, https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3 (MIT-lisenssi), ja Battery-Emulatorin TESLA-LEGACY-BATTERY.
 - Uudemman ohjelmistoversion energiaviestin rakenne: Battery-Emulator, https://github.com/dalathegreat/Battery-Emulator.
 - OBD-liitännän kolmannen osapuolen CAN-väylä: Tesla, huoltodokumentti CD-20-17-001.
 - Fontti Inter, SIL Open Font License 1.1 (`akux/data/fonts/LISENSSI-Inter.txt`).
 
-Tesla, Model 3 ja Model Y ovat Tesla, Inc:n tavaramerkkejä. Akux ei ole Teslan tekemä eikä hyväksymä.
+Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä. Akux ei ole Teslan tekemä eikä hyväksymä.

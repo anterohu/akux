@@ -9,7 +9,6 @@ Tiedosto on zip-paketti, jonka sisältö on kuvattu tiedostossa mittaus.json.
 """
 from __future__ import annotations
 
-import gzip
 import hashlib
 import io
 import json
@@ -77,6 +76,9 @@ def export(storage, tid: int, with_report: bool = True) -> tuple[str, bytes]:
         put("naytteet.json", json.dumps(storage.samples(tid), ensure_ascii=False).encode("utf-8"))
         put("kennot.json", json.dumps(storage.snapshots(tid), ensure_ascii=False).encode("utf-8"))
         put("tapahtumat.json", json.dumps(storage.events(tid), ensure_ascii=False).encode("utf-8"))
+        photo = storage.vehicle_photo(test["vehicle_id"])
+        if photo.exists():
+            put("auton_kuva.jpg", photo.read_bytes(), compress=False)
         raw = test.get("raakadata")
         if raw and Path(raw).exists():
             put("raakadata.csv.gz", Path(raw).read_bytes(), compress=False)
@@ -150,6 +152,11 @@ def import_file(storage, data: bytes) -> dict:
         vid = storage.add_vehicle({k: v.get(k) for k in storage.VEHICLE_FIELDS} | {"opitut": v.get("opitut") or {}})
         new_vehicle = True
 
+    if "auton_kuva.jpg" in z.namelist() and not storage.vehicle_photo(vid).exists():
+        try:
+            storage.save_vehicle_photo(vid, z.read("auton_kuva.jpg"))
+        except ValueError:
+            pass
     tid = storage.add_test(vid, t["tyyppi"], t.get("mittarilukema"), t.get("mittaaja") or "", t.get("lisatiedot") or "")
     raw_path = None
     if "raakadata.csv.gz" in z.namelist():

@@ -189,7 +189,7 @@ class Recorder:
             self.last_hv = (t, v, i)
             st = self.app.decoder.state
             for g in self.gaps:
-                seen = self.app.decoder.seen.get(0x352) or {}
+                seen = self.app.decoder.seen.get(self.app.decoder.energy_id()) or {}
                 if g.get("ner_loppu") is None and "_e_mark" in g and seen.get("last", 0) > g["loppu"] \
                         and st.nominal_remaining_kwh is not None:
                     since = (self.e_in - self.e_out) - g.pop("_e_mark")
@@ -237,6 +237,7 @@ class Recorder:
             if self.charge_since is None:
                 self.charge_since = t
                 self._charge_mark = (self.e_in, self.ah_in, self.i2_in, self.e_out, self.ah_out)
+                self._charge_mark_cnt = st.counters_raw
         else:
             self.charge_since = None
 
@@ -331,6 +332,7 @@ class Recorder:
                                      "ner": st.nominal_remaining_kwh, "nfp": st.nfp_kwh,
                                      "v_lepo": lr[1] if lr else None,
                                      "t_min": st.temp_min, "t_max": st.temp_max}
+        self.marks["lataus_alku"]["laskurit"] = getattr(self, "_charge_mark_cnt", None) or st.counters_raw
         # Lataus tunnistetaan 10 s viiveellä: energia lasketaan latauksen alusta
         self.ch_e_neg = self.ch_ah_neg = self.ch_i2 = 0.0
         self.ch_e_pos = self.ch_ah_pos = self.ch_seconds = 0.0
@@ -348,6 +350,7 @@ class Recorder:
             "t": t, "soc_avg": st.soc_avg, "soc_ui": st.soc_ui, "soc_min": st.soc_min,
             "soc_max": st.soc_max, "ner": st.nominal_remaining_kwh, "nfp": st.nfp_kwh,
             "taysi": bool(st.full_charge_complete), "t_min": st.temp_min, "t_max": st.temp_max,
+            "laskurit": st.counters_raw,
             "e_neg": self.ch_e_neg, "e_pos": self.ch_e_pos, "ah_neg": self.ch_ah_neg,
             "ah_pos": self.ch_ah_pos, "i2": self.ch_i2, "kesto_s": self.ch_seconds,
             "e_in_kokonais": pre_e, "ah_in_kokonais": self.ah_in - self.marks.get("ah_in_ennen", self.ah_in),

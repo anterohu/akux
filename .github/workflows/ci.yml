@@ -27,6 +27,8 @@ jobs:
         run: python tests/test_android_silta.py
       - name: Mittaustiedosto
         run: python tests/test_mittaustiedosto.py
+      - name: Kaikki automallit
+        run: python tests/test_mallit.py
 
   windows:
     name: Windows-sovellus
@@ -52,6 +54,7 @@ jobs:
             --icon akux.ico `
             --add-data "akux\web;akux\web" --add-data "akux\data;akux\data" `
             --hidden-import serial.tools.list_ports --collect-submodules akux --exclude-module tkinter `
+            --collect-all webview --hidden-import clr --hidden-import clr_loader `
             --distpath dist --workpath build Akux.pyw
           if (-not (Test-Path dist\Akux\Akux.exe)) { throw "Akux.exe puuttuu" }
       - name: Rakenna asennusohjelma
@@ -83,8 +86,13 @@ jobs:
           Write-Host "Akux $($r.versio) käynnissä"
           if ($r.versio -ne $env:VERSIO) { throw "Väärä versio $($r.versio)" }
 
-          Start-Process $exe -Wait
-          Write-Host "Toinen käynnistys avasi vain ikkunan"
+          # Toinen käynnistys avaa vain uuden sovellusikkunan. Ikkunatesti varmistaa, että
+          # Windowsin WebView2-ikkuna aukeaa ja käyttöliittymä latautuu siihen.
+          $w = Start-Process $exe -ArgumentList "--ikkunatesti" -PassThru
+          if (-not $w.WaitForExit(120000)) { $w.Kill(); throw "Ikkunatesti ei päättynyt" }
+          Get-Content (Join-Path $env:APPDATA "Akux\loki.txt") -Tail 5 -ErrorAction SilentlyContinue
+          if ($w.ExitCode -ne 0) { throw "Sovellusikkuna ei avautunut oikein (koodi $($w.ExitCode))" }
+          Write-Host "Sovellusikkuna avautui ja käyttöliittymä latautui"
 
           $q = Invoke-RestMethod "$b/api/yllapito/tarkistus" -TimeoutSec 180
           $q.tarkistukset | Format-Table nimi, tila, tieto -AutoSize | Out-String -Width 200 | Write-Host

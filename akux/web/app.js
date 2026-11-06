@@ -10,6 +10,15 @@ let pollTimer = null;
 
 // ---------- apufunktiot ----------
 const ANDROID = !!window.AkuxAndroid;
+const MALLIRYHMAT = [
+  ["Model 3", m => m.malli_koodi === "3"],
+  ["Model Y", m => m.malli_koodi === "Y"],
+  ["Model S ja Model X 2021–", m => m.alusta !== "sx" && /[SX]/.test(m.malli_koodi)],
+  ["Model S 2012–2021 ja Model X 2015–2021", m => m.alusta === "sx"],
+  ["Cybertruck", m => m.malli_koodi === "C"],
+];
+const cellsTxt = c => (Array.isArray(c) ? c.join(" tai ") : (c || ""));
+const guideHtml = (g, card = false) => `${card ? "<h2>Kytkentä autoon</h2>" : `<h3 style="margin:14px 0 6px">Kytkentä autoon</h3>`}<div class="small"><b>${esc(g.liitin)}.</b> ${esc(g.ohje)}</div>${g.varmistettu ? "" : `<div class="small muted" style="margin-top:6px">Tätä kytkentää ei ole vielä varmistettu Akuxilla. Tarkista väylä ensimmäisellä kytkentäkerralla Yleiskuvan kohdasta Kartoita väylä.</div>`}`;
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
@@ -185,7 +194,9 @@ views.yleiskuva = {
           </div>
           <div>
             <label class="f"><span>Esittelytila ilman autoa</span></label>
-            <p class="small muted">Simuloitu Model 3 Long Range 2020. Esittelytilassa voit kokeilla kaikkia toimintoja ja nähdä esimerkkiraportin. Aika kulkee nopeutettuna.</p>
+            <select id="demoCar"><option value="m3-lr">Model 3 Long Range 2020 (NCA)</option><option value="m3-lfp">Model 3 SR+ 2020, LFP-akku</option>
+              <option value="my-lr">Model Y Long Range 2022 (NMC)</option><option value="ms-85">Model S 85 2015</option></select>
+            <p class="small muted" style="margin-top:8px">Esittelytilassa voit kokeilla kaikkia toimintoja ja nähdä esimerkkiraportin ilman autoa. Aika kulkee nopeutettuna.</p>
             <button class="btn" id="bDemo">Käynnistä esittelytila</button>
           </div>
         </div>`;
@@ -195,7 +206,7 @@ views.yleiskuva = {
       }
       $("#bRefresh").onclick = () => { this.connRendered = null; this.renderConnCard(); };
       $("#bConnect").onclick = () => act(() => api("/api/yhdista", { method: "POST", body: { tyyppi: "obdlink", portti: $("#port").value } }), "Yhdistetään…").then(poll);
-      $("#bDemo").onclick = () => act(() => api("/api/yhdista", { method: "POST", body: { tyyppi: "demo", soc: 12, nopeutus: 60 } }), "Esittelytila käynnistetty").then(poll);
+      $("#bDemo").onclick = () => act(() => api("/api/yhdista", { method: "POST", body: { tyyppi: "demo", soc: 12, nopeutus: 60, auto: $("#demoCar").value } }), "Esittelytila käynnistetty").then(poll);
     } else {
       c.innerHTML = `
         <div class="row"><div><h2 style="margin:0">${y.simuloitu ? "Esittelytila" : "Yhdistetty sovittimeen"}</h2>
@@ -288,7 +299,7 @@ views.yleiskuva = {
       !vt.viestit.some(r => r.pakollinen && r.nakyy) && vt.viestit.some(r => r.nakyy);
     if (vt) {
       $("#busBox").innerHTML = `
-        ${vt.kunnossa ? `<div class="notice good">Kaikki mittauksessa tarvittavat tiedot vastaanotetaan.</div>` :
+        ${vt.kunnossa ? `<div class="notice good">Kaikki mittauksessa tarvittavat tiedot vastaanotetaan.${L.platform_name ? ` Viestiarkkitehtuuri: ${esc(L.platform_name)}.` : ""}</div>` :
           (restricted ? `<div class="notice bad"><b>Tämä liitäntä ei välitä akun tietoja.</b> Autosta tulee viestejä, mutta vain muutama tieto, kuten nopeus ja virtatila. Kytke sovitin Teslan diagnostiikkaliittimeen välikaapelilla. Liitin on keskikonsolin takapäässä takamatkustajien puolella paneelin takana: vuosien 2019–2020 autoissa 20-pinninen ja 2021 alkaen 26-pinninen. <a href="#/ohjeet/yhdistaminen">Ohje</a></div>` :
           `<div class="notice warn"><b>Puuttuu:</b> ${esc(vt.puuttuvat.join(", "))}. Odota hetki. Jos tieto ei ilmesty minuutin kuluessa, auto ei lähetä sitä tähän liitäntään.</div>`)}
         <table class="t ${this.tech ? "tech" : ""}"><tr><th>Tieto</th><th class="techcol">Tunniste</th><th class="num techcol">Taajuus</th><th></th></tr>
@@ -533,7 +544,7 @@ views.autot = {
           <label class="f"><span>Valmistenumero (VIN)</span><div class="row" style="flex-wrap:nowrap"><input name="vin" value="${esc(v ? v.vin || "" : live)}" maxlength="17" style="text-transform:uppercase">
             ${S && S.live && S.live.vin ? `<button class="btn sm" id="vRead" type="button">Lue autosta</button>` : ""}</div></label>
           <div class="grid g2">
-            <label class="f"><span>Nimi</span><input name="nimi" value="${esc(v ? v.nimi : "")}" placeholder="Esimerkiksi Oma Model 3"></label>
+            <label class="f"><span>Nimi</span><input name="nimi" value="${esc(v ? v.nimi : "")}" placeholder="Esimerkiksi Asiakkaan Model Y"></label>
             <label class="f"><span>Rekisterinumero</span><input name="rekisteri" value="${esc(v ? v.rekisteri || "" : "")}"></label>
             <label class="f"><span>Omistaja tai tilaaja</span><input name="omistaja" value="${esc(v ? v.omistaja || "" : "")}"></label>
             <label class="f"><span>Vuosimalli</span><input name="vuosimalli" inputmode="numeric" value="${esc(v ? v.vuosimalli || "" : "")}"></label>
@@ -541,7 +552,7 @@ views.autot = {
             <label class="f"><span>Väri</span><input name="vari" value="${esc(v ? v.vari || "" : "")}"></label>
           </div>
           <label class="f"><span>Mallipohja</span><select name="malli_id"><option value="">Tunnista automaattisesti</option>
-            ${mallit.map(m => `<option value="${m.id}" ${v && v.malli_id === m.id ? "selected" : ""}>${esc(m.nimi)}</option>`).join("")}</select></label>
+            ${MALLIRYHMAT.map(([nimi, f]) => `<optgroup label="${nimi}">${mallit.filter(f).map(m => `<option value="${m.id}" ${v && v.malli_id === m.id ? "selected" : ""}>${esc(m.nimi)}</option>`).join("")}</optgroup>`).join("")}</select></label>
           <label class="f"><span>Alkuperäinen kapasiteetti (kWh), jos tiedossa</span><input name="viite_kayttaja" inputmode="decimal" value="${esc(v && v.opitut && v.opitut.viite_kayttaja ? String(v.opitut.viite_kayttaja).replace(".", ",") : "")}" placeholder="Luetaan auton akunhallinnasta"></label>
           <label class="f"><span>Lisätiedot</span><textarea name="lisatiedot">${esc(v ? v.lisatiedot || "" : "")}</textarea></label>
           <div class="row"><button class="btn primary" id="vSave">${v ? "Tallenna" : "Lisää auto"}</button><a class="btn" href="#/autot${v ? "/" + v.id : ""}">Peruuta</a></div>
@@ -558,8 +569,10 @@ views.autot = {
       $("#vInfo").innerHTML = `<dl class="kv"><dt>Valmistaja</dt><dd>${esc(t.valmistaja)}</dd><dt>Malli</dt><dd>${esc(t.malli)}</dd>
         <dt>Vuosimalli</dt><dd>${esc(t.vuosimalli || "–")}</dd><dt>Tehdas</dt><dd>${esc(t.tehdas || "–")}</dd>
         <dt>Voimalinja</dt><dd>${esc(t.voimalinja || "–")}</dd><dt>Akku</dt><dd>${esc(t.akkutyyppi || "–")}</dd></dl>
-        ${r.malli ? `<div class="notice" style="margin-top:14px">Todennäköinen mallipohja: <b>${esc(r.malli.nimi)}</b>. Viitekapasiteetti ${n(r.malli.viite_kwh)} kWh, ${esc(r.malli.kemia)}, ${r.malli.sarjakennot} kennoryhmää.
-          <div class="small muted">Peruste: ${esc(r.perusteet.join(", "))}. Ensimmäinen mittaus varmistaa tiedot auton akunhallinnasta.</div></div>` : ""}`;
+        ${t.huomautus ? `<div class="notice warn" style="margin-top:14px">${esc(t.huomautus)}</div>` : ""}
+        ${r.malli ? `<div class="notice" style="margin-top:14px">Todennäköinen mallipohja: <b>${esc(r.malli.nimi)}</b>. Viitekapasiteetti ${n(r.malli.viite_kwh)} kWh${r.malli.likiarvo ? " (likiarvo)" : ""}, ${esc(r.malli.kemia)}${cellsTxt(r.malli.sarjakennot) ? ", " + cellsTxt(r.malli.sarjakennot) + " kennoryhmää" : ""}.
+          <div class="small muted">Peruste: ${esc(r.perusteet.join(", "))}. ${r.malli.alusta === "sx" ? "Tämän mallin akunhallinta ei ilmoita alkuperäistä kapasiteettia. Syötä se alle, jos tiedät sen." : "Ensimmäinen mittaus varmistaa tiedot auton akunhallinnasta."}</div></div>` : ""}
+        ${r.liitanta ? guideHtml(r.liitanta) : ""}`;
       const yr = $("[name=vuosimalli]");
       if (!yr.value && t.vuosimalli) yr.value = t.vuosimalli;
     };
@@ -589,13 +602,27 @@ views.autot = {
           <dt>Tehdas</dt><dd>${esc((v.vin_tiedot || {}).tehdas || "–")}</dd><dt>Voimalinja</dt><dd>${esc((v.vin_tiedot || {}).voimalinja || "–")}</dd></dl></div>
         <div class="card"><h2>Akku</h2><dl class="kv">
           <dt>Kemia</dt><dd>${esc(m.kemia || o.kemia || "–")}</dd><dt>Kennovalmistaja</dt><dd>${esc(m.kennovalmistaja || "–")}</dd>
-          <dt>Kennoryhmiä</dt><dd>${esc(o.kennoryhmat || m.sarjakennot || "–")}${o.kennoryhmat ? " (mitattu)" : (m.sarjakennot ? " (mallipohja)" : "")}</dd>
+          <dt>Kennoryhmiä</dt><dd>${esc(o.kennoryhmat || cellsTxt(m.sarjakennot) || "–")}${o.kennoryhmat ? " (mitattu)" : (m.sarjakennot ? " (mallipohja)" : "")}</dd>
           <dt>Alkuperäinen kapasiteetti</dt><dd>${o.bol_kwh ? n(o.bol_kwh) + " kWh (akunhallinta)" : (o.viite_kayttaja ? n(o.viite_kayttaja) + " kWh (ilmoitettu)" : (m.viite_kwh ? n(m.viite_kwh) + " kWh (mallitaulukko)" : "–"))}</dd>
           <dt>Viimeisin kunto</dt><dd>${o.viimeisin_kunto_pct ? n(o.viimeisin_kunto_pct) + " %" : "–"}</dd></dl></div>
       </div>
+      <div class="card"><div class="row"><h2 style="margin:0">Auton kuva</h2><span class="spacer"></span>
+          <label class="btn sm" style="cursor:pointer">${v.kuva ? "Vaihda kuva" : "Lisää kuva"}<input type="file" id="vPhoto" accept="image/jpeg,image/png" hidden></label>
+          ${v.kuva ? `<button class="btn sm" id="vPhotoDel" type="button">Poista</button>` : ""}</div>
+        ${v.kuva ? `<img src="/api/ajoneuvot/${v.id}/kuva.jpg?t=${Date.now()}" alt="${esc(v.nimi)}" style="display:block;width:100%;max-height:340px;object-fit:cover;border-radius:10px;margin-top:12px">`
+          : `<p class="small muted" style="margin-top:8px">Valokuva juuri tästä autosta. Kuva näkyy raportin etusivulla.</p>`}</div>
+      ${v.liitanta ? `<div class="card">${guideHtml(v.liitanta, true)}</div>` : ""}
       <div class="card"><h2>Mittaukset</h2>${testTable(v.mittaukset)}</div>
       <div class="row" style="margin-top:16px"><span class="spacer"></span><button class="btn danger sm" id="vDel">Poista auto ja sen mittaukset</button></div>`;
     $("#vEdit").onclick = () => this.renderForm(v);
+    $("#vPhoto").onchange = e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const rd = new FileReader();
+      rd.onload = () => act(() => api(`/api/ajoneuvot/${v.id}/kuva`, { method: "POST", body: { data: rd.result } }), "Kuva tallennettu").then(() => this.renderOne(v.id));
+      rd.readAsDataURL(f);
+    };
+    if ($("#vPhotoDel")) $("#vPhotoDel").onclick = () => act(() => api(`/api/ajoneuvot/${v.id}/kuva`, { method: "POST", body: { poista: true } }), "Kuva poistettu").then(() => this.renderOne(v.id));
     bindTestRows();
     $("#vDel").onclick = () => {
       if (!confirm(`Poistetaanko ${v.nimi} ja kaikki sen mittaukset pysyvästi?`)) return;
@@ -821,9 +848,7 @@ views.yllapito = {
         <div class="card"><h2>Päivitys</h2>
           <p class="small">Käytössä on versio <b>${esc(info.versio)}</b>.</p>
           <p class="small muted">Uusin versio julkaistaan GitHubin Releases-sivulla. ${ANDROID ? "Lataa Akux-x.y.z.apk ja asenna se vanhan päälle." : "Lataa Akux-asennus-x.y.z.exe ja aja se. Asennus sulkee Akuxin, päivittää sen ja säilyttää tiedot."} Autot, mittaukset, raportit ja asetukset säilyvät.</p>
-          <div class="row"><a class="btn primary" href="https://github.com/anterohu/akux/releases/latest" target="_blank" rel="noopener">Avaa julkaisut</a>
-          ${ANDROID ? "" : `<label class="btn" style="cursor:pointer">Asenna lähdekoodipaketista<input type="file" id="uFile" accept=".zip" hidden></label>`}</div>
-          <div id="uRes" style="margin-top:12px"></div></div>
+          <div class="row"><a class="btn primary" href="https://github.com/anterohu/akux/releases/latest" target="_blank" rel="noopener">Avaa julkaisut</a></div></div>
         <div class="card"><h2>Varmuuskopiot</h2>
           <p class="small muted">Ohjelma tekee varmuuskopion automaattisesti kerran viikossa ja säilyttää viisi uusinta. Tallenna kopio välillä myös muistitikulle tai pilvipalveluun.</p>
           <div class="row"><a class="btn" href="/api/yllapito/varmuuskopio" id="bNow">Tee varmuuskopio nyt</a>
@@ -837,7 +862,7 @@ views.yllapito = {
         <dt>Ohjelma</dt><dd>${esc(info.nimi)} ${esc(info.versio)}</dd>
         <dt>Tietojen sijainti</dt><dd style="word-break:break-all">${esc(info.datakansio)}</dd>
         <dt>Järjestelmä</dt><dd>${esc(info.jarjestelma)}</dd></dl>
-        <p class="small muted" style="margin-top:12px">${ANDROID ? "Tiedot säilyvät sovelluksen omassa tallennustilassa. Raportit ja varmuuskopiot tallentuvat myös Lataukset/Akux-kansioon, kun avaat ne. " : ""}Viestimäärittelyt perustuvat Tesla-omistajien yhteisön ylläpitämään avoimeen aineistoon. Tesla, Model 3 ja Model Y ovat Tesla, Inc:n tavaramerkkejä. Akux ei ole Teslan tekemä eikä hyväksymä.</p></div>`;
+        <p class="small muted" style="margin-top:12px">${ANDROID ? "Tiedot säilyvät sovelluksen omassa tallennustilassa. Raportit ja varmuuskopiot tallentuvat myös Lataukset/Akux-kansioon, kun avaat ne. " : ""}Viestimäärittelyt perustuvat Tesla-omistajien yhteisön ylläpitämään avoimeen aineistoon. Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä. Akux ei ole Teslan tekemä eikä hyväksymä.</p></div>`;
 
     $("#qRun").onclick = async () => {
       const b = $("#qRun");
@@ -857,28 +882,6 @@ views.yllapito = {
       b.textContent = "Aja tarkistus uudelleen";
     };
 
-    if ($("#uFile")) $("#uFile").onchange = async e => {
-      const f = e.target.files[0];
-      if (!f) return;
-      const box = $("#uRes");
-      box.innerHTML = `<div class="small muted">Tarkistetaan pakettia…</div>`;
-      try {
-        const r = await upload("/api/yllapito/paivitys/tarkista", f);
-        box.innerHTML = `<div class="notice ${r.uudempi ? "" : "warn"}">Paketissa on versio <b>${esc(r.versio)}</b>. ${r.uudempi ? "Se on uudempi kuin käytössä oleva." : "Se ei ole uudempi kuin käytössä oleva versio."}</div>
-          <button class="btn primary" id="uGo">Asenna versio ${esc(r.versio)}</button>`;
-        $("#uGo").onclick = async () => {
-          if (!confirm(`Asennetaanko Akux ${r.versio}? Ohjelma sulkeutuu asennuksen ajaksi ja avautuu sen jälkeen uudelleen.`)) return;
-          try {
-            await upload("/api/yllapito/paivitys", f);
-            clearInterval(pollTimer);
-            document.body.innerHTML = `<div style="padding:40px;font-family:Inter,system-ui"><h1>Päivitys käynnissä</h1><p>Asennusikkuna avautuu hetken kuluttua. Akux avautuu uudelleen, kun asennus on valmis. Voit sulkea tämän ikkunan.</p></div>`;
-          } catch (err) { toast(err.message, true); }
-        };
-      } catch (err) {
-        box.innerHTML = `<div class="notice bad">${esc(err.message)}</div>`;
-      }
-      e.target.value = "";
-    };
 
     $("#rFile").onchange = async e => {
       const f = e.target.files[0];
@@ -930,9 +933,26 @@ async function quitApp() {
   try { await api("/api/sulje", { method: "POST", body }); } catch (e) { toast(e.message, true); return; }
   clearInterval(pollTimer);
   document.body.innerHTML = `<div style="padding:40px;font-family:Inter,system-ui;color:var(--ink)"><h1>Akux on suljettu</h1><p class="muted">Voit sulkea tämän ikkunan.</p></div>`;
-  setTimeout(() => { if (ANDROID) window.AkuxAndroid.close(); else window.close(); }, 400);
+  setTimeout(() => {
+    if (ANDROID) window.AkuxAndroid.close();
+    else if (window.pywebview && window.pywebview.api) window.pywebview.api.sulje();
+    else window.close();
+  }, 400);
 }
 $("#quit").onclick = quitApp;
+
+// Windowsin sovellusikkunassa tiedostot avataan oletusohjelmassa ja tallennetaan valittuun paikkaan
+document.addEventListener("click", e => {
+  const a = e.target.closest && e.target.closest('a[href^="/api/"]');
+  if (!a || !window.pywebview || !window.pywebview.api) return;
+  e.preventDefault();
+  const href = a.getAttribute("href");
+  const open = a.target === "_blank";
+  window.pywebview.api[open ? "avaa" : "tallenna"](href).then(r => {
+    if (r && r.ok && r.polku) toast("Tallennettu: " + r.polku);
+    else if (r && !r.ok && !r.peruttu) toast(r.virhe || "Tiedoston käsittely epäonnistui", true);
+  });
+});
 $("#quitM").onclick = e => { e.preventDefault(); document.body.classList.remove("menu-open"); quitApp(); };
 
 // ---------- käynnistys ----------

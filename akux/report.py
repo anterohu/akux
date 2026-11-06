@@ -17,7 +17,7 @@ from reportlab.platypus import (BaseDocTemplate, CondPageBreak, Flowable, Frame,
                                 TableStyle)
 
 from . import NIMI, VERSIO, charts
-from .analysis import expected_loss_pct, fmt
+from .analysis import fmt
 
 FONT_DIR = Path(__file__).parent / "data" / "fonts"
 for name, file in (("Inter", "Inter-Regular.ttf"), ("Inter-Medium", "Inter-Medium.ttf"),
@@ -165,6 +165,29 @@ def _img(png: bytes, width):
     return Image(io.BytesIO(png), width=width, height=width * ih / iw)
 
 
+def _photo(path, width, height):
+    """Auton kuva rajattuna annettuun kokoon, pyöristetyin kulmin."""
+    from PIL import Image as PILImage, ImageDraw
+    im = PILImage.open(path).convert("RGB")
+    target = width / height
+    w, h = im.size
+    if w / h > target:
+        nw = int(h * target)
+        im = im.crop(((w - nw) // 2, 0, (w - nw) // 2 + nw, h))
+    else:
+        nh = int(w / target)
+        im = im.crop((0, (h - nh) // 2, w, (h - nh) // 2 + nh))
+    im = im.resize((int(width / mm * 12), int(height / mm * 12)), PILImage.LANCZOS)   # noin 300 dpi
+    mask = PILImage.new("L", im.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, im.size[0] - 1, im.size[1] - 1), radius=int(im.size[0] * 0.03), fill=255)
+    bg = PILImage.new("RGB", im.size, (255, 255, 255))
+    bg.paste(im, (0, 0), mask)
+    buf = io.BytesIO()
+    bg.save(buf, "JPEG", quality=88)
+    buf.seek(0)
+    return Image(buf, width=width, height=height)
+
+
 def _date(ts, with_time=True):
     if not ts:
         return "–"
@@ -185,6 +208,34 @@ def _dur(s):
     return f"{h} h {m} min" if h else f"{m} min"
 
 
+BRAND_GREEN = colors.HexColor("#6CC193")
+
+
+def draw_logo(c, x, y, h, wordmark=True, ink=None):
+    """Akux-merkki (sama kuin ohjelman kuvake) ja nimi. (x, y) = vasen alakulma, h = merkin korkeus."""
+    c.saveState()
+    c.setFillColor(ACCENT)
+    c.roundRect(x, y, h, h, h * 0.22, stroke=0, fill=1)
+    bw, bh = h * 0.62, h * 0.36
+    bx, by = x + h * 0.15, y + (h - bh) / 2
+    c.setStrokeColor(colors.white)
+    c.setLineWidth(max(0.6, h * 0.065))
+    c.roundRect(bx, by, bw, bh, h * 0.06, stroke=1, fill=0)
+    c.setFillColor(colors.white)
+    c.roundRect(bx + bw + h * 0.035, y + h * 0.43, h * 0.07, h * 0.14, h * 0.02, stroke=0, fill=1)
+    c.setFillColor(BRAND_GREEN)
+    pad = h * 0.07
+    c.roundRect(bx + pad, by + pad, bw * 0.5, bh - 2 * pad, h * 0.03, stroke=0, fill=1)
+    w = h
+    if wordmark:
+        c.setFillColor(ink or INK)
+        c.setFont("Inter-SemiBold", h * 0.78)
+        c.drawString(x + h * 1.28, y + h * 0.2, NIMI)
+        w = h * 1.28 + pdfmetrics.stringWidth(NIMI, "Inter-SemiBold", h * 0.78)
+    c.restoreState()
+    return w
+
+
 # ----------------------------------------------------------------------
 class ReportDoc(BaseDocTemplate):
     def __init__(self, path, ctx):
@@ -201,6 +252,22 @@ class ReportDoc(BaseDocTemplate):
 
     def _first(self, c, doc):
         self._decorate(c, doc)
+        qr = self.ctx.get("qr")
+        if qr:
+            from reportlab.graphics import renderPDF
+            from reportlab.graphics.barcode.qr import QrCodeWidget
+            from reportlab.graphics.shapes import Drawing
+            size = 19 * mm
+            w = QrCodeWidget(qr, barLevel="M")
+            x1, y1, x2, y2 = w.getBounds()
+            d = Drawing(size, size, transform=[size / (x2 - x1), 0, 0, size / (y2 - y1), 0, 0])
+            d.add(w)
+            renderPDF.draw(d, c, W - M - size + 1.5 * mm, H - 23 * mm - size)
+            c.saveState()
+            c.setFont("Inter", 5.6)
+            c.setFillColor(MUTED)
+            c.drawRightString(W - M, H - 23 * mm - size - 2.6 * mm, "Raportin tunnistetiedot")
+            c.restoreState()
         c.saveState()
         y = 22 * mm
         half = CW / 2 - 5 * mm
@@ -220,7 +287,11 @@ class ReportDoc(BaseDocTemplate):
         y = H - 14 * mm
         logo = ctx.get("logo")
         x0 = M
-        if logo and Path(logo).exists():
+        if not ctx["company"] and not (logo and Path(logo).exists()):
+            # Ilman yrityksen tietoja otsikkona on Akux-logo
+            draw_logo(c, M, y - 7.2 * mm, 8.5 * mm)
+            x0 = None
+        elif logo and Path(logo).exists():
             try:
                 from reportlab.lib.utils import ImageReader
                 ir = ImageReader(logo)
@@ -231,13 +302,14 @@ class ReportDoc(BaseDocTemplate):
                 x0 = M + wid + 4 * mm
             except Exception:  # noqa: BLE001
                 pass
-        c.setFont("Inter-SemiBold", 10)
-        c.setFillColor(INK)
-        c.drawString(x0, y - 1, ctx["company"] or NIMI)
-        c.setFont("Inter", 7.4)
-        c.setFillColor(MUTED)
-        if ctx.get("company_line"):
-            c.drawString(x0, y - 11, ctx["company_line"])
+        if x0 is not None:
+            c.setFont("Inter-SemiBold", 10)
+            c.setFillColor(INK)
+            c.drawString(x0, y - 1, ctx["company"] or NIMI)
+            c.setFont("Inter", 7.4)
+            c.setFillColor(MUTED)
+            if ctx.get("company_line"):
+                c.drawString(x0, y - 11, ctx["company_line"])
         c.setFont("Inter-Medium", 8)
         c.setFillColor(INK)
         c.drawRightString(W - M, y - 1, ctx["title"])
@@ -249,8 +321,10 @@ class ReportDoc(BaseDocTemplate):
         c.line(M, H - 21 * mm, W - M, H - 21 * mm)
         # alatunniste
         c.line(M, 14 * mm, W - M, 14 * mm)
+        lw = draw_logo(c, M, 8.9 * mm, 3.6 * mm, ink=MUTED)
         c.setFont("Inter", 6.8)
-        c.drawString(M, 10 * mm, ctx["footer"])
+        c.setFillColor(MUTED)
+        c.drawString(M + lw + 3 * mm, 10 * mm, ctx["footer"])
         c.drawRightString(W - M, 10 * mm, f"Sivu {doc.page}")
         c.restoreState()
 
@@ -280,17 +354,53 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         "company": s.get("yritys_nimi"), "company_line": company_line, "logo": s.get("logo"),
         "title": title, "report_no": report_no, "date": _date(test.get("paattynyt") or test["aloitettu"], False),
         "footer": s.get("raportin_alatunniste") or (
-            f"{NIMI} {VERSIO}  ·  Mittaustiedot ovat todennettavissa raakadatasta, tarkiste {(test.get('tarkiste') or '')[:16]}…"),
+            f"{VERSIO}  ·  Tiedot: auton akunhallinta  ·  Raakadatan tarkiste {(test.get('tarkiste') or '')[:16]}…"),
     }
+    _y = r.get("yhteenveto") or {}
+    ctx["qr"] = "\n".join(x for x in (
+        f"AKUX-RAPORTTI {report_no}",
+        f"VIN {(r.get('ajoneuvo') or {}).get('vin') or '-'}",
+        f"Rekisteri {vehicle.get('rekisteri')}" if vehicle.get("rekisteri") else None,
+        f"Päiväys {ctx['date']}",
+        f"Kunto {fmt(_y.get('kunto_pct'))} %" if _y.get("kunto_pct") is not None else None,
+        f"Kapasiteetti {fmt(_y.get('kapasiteetti_kwh'))} kWh" if _y.get("kapasiteetti_kwh") else None,
+        f"Tarkiste {(test.get('tarkiste') or '')[:16]}",
+    ) if x)
     out_path = out_path or (storage.dir / "raportit" / f"Akkuraportti_{report_no}.pdf")
     doc = ReportDoc(out_path, ctx)
     E = [NextPageTemplate("page")]
 
     # ---------------- Sivu 1: yhteenveto -------------------------------
     model_name = veh.get("malli") or (vi.get("malli") and f"Tesla {vi['malli']}") or "Tesla"
-    E.append(P(title, "h1"))
-    E.append(P(f"Tesla {model_name}" if not model_name.startswith("Tesla") else model_name, "sub"))
-    E.append(Spacer(1, 7 * mm))
+    import re as _re
+    base_name = _re.sub(r"\s*\([^)]*\d{4}[^)]*\)\s*$", "", model_name)     # mallipohjan vuosiväli pois
+    sub = f"Tesla {base_name}" if not base_name.startswith("Tesla") else base_name
+    year = vehicle.get("vuosimalli") or vi.get("vuosimalli")
+    if year:
+        sub += f"  ·  vuosimalli {year}"
+    reg = (vehicle.get("rekisteri") or "").strip()
+    head = [P(title, "h1"), P(sub, "sub")]
+    if reg:
+        head += [Spacer(1, 2), P(f"Rekisterinumero <b>{reg}</b>", "sub")]
+    photo = storage.vehicle_photo(test["vehicle_id"])
+    if photo.exists():
+        pw, ph = 62 * mm, 38 * mm
+        try:
+            img = _photo(photo, pw, ph)
+        except Exception:  # noqa: BLE001
+            img = None
+    else:
+        img = None
+    if img is not None:
+        ht = Table([[head, img, ""]], colWidths=[CW - pw - 24 * mm, pw, 24 * mm], hAlign="LEFT")
+        ht.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                                ("RIGHTPADDING", (0, 0), (-1, -1), 0), ("TOPPADDING", (0, 0), (-1, -1), 0),
+                                ("BOTTOMPADDING", (0, 0), (-1, -1), 0)]))
+        E.append(ht)
+        E.append(Spacer(1, 5 * mm))
+    else:
+        E.extend(head)
+        E.append(Spacer(1, 7 * mm))
 
     soh = summ.get("kunto_pct")
     kwh = summ.get("kapasiteetti_kwh")
@@ -307,8 +417,11 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     kw = CW / 3
     if soh is not None:
         unc_pct = (cap.get("soh_epavarmuus_pct") if summ.get("kunto_lahde") == "Kapasiteettimittaus" else None)
+        lahde_txt = {"Kapasiteettimittaus": "kapasiteettimittaus",
+                     "Akunhallinnan arvio": "Teslan akunhallinta"}.get(summ.get("kunto_lahde"),
+                                                                              (summ.get("kunto_lahde") or "").lower())
         kpis.append(kpi("AKUN KUNTO (SOH)", f"{fmt(soh)} %",
-                        f"{summ.get('kunto_luokka')}  ·  {summ.get('kunto_lahde').lower()}",
+                        f"{summ.get('kunto_luokka')}  ·  {lahde_txt}",
                         SohBar(soh, kw - 10 * mm, unc_pct)))
     else:
         kpis.append(kpi("AKUN KUNTO (SOH)", "–", "Ei laskettavissa"))
@@ -326,7 +439,19 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         ("LINEAFTER", (0, 0), (1, 0), 0.8, colors.white),
     ]))
     E.append(kt)
-    E.append(Spacer(1, 6 * mm))
+    E.append(Spacer(1, 2.2 * mm))
+    tesla = []
+    if bms.get("nfp_kwh"):
+        tesla.append(f"täyden akun energia <b>{fmt(bms['nfp_kwh'])} kWh</b>")
+    if r["viite"]["lahde"].startswith("Auton akunhallinta") and r["viite"]["kwh"]:
+        tesla.append(f"alkuperäinen energia <b>{fmt(r['viite']['kwh'])} kWh</b>")
+    if bms.get("soh_pct") and r["viite"]["lahde"].startswith("Auton akunhallinta"):
+        tesla.append(f"kunto <b>{fmt(bms['soh_pct'])} %</b>")
+    src_line = "Kaikki mittausarvot ovat auton oman akunhallinnan luovuttamia."
+    if tesla:
+        src_line = "Teslan akunhallinta: " + ", ".join(tesla) + ". " + src_line
+    E.append(P(src_line, "small"))
+    E.append(Spacer(1, 4.5 * mm))
     E.append(P("Yhteenveto", "h3"))
     E.append(P(summ.get("teksti", ""), "body"))
     if summ.get("tulkinta"):
@@ -420,12 +545,14 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
 
     # Tietojen alkuperä ja vastuu
     E.append(Spacer(1, 6 * mm))
-    origin = ("Raportin tiedot on luettu auton omasta akunhallintajärjestelmästä. Akux ei muuta luettuja tietoja. ")
+    origin = ("Kaikki raportin mittausarvot on luettu auton omasta akunhallintajärjestelmästä (BMS) "
+              "diagnostiikkaliitännän kautta. Akux ei käytä omia antureitaan eikä muuta luettuja arvoja, vaan "
+              "tallentaa ne muuttamattomina. ")
     if is_cap:
-        origin += ("Kapasiteettimittauksessa Akux laskee akkuun ladatun energian auton omien jännite- ja "
-                   "virta-antureiden mittauksista. ")
-    else:
-        origin += ("Akun kunto ja kapasiteetti ovat auton akunhallinnan omia arvioita. ")
+        origin += ("Kapasiteettimittauksen tulos perustuu akunhallinnan jännite- ja virtamittauksiin, ja se on "
+                   "tarkistettu akunhallinnan omasta latauslaskurista. Menetelmä on kuvattu menetelmäsivulla. ")
+    if not r["viite"]["lahde"].startswith("Auton akunhallinta"):
+        origin += f"Alkuperäisen kapasiteetin lähde: {r['viite']['lahde'].lower()}. "
     origin += ("Tulosten tarkkuus riippuu auton antureiden tarkkuudesta. Raportti kuvaa akun tilaa mittaushetkellä, "
                "eikä se ole valmistajan lausunto eikä takuu akun tulevasta kunnosta.")
     ob = Table([[P("TIETOJEN ALKUPERÄ JA VASTUU", "label")], [P(origin, "smallink")]], colWidths=[CW])
@@ -442,8 +569,8 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         E.append(PageBreak())
         E.append(P("Kapasiteettimittaus", "h2"))
         E.append(P("Akku ladattiin matalasta varaustilasta täyteen, ja akkuun mennyt energia laskettiin "
-                   "akun omasta jännite- ja virtamittauksesta koko latauksen ajalta. Laturin häviöt eivät siksi "
-                   "vaikuta tulokseen.", "body"))
+                   "auton akunhallinnan jännite- ja virtamittauksista koko latauksen ajalta. Laturin häviöt eivät "
+                   "siksi vaikuta tulokseen.", "body"))
         E.append(Spacer(1, 4 * mm))
         t0 = samples[0]["t"] if samples else test["aloitettu"]
         if samples:
@@ -457,12 +584,16 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
                 if strong:
                     highlight.append(len(rows))
                 rows.append([P(n, "cellb" if strong else "cell"), P(v, "cellb"), P(p, "small")])
-            add("Varaustila latauksen alussa", f"{fmt(cap['soc_alku'])} %", "Akunhallinnan kennoryhmien keskiarvo")
+            add("Varaustila latauksen alussa", f"{fmt(cap['soc_alku'])} %", "Teslan akunhallinta")
             add("Varaustila latauksen lopussa", f"{fmt(cap['soc_loppu'])} %",
                 "Akunhallinta ilmoitti latauksen valmiiksi" if cap.get("taysi") else "Lataus päättyi")
             add("Latauksen kesto", _dur(cap.get("lataus_kesto_s")),
                 f"Keskiteho akkuun {fmt(cap.get('keskiteho_kw'))} kW")
-            add("Akkuun mennyt energia (navoilta)", f"{fmt(cap['e_napa_kwh'], 2)} kWh", "∫ U · I dt latauksen ajalta")
+            add("Akkuun mennyt energia (navoilta)", f"{fmt(cap['e_napa_kwh'], 2)} kWh",
+                "Teslan latauslaskuri" if cap.get("laskuri_kaytetty") else "Akunhallinnan jännite ja virta, ∫ U · I dt")
+            if cap.get("laskuri_kwh") and not cap.get("laskuri_kaytetty"):
+                add("Teslan latauslaskuri samalta ajalta", f"{fmt(cap['laskuri_kwh'], 2)} kWh",
+                    f"Vertailu: ero {fmt(cap.get('laskuri_ero_pct'))} %")
             add("Akun sisäinen resistanssi", f"{fmt(cap['r_ohm'] * 1000, 0)} mΩ" if cap.get("r_ohm") else "–",
                 "Jännitteen nousu latauksen alussa")
             add("Sisäiset häviöt latauksessa", f"{fmt(cap['e_haviot_kwh'], 2)} kWh", "R · ∫ I² dt")
@@ -470,7 +601,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
                 add("Katkojen aikainen energia", f"{fmt(cap['katkot_kwh'], 2)} kWh", "Akunhallinnan energialaskenta")
             add("Varastoitunut energia mittausvälillä", f"{fmt(cap['e_kemia_kwh'], 2)} kWh", "")
             add("Energia lähtövarauksen alapuolella", f"{fmt(cap['e_alapuoli_kwh'], 2)} kWh",
-                "Mitattu Ah-kapasiteetti ja kemian lepojännitekäyrä")
+                "Mitattu Ah-kapasiteetti ja akkukemian lepojännitekäyrä")
             if cap.get("e_ylapuoli_kwh", 0) > 0.05:
                 add("Energia loppuvarauksen yläpuolella", f"{fmt(cap['e_ylapuoli_kwh'], 2)} kWh", "Sama menetelmä")
             add("Akun kokonaiskapasiteetti", f"{fmt(cap['taysi_kwh'], 1)} kWh",
@@ -479,7 +610,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
                 add("Käytettävissä oleva energia", f"{fmt(cap['kaytettava_kwh'], 1)} kWh",
                     f"Kokonaiskapasiteetti vähennettynä akunhallinnan puskurilla ({fmt(bms.get('puskuri_kwh'))} kWh)")
             if bms.get("nfp_kwh"):
-                add("Akunhallinnan oma arvio", f"{fmt(bms['nfp_kwh'], 1)} kWh",
+                add("Teslan akunhallinnan oma arvio", f"{fmt(bms['nfp_kwh'], 1)} kWh",
                     f"Ero mitattuun {fmt(cap.get('ero_bms_pct'))} %")
             if cap.get("ocv_kwh"):
                 add("Rinnakkaisarvio lepojännitteistä", f"{fmt(cap['ocv_kwh'], 1)} kWh",
@@ -554,44 +685,64 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         cols = [50 * mm, 60 * mm] + ([CW - 110 * mm] if low else [])
         E.append(_table(rows, cols))
 
-        # kennotaulukko
-        E.append(PageBreak())
-        E.append(P("Kennoryhmien jännitteet", "h2"))
-        E.append(P(r.get("kennot_otsikko", "") + ". Poikkeama on ilmoitettu suhteessa kaikkien ryhmien "
-                   "keskiarvoon.", "small"))
-        E.append(Spacer(1, 3 * mm))
-        vals = cs["jannitteet"]
-        mean = cs["ka_v"]
-        lows = low["jannitteet"] if low else None
-        n = len(vals)
-        per_col = (n + 3) // 4
-        out_set = {p["nro"] for p in cs["poikkeavat"]}
-        hdr = []
-        for _ in range(4):
-            hdr += [P("Nro", "label"), P("Jännite", "label"), P("Ero", "label"), ""]
-        rows = [hdr]
-        for i in range(per_col):
-            row = []
-            for c in range(4):
-                k = c * per_col + i
-                if k < n and vals[k]:
-                    stl = "cellb" if (k + 1) in out_set else "cell"
-                    row += [P(str(k + 1), "small"), P(f"{fmt(vals[k], 4)}", stl),
-                            P(_signed((vals[k] - mean) * 1000), "small"), ""]
-                else:
-                    row += ["", "", "", ""]
-            rows.append(row)
-        cw = CW / 4
-        t = Table(rows, colWidths=[8 * mm, 17 * mm, 13 * mm, cw - 38 * mm] * 4, hAlign="LEFT", repeatRows=1)
-        t.setStyle(TableStyle([
-            ("LINEBELOW", (0, 0), (-1, 0), 0.8, INK),
-            ("LINEBELOW", (0, 1), (-1, -1), 0.4, LINE),
-            ("TOPPADDING", (0, 0), (-1, -1), 1.6), ("BOTTOMPADDING", (0, 0), (-1, -1), 1.6),
-            ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-        ]))
-        E.append(t)
-        E.append(Spacer(1, 3 * mm))
-        E.append(P("Jännitteet voltteina (V), ero millivoltteina (mV). Lihavoidut arvot poikkeavat muista.", "small"))
+        # kennotaulukot
+        def cell_table(stats, title, intro):
+            E.append(PageBreak())
+            E.append(P(title, "h2"))
+            E.append(P(intro + " Poikkeama on ilmoitettu suhteessa kaikkien ryhmien keskiarvoon.", "small"))
+            E.append(Spacer(1, 3 * mm))
+            vals = stats["jannitteet"]
+            mean = stats["ka_v"]
+            n = len(vals)
+            per_col = (n + 3) // 4
+            out_set = {p["nro"] for p in stats["poikkeavat"]}
+            hdr = []
+            for _ in range(4):
+                hdr += [P("Nro", "label"), P("Jännite", "label"), P("Ero", "label"), ""]
+            rows = [hdr]
+            for i in range(per_col):
+                row = []
+                for c in range(4):
+                    k = c * per_col + i
+                    if k < n and vals[k]:
+                        stl = "cellb" if (k + 1) in out_set else "cell"
+                        row += [P(str(k + 1), "small"), P(f"{fmt(vals[k], 4)}", stl),
+                                P(_signed((vals[k] - mean) * 1000), "small"), ""]
+                    else:
+                        row += ["", "", "", ""]
+                rows.append(row)
+            cw = CW / 4
+            t = Table(rows, colWidths=[8 * mm, 17 * mm, 13 * mm, cw - 38 * mm] * 4, hAlign="LEFT", repeatRows=1)
+            t.setStyle(TableStyle([
+                ("LINEBELOW", (0, 0), (-1, 0), 0.8, INK),
+                ("LINEBELOW", (0, 1), (-1, -1), 0.4, LINE),
+                ("TOPPADDING", (0, 0), (-1, -1), 1.6), ("BOTTOMPADDING", (0, 0), (-1, -1), 1.6),
+                ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+            ]))
+            E.append(t)
+            E.append(Spacer(1, 4 * mm))
+            summ_rows = [[P(x, "label") for x in ("Keskiarvo", "Suurin", "Pienin", "Suurin ero", "Keskihajonta",
+                                                  "Poikkeavat ryhmät")],
+                         [P(f"{fmt(stats['ka_v'], 4)} V", "cellb"),
+                          P(f"{fmt(stats['max_v'], 4)} V (nro {stats['max_nro']})", "cell"),
+                          P(f"{fmt(stats['min_v'], 4)} V (nro {stats['min_nro']})", "cell"),
+                          P(f"{fmt(stats['ero_mv'], 1)} mV", "cellb"),
+                          P(f"{fmt(stats.get('keskihajonta_mv'), 1)} mV", "cell"),
+                          P(", ".join(str(p["nro"]) for p in stats["poikkeavat"]) or "Ei havaittu", "cell")]]
+            st_ = Table(summ_rows, colWidths=[24 * mm, 36 * mm, 36 * mm, 24 * mm, 24 * mm, CW - 144 * mm], hAlign="LEFT")
+            st_.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), PANEL),
+                                     ("LEFTPADDING", (0, 0), (-1, -1), 3 * mm),
+                                     ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5)]))
+            E.append(KeepTogether(st_))
+            E.append(Spacer(1, 3 * mm))
+            E.append(P(f"{n} kennoryhmää. Jännitteet voltteina (V), ero millivoltteina (mV). Lihavoidut arvot "
+                       "poikkeavat muista. Arvot on luettu auton akunhallinnasta.", "small"))
+
+        cell_table(cs, "Kennoryhmien jännitteet", r.get("kennot_otsikko", "") + ".")
+        if low and low.get("jannitteet"):
+            cell_table(low, "Kennoryhmien jännitteet matalassa varauksessa",
+                       f"Kennoryhmien jännitteet levossa ennen latausta, varaustila {fmt(low.get('soc'))} %. "
+                       "Matalassa varauksessa heikentyneen ryhmän jännite laskee muita enemmän.")
 
     # ---------------- Akunhallinta ja elinkaari -----------------------
     E.append(PageBreak())
@@ -619,6 +770,9 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         else "–", "Akunhallinnan lämpötila-anturit")
     if veh.get("akun_massa_kg"):
         add("Akun massa", f"{fmt(veh['akun_massa_kg'], 0)} kg", "Akunhallinnan kokoonpanotieto")
+    if veh.get("akun_matkamittari_km"):
+        add("Akun matkamittari", f"{fmt(veh['akun_matkamittari_km'], 0)} km",
+            "Akun oma laskuri. Auton mittarilukemaa pienempi arvo viittaa vaihdettuun akkuun.")
     add("Akusta otettu energia yhteensä", f"{fmt(lt.get('purku_kwh'), 0)} kWh" if lt.get("purku_kwh") else "–",
         "Akun elinkaaren laskuri")
     add("Akkuun ladattu energia yhteensä", f"{fmt(lt.get('lataus_kwh'), 0)} kWh" if lt.get("lataus_kwh") else "–",
@@ -649,8 +803,10 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     E.append(P("Menetelmä ja tietolähteet", "h2"))
     meth = [
         ("Tiedonkeruu", "Tiedot luettiin auton CAN-väylältä diagnostiikkaliitännän kautta. Ohjelma ainoastaan kuuntelee "
-         "väylää eikä lähetä autolle viestejä tai muuta sen asetuksia. Viestien sisältö puretaan avoimen, "
-         "Tesla-omistajien yhteisön ylläpitämän viestimäärittelyn (Model 3 DBC) mukaisesti."),
+         "väylää eikä lähetä autolle viestejä tai muuta sen asetuksia. Viestien sisältö puretaan avoimien, "
+         "Tesla-omistajien yhteisön ylläpitämien viestimäärittelyjen mukaisesti" + (
+             " (Model S 2012–2021 / Model X 2015–2021: Open Vehicle Monitoring System ja Battery-Emulator)."
+             if veh.get("alusta") == "sx" else " (Model 3 DBC ja Battery-Emulator).")),
         ("Alkuperäinen kapasiteetti", "Akun alkuperäinen energia luetaan ensisijaisesti akunhallinnasta, joka "
          "tallentaa sen akun valmistuksen yhteydessä. Jos arvoa ei saada, käytetään käyttäjän ilmoittamaa arvoa "
          "tai mallitaulukon likiarvoa, joka valitaan valmistenumeron (vuosimalli, tehdas, voimalinja) ja "
@@ -681,7 +837,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
          "Teslan akkutakuu kattaa kapasiteetin laskun alle 70 %:n takuuaikana."),
         ("Vertailu ajomäärään", "Vertailukäyrä perustuu Teslan vaikuttavuusraportissa (Impact Report 2023) "
          "julkaistuun keskiarvoon, jonka mukaan Model 3- ja Model Y -akkujen kapasiteetti on alentunut noin "
-         "15 % noin 320 000 km:n jälkeen."),
+         "15 % ja Model S- ja Model X -akkujen noin 12 % noin 320 000 km:n jälkeen."),
         ("Tietojen eheys", "Kaikki mittauksen aikana vastaanotetut viestit tallennetaan muuttamattomina "
          "raakadatatiedostoon. Tiedoston SHA-256-tarkiste on alla. Tarkisteen avulla voidaan todentaa, että "
          "raportti on laskettu juuri tästä aineistosta."),
@@ -694,8 +850,11 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     E.append(_kv([
         ("Ohjelma", f"{NIMI} {r.get('versio', VERSIO)}"),
         ("Tietolähde", f"{r.get('meta', {}).get('lahde') or '–'}, {info.get('sovitin') or '–'}"),
-        ("Akunhallinnan energiaviestin muoto", {"uusi": "Uudempi (kanavoitu)", "vanha": "Vanhempi"}.get(
+        ("Viestiarkkitehtuuri", veh.get("alusta_nimi") or "–"),
+        ("Akunhallinnan energiaviestin muoto", {"uusi": "Uudempi (kanavoitu)", "vanha": "Vanhempi",
+                                                "sx10": "10-bittinen", "sx11": "11-bittinen"}.get(
             bms.get("energiamuoto"), "–")),
+        *([("Akun virran tarkistus", bms.get("virtatarkistus").capitalize())] if bms.get("virtatarkistus") else []),
         ("Mittaus alkoi", _date(test["aloitettu"])),
         ("Mittaus päättyi", _date(test.get("paattynyt"))),
         ("Tallennettuja näytteitä", f"{len(samples)} kpl"),

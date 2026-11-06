@@ -1,4 +1,4 @@
-"""Esittelytila: Model 3 Long Range 2020 -akun fysikaalinen malli.
+"""Esittelytila: Teslan ajoakun fysikaalinen malli.
 
 Simulaattori tuottaa samat CAN-kehykset kuin auto, joten koko ohjelmaa voi
 kokeilla ja esitellä ilman autoa. Aikaa voi nopeuttaa, jolloin
@@ -12,7 +12,8 @@ import time
 from . import profiles, vin as vinmod
 from .bits import encode, put_bits
 from .decoder import (ID_BRICKS, ID_ENERGY, ID_HV, ID_LIFETIME, ID_MINMAX, ID_ODO,
-                      ID_PACKCFG, ID_SOC, ID_TAXI, ID_VIN)
+                      ID_PACKCFG, ID_SOC, ID_TAXI, ID_VIN, MILE_KM, SX_BATT_ODO, SX_BRICKS,
+                      SX_ENERGY, SX_HV, SX_ODO, SX_SOC, SX_VIN)
 from .sources import Source
 
 
@@ -24,6 +25,19 @@ def _vin_with_check(base: str) -> str:
     return base
 
 
+ESITTELYAUTOT = {
+    "m3-lr": {"nimi": "Model 3 Long Range 2020 (NCA)", "opts": {}},
+    "m3-lfp": {"nimi": "Model 3 Standard Range Plus 2020, Shanghai (LFP)",
+               "opts": {"chem": "LFP", "cells": 106, "nfp_kwh": 52.0, "bol_kwh": 55.0, "weak_cell": 61,
+                        "vin": "LRW3E7FA0LC123456"}},
+    "my-lr": {"nimi": "Model Y Long Range 2022, Berliini (NMC)",
+              "opts": {"chem": "NMC", "nfp_kwh": 75.1, "bol_kwh": 78.8, "vin": "XP7YGCEK0NB123456"}},
+    "ms-85": {"nimi": "Model S 85 2015 (NCA, vanha viestiarkkitehtuuri)",
+              "opts": {"platform": "sx", "nfp_kwh": 74.2, "bol_kwh": 81.5, "energy_format": "sx10",
+                       "vin": "5YJSA1E20FF123456"}},
+}
+
+
 class BatterySimulator(Source):
     name = "Esittelytila"
     simulated = True
@@ -31,8 +45,12 @@ class BatterySimulator(Source):
     def __init__(self, *, soc: float = 0.12, nfp_kwh: float = 75.6, bol_kwh: float = 80.5,
                  cells: int = 96, accel: float = 1.0, temp_c: float = 21.0,
                  weak_cell: int | None = 47, energy_format: str = "uusi", seed: int = 7,
-                 chem: str = "NCA", vin: str | None = None):
+                 chem: str = "NCA", vin: str | None = None, platform: str = "m3",
+                 sx_counter_swap: bool = False, sx_current_sign: int = 1):
         super().__init__()
+        self.platform = platform
+        self.sx_counter_swap = sx_counter_swap
+        self.sx_current_sign = sx_current_sign
         self.rng = random.Random(seed)
         self.n = cells
         self.chem = chem
@@ -61,7 +79,7 @@ class BatterySimulator(Source):
         self.total_dis = 41250.0
         self.total_chg = 44410.0
         self.odo = 112_345.0
-        self.vin = _vin_with_check(vin or "5YJ3E7EB0LF654321")
+        self.vin = _vin_with_check(vin or ("5YJSA7E26HF654321" if platform == "sx" else "5YJ3E7EB0LF654321"))
         self.full_complete = False
         self.sim_t = time.time()
         self._mux401 = 0
@@ -143,13 +161,73 @@ class BatterySimulator(Source):
 
     # -- kehysten koodaus -----------------------------------------------
     def _hv_frame(self, pack_v, cur):
+        if self.platform == "sx":
+            b = bytearray(8)
+            encode(b, 0, 16, pack_v, 0.01)
+            put_bits(b, 16, 16, int(round(cur * self.sx_current_sign / -0.1)))
+            return SX_HV, bytes(b)
         b = bytearray(8)
         encode(b, 0, 16, pack_v, 0.01)
         put_bits(b, 16, 16, int(round(cur / -0.1)))
         put_bits(b, 32, 16, int(round((cur - 822) / -0.05)))
         return ID_HV, bytes(b)
 
+    def _sx_frames(self, t):
+        """Model S 2012–2021 / Model X 2015–2021: voimalinjan väylän viestit."""
+        out = []
+        cur = self.current
+        socs = self._cell_socs()
+        volts = [self._ocv(x) - cur * r for x, r in zip(socs, self.r_cell)]
+        out.append(self._hv_frame(sum(volts), cur))
+        soc_avg = sum(socs) / self.n * 100
+        ui = (soc_avg / 100 * self.nfp - self.buffer) / (self.nfp - self.buffer) * 100
+        b = bytearray(8)
+        encode(b, 0, 10, soc_avg, 0.1)
+        encode(b, 10, 10, max(0.0, ui), 0.1)
+        out.append((SX_SOC, bytes(b)))
+        ner = soc_avg / 100 * self.nfp
+        bits = 11 if self.energy_format == "sx11" else 10
+        b = bytearray(8)
+        for k, val in enumerate((self.nfp, ner, max(0.0, ner - self.buffer), ner * 1.01, self.nfp - ner)):
+            encode(b, k * bits, bits, val, 0.1)
+        encode(b, 5 * bits, 8, self.buffer, 0.1)
+        if bits == 11:
+            put_bits(b, 63, 1, 1 if self.full_complete else 0)
+        out.append((SX_ENERGY, bytes(b)))
+        pages = (self.n + 3) // 4
+        for _ in range(8):
+            m = self._mux401
+            self._mux401 = (m + 1) % (pages + 8)
+            b = bytearray(8)
+            if m < pages:
+                b[0] = m
+                for k, v in enumerate(volts[m * 4: m * 4 + 4]):
+                    put_bits(b, 8 + 14 * k, 14, int(round((v + self.rng.gauss(0, 0.0003)) / 0.000305)))
+            else:
+                b[0] = 24 + (m - pages)
+                for k in range(4):
+                    tc = self.temp + self.rng.uniform(-0.8, 0.8)
+                    put_bits(b, 8 + 14 * k, 14, int(round(tc / 0.0122)) & 0x3FFF)
+            out.append((SX_BRICKS, bytes(b)))
+        dis, chg = int(self.total_dis * 1000), int(self.total_chg * 1000)
+        if self.sx_counter_swap:
+            dis, chg = chg, dis
+        b = bytearray(8)
+        put_bits(b, 0, 32, dis)
+        put_bits(b, 32, 32, chg)
+        out.append((ID_LIFETIME, bytes(b)))
+        vin_b = self.vin.encode("ascii")
+        for page, part in enumerate((vin_b[:7], vin_b[7:14], vin_b[14:17])):
+            out.append((SX_VIN, bytes([page]) + part))
+        b = bytearray(4)
+        put_bits(b, 0, 32, int(self.odo / MILE_KM * 1000))
+        out.append((SX_ODO, bytes(b)))
+        out.append((SX_BATT_ODO, bytes(b)))
+        return out
+
     def _frames(self, t):
+        if self.platform == "sx":
+            return self._sx_frames(t)
         out = []
         cur = self.current
         socs = self._cell_socs()
@@ -249,7 +327,8 @@ class BatterySimulator(Source):
     # -- ajosilmukka ----------------------------------------------------
     def _run(self):
         self.status = "Esittelytila käynnissä"
-        self.info = {"sovitin": "Simuloitu Model 3 Long Range 2020", "portti": "-", "suodatus": True}
+        self.info = {"sovitin": "Simuloitu " + getattr(self, "car_name", "Model 3 Long Range 2020"),
+                     "portti": "-", "suodatus": True}
         tick = 0.1
         while not self._stop.is_set():
             if self._scan_req:

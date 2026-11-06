@@ -27,7 +27,7 @@ def delta_class(mv, soc=None):
     return ERO_LUOKAT[-1][1]
 
 
-def expected_loss_pct(km: float | None) -> float | None:
+def expected_loss_pct(km: float | None, model_code: str | None = None) -> float | None:
     """Suuntaa antava keskimääräinen kapasiteetin alenema ajomäärän mukaan.
 
     Käyrä on sovitettu Teslan vaikuttavuusraportin (Impact Report 2023)
@@ -35,7 +35,10 @@ def expected_loss_pct(km: float | None) -> float | None:
     nopeinta ensimmäisten kymmenien tuhansien kilometrien aikana."""
     if km is None or km < 0:
         return None
-    return 5.0 * (1 - math.exp(-km / 30000)) + 10.0 * km / 320000
+    loss = 5.0 * (1 - math.exp(-km / 30000)) + 10.0 * km / 320000
+    if model_code and model_code in "SX":
+        loss *= 12.0 / 15.0       # Model S / X: noin 12 % 320 000 km:n jälkeen
+    return loss
 
 
 def fmt(x, d=1):
@@ -98,6 +101,16 @@ def reference_capacity(vehicle: dict, bms_bol: float | None, model: dict | None)
     if model:
         return model["viite_kwh"], "Mallitaulukko (likiarvo)"
     return None, "Ei tiedossa"
+
+
+def _platform_notes(model, platform, ref_src, last) -> list[str]:
+    out = []
+    if ref_src.startswith("Mallitaulukko") and (platform == "sx" or (model or {}).get("likiarvo")):
+        out.append("Tämän mallin akunhallinta ei ilmoita akun alkuperäistä energiaa. Kunto on laskettu mallitaulukon "
+                   "likiarvosta. Tarkempi tulos saadaan, kun auton tietoihin syötetään akun alkuperäinen kapasiteetti.")
+    if (model or {}).get("kokeellinen"):
+        out.append("Tämän mallin akkuviestejä ei ole julkisesti varmistettu. Tulos on kokeellinen.")
+    return out
 
 
 def parse_date(txt):
@@ -164,9 +177,16 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
     brick_count = last.get("brick_count")
     model = profiles.get((vehicle or {}).get("malli_id"))
     reasons = ["valittu käsin"] if model else []
+    platform = last.get("platform")
+    nfp_now = last.get("nfp_kwh")
+    if model and platform and model.get("alusta", "m3") != platform:
+        model = None          # väylä kertoo toisesta alustasta kuin valittu pohja
+    if model and model.get("likiarvo") and nfp_now and nfp_now > model["viite_kwh"] * 1.02:
+        model = None          # akku on suurempi kuin valittu pohja
     if not model:
         model, reasons = profiles.identify(vin_info, bol_kwh=bol, brick_count=brick_count,
-                                           cell_v_max=last.get("cell_v_max"), soc=last.get("soc_avg"))
+                                           cell_v_max=last.get("cell_v_max"), soc=last.get("soc_avg"),
+                                           platform=platform, nfp_kwh=nfp_now)
     chem_key = (model or {}).get("kemia", "NCA")
     ref_kwh, ref_src = reference_capacity(vehicle, bol, model)
     odo = test.get("mittarilukema") or last.get("odometer_km")
@@ -189,9 +209,13 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
             "mittarilukema_lahde": "Käyttäjän ilmoittama" if test.get("mittarilukema") else (
                 "Auton väylä" if last.get("odometer_km") else None),
             "akun_massa_kg": last.get("pack_mass_kg"),
+            "alusta": platform,
+            "alusta_nimi": last.get("platform_name"),
+            "akun_matkamittari_km": last.get("battery_odometer_km"),
+            "kokeellinen": bool((model or {}).get("kokeellinen")),
         },
         "viite": {"kwh": ref_kwh, "lahde": ref_src},
-        "huomiot": list(meta.get("huomiot", [])),
+        "huomiot": list(meta.get("huomiot", [])) + _platform_notes(model, platform, ref_src, last),
         "meta": meta,
         "arviot": [],
     }
@@ -205,6 +229,7 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
         "soc_min": last.get("soc_min"), "soc_max": last.get("soc_max"),
         "kaytettava_kwh": (nfp - buffer) if (nfp and buffer is not None) else None,
         "energiamuoto": last.get("energy_format"),
+        "virtatarkistus": last.get("current_check"),
         "max_lataus_v": last.get("max_charge_v"),
     }
     if nfp and ref_kwh:
@@ -296,6 +321,26 @@ def _analyze_capacity(res, snaps, samples, meta, chem_key, ref_kwh, nfp, buffer)
     e_term = e_in - e_out
     ah_net = ah_in - ah_out
 
+    # Vertailu akunhallinnan elinkaarilaskureihin (1 Wh:n tarkkuus)
+    cnt_kwh = None
+    c0, c1 = A.get("laskurit"), L.get("laskurit")
+    if c0 and c1:
+        # Latauksessa latauslaskuri kasvaa ja purkulaskuri pysyy lähes paikallaan. Erotus on
+        # akkuun mennyt nettoenergia kenttien järjestyksestä riippumatta.
+        cnt_kwh = abs((c1[0] - c0[0]) - (c1[1] - c0[1]))
+        if cnt_kwh <= 0.5:
+            cnt_kwh = None
+    cnt_diff = (e_term - cnt_kwh) / cnt_kwh * 100 if (cnt_kwh and e_term > 0) else None
+    cnt_used = False
+    if cnt_kwh and res["ajoneuvo"].get("alusta") == "sx" and (cnt_diff is None or abs(cnt_diff) > 8):
+        # Model S/X 2012–2021: virran mittakaava ei ole julkisesti varmistettu. Jos integroitu
+        # energia poikkeaa laskurista, käytetään laskuria ja skaalataan varaus samassa suhteessa.
+        k = cnt_kwh / e_term if e_term > 0 else 1.0
+        e_term, ah_net = cnt_kwh, ah_net * k
+        cnt_used = True
+        res["huomiot"].append("Latausenergia on laskettu akunhallinnan latauslaskurista, koska virran "
+                              "mittakaava ei vastannut laskuria.")
+
     # Sisäinen resistanssi latauksen alun jännitehypystä. Lepojännitteen nousu
     # latauksen alussa vähennetään kemian lepojännitekäyrän kulmakertoimella.
     r_est = None
@@ -323,6 +368,8 @@ def _analyze_capacity(res, snaps, samples, meta, chem_key, ref_kwh, nfp, buffer)
     gap_kwh = 0.0
     for g in meta.get("aukot", []):
         g.pop("_e_mark", None)
+        if cnt_used:
+            continue          # laskuri sisältää myös katkojen aikana ladatun energian
         if g.get("ner_alku") is not None and g.get("ner_loppu") is not None:
             gap_kwh += max(0.0, g["ner_loppu"] - g["ner_alku"])
     if gap_kwh:
@@ -343,6 +390,7 @@ def _analyze_capacity(res, snaps, samples, meta, chem_key, ref_kwh, nfp, buffer)
         "nfp_alku": A.get("nfp"), "nfp_loppu": L.get("nfp"),
         "ner_alku": A.get("ner"), "ner_loppu": L.get("ner"),
         "keskiteho_kw": (e_term / ((L["t"] - A["t"]) / 3600)) if L["t"] > A["t"] else None,
+        "laskuri_kwh": cnt_kwh, "laskuri_ero_pct": cnt_diff, "laskuri_kaytetty": cnt_used,
     })
     if not dsoc or dsoc < 20:
         res["huomiot"].append("Varaustila muuttui latauksen aikana alle 20 %-yksikköä, joten kapasiteettia ei voida "
@@ -397,6 +445,9 @@ def _analyze_capacity(res, snaps, samples, meta, chem_key, ref_kwh, nfp, buffer)
     q_points.append(("Lepo ennen latausta", (rest0.get("kesto_min") or 0) >= 20, f"{fmt(rest0.get('kesto_min'), 0)} min"))
     q_points.append(("Lepo latauksen jälkeen", (rest1.get("kesto_min") or 0) >= 20, f"{fmt(rest1.get('kesto_min'), 0)} min"))
     q_points.append(("Lataus täyteen", bool(L.get("taysi")), "kyllä" if L.get("taysi") else "ei"))
+    if cnt_diff is not None:
+        q_points.append(("Vastaa akunhallinnan latauslaskuria", abs(cnt_diff) <= 5 or cnt_used,
+                         f"ero {fmt(cnt_diff)} %" + (", laskuri käytössä" if cnt_used else "")))
     q_points.append(("Katkoton mittausdata", not meta.get("aukot"), "kyllä" if not meta.get("aukot") else
                      f"{len(meta['aukot'])} katkoa"))
     tl = [x for x in (A.get("t_min"), A.get("t_max"), L.get("t_min"), L.get("t_max")) if x is not None]
@@ -438,7 +489,7 @@ def _summarize(res):
         summary["kunto_luokka"] = luokka
         ar.append({"nimi": "Akun kunto (SOH)", "arvo": f"{fmt(soh)} %", "luokka": luokka,
                    "kuvaus": f"Nykyinen kapasiteetti suhteessa alkuperäiseen ({fmt(ref)} kWh)."})
-        exp = expected_loss_pct(km)
+        exp = expected_loss_pct(km, ((res["ajoneuvo"].get("vin_tiedot") or {}).get("malli_koodi")))
         if exp is not None and km and km > 5000:
             actual_loss = 100 - soh
             diff = actual_loss - exp
@@ -576,7 +627,7 @@ def learn_vehicle(storage, tid: int, res: dict):
     veh = res.get("ajoneuvo", {})
     if not v.get("vin") and veh.get("vin"):
         upd["vin"] = veh["vin"]
-    if not v.get("malli_id") and veh.get("malli_id"):
+    if veh.get("malli_id") and v.get("malli_id") != veh["malli_id"] and veh.get("tunnistus") != ["valittu käsin"]:
         upd["malli_id"] = veh["malli_id"]
     if not v.get("vuosimalli") and (veh.get("vin_tiedot") or {}).get("vuosimalli"):
         upd["vuosimalli"] = veh["vin_tiedot"]["vuosimalli"]
@@ -586,6 +637,7 @@ def learn_vehicle(storage, tid: int, res: dict):
         "kennoryhmat": veh.get("kennoryhmat"),
         "energiamuoto": (res.get("bms") or {}).get("energiamuoto"),
         "kemia": veh.get("kemia"),
+        "alusta": veh.get("alusta"),
         "viimeisin_kunto_pct": (res.get("yhteenveto") or {}).get("kunto_pct"),
         "viimeisin_mittaus": tid,
     }

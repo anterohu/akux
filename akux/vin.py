@@ -6,15 +6,15 @@ VALMISTAJAT = {
     "7SA": ("Tesla, Austin (Yhdysvallat)", "Austin"),
     "LRW": ("Tesla, Shanghai (Kiina)", "Shanghai"),
     "XP7": ("Tesla, Berliini (Saksa)", "Berliini"),
-    "7G2": ("Tesla, Fremont (Yhdysvallat)", "Fremont"),
+    "7G2": ("Tesla, Austin (Yhdysvallat)", "Austin"),
 }
 
-MALLIT = {"3": "Model 3", "Y": "Model Y", "S": "Model S", "X": "Model X"}
+MALLIT = {"3": "Model 3", "Y": "Model Y", "S": "Model S", "X": "Model X", "C": "Cybertruck", "R": "Roadster"}
 
 TEHTAAT = {"F": "Fremont", "C": "Shanghai", "B": "Berliini", "A": "Austin",
            "P": "Palo Alto", "R": "Fremont"}
 
-VUODET = {"H": 2017, "J": 2018, "K": 2019, "L": 2020, "M": 2021, "N": 2022,
+VUODET = {"B": 2011, "C": 2012, "D": 2013, "E": 2014, "F": 2015, "G": 2016, "H": 2017, "J": 2018, "K": 2019, "L": 2020, "M": 2021, "N": 2022,
           "P": 2023, "R": 2024, "S": 2025, "T": 2026, "V": 2027, "W": 2028}
 
 # 8. merkki: voimalinja (Model 3 / Model Y)
@@ -31,6 +31,19 @@ VOIMALINJAT = {
     "R": ("Yksi moottori", "RWD"),
     "S": ("Yksi moottori", "RWD"),
     "T": ("Kaksi moottoria", "AWD"),
+}
+
+# 8. merkki: voimalinja (Model S / Model X)
+VOIMALINJAT_SX = {
+    "1": ("Yksi moottori", "RWD"),
+    "2": ("Kaksi moottoria", "AWD"),
+    "3": ("Yksi moottori, Performance", "PERF"),
+    "4": ("Kaksi moottoria, Performance", "PERF"),
+    "5": ("Kaksi moottoria", "AWD"),
+    "6": ("Kaksi moottoria, Performance", "PERF"),
+    "D": ("Kaksi moottoria", "AWD"),
+    "E": ("Kaksi moottoria", "AWD"),
+    "F": ("Kolme moottoria, Plaid", "PERF"),
 }
 
 # 7. merkki: akkutyyppi
@@ -86,13 +99,19 @@ def decode(vin: str) -> dict:
     out["valmistaja"] = valm[0]
     out["malli"] = MALLIT.get(vin[3], f"Tuntematon ({vin[3]})")
     out["malli_koodi"] = vin[3]
-    out["akkutyyppi"] = AKKUTYYPIT.get(vin[6])
+    out["akkutyyppi"] = AKKUTYYPIT.get(vin[6]) if vin[3] in "3Y" else None
     out["akku_koodi"] = vin[6]
-    vl = VOIMALINJAT.get(vin[7])
+    vl = (VOIMALINJAT_SX if vin[3] in "SX" else VOIMALINJAT).get(vin[7])
     out["voimalinja"] = vl[0] if vl else None
     out["veto"] = vl[1] if vl else None
     out["vuosimalli"] = VUODET.get(vin[9])
     out["tehdas"] = TEHTAAT.get(vin[10], valm[1])
     out["sarjanumero"] = vin[11:]
     out["tarkistusmerkki"] = check_digit_ok(vin)
+    if vin[3] == "R":
+        out["huomautus"] = "Roadsterin (2008–2012) akkutietoja ei voi lukea diagnostiikkaliitännän kautta."
+    elif vin[3] == "C":
+        out["huomautus"] = "Cybertruckin akkuviestejä ei ole julkisesti selvitetty, joten mittaus on kokeellinen."
+    elif vin[3] in "SX" and out["vuosimalli"] and out["vuosimalli"] <= 2020:
+        out["alusta_arvio"] = "sx"
     return out

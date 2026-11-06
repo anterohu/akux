@@ -34,6 +34,15 @@ def test_mittaustiedosto():
         a.connect("demo", soc=0.6, accel=30)
         assert wait(lambda: a.decoder.state.brick_count and a.decoder.state.nfp_kwh, 20)
         vid = a.storage.add_vehicle({"vin": a.decoder.state.vin, "rekisteri": "ABC-123", "kayttoonotto": "14.5.2020"})
+        # Puhelimella otettu kuva: kuvatiedoston kiertotieto (EXIF 6 = 90°) pitää huomioida
+        from PIL import Image
+        im = Image.new("RGB", (400, 200), (40, 90, 160))
+        exif = Image.Exif()
+        exif[0x0112] = 6
+        b_ = io.BytesIO()
+        im.save(b_, "JPEG", exif=exif)
+        a.storage.save_vehicle_photo(vid, b_.getvalue())
+        assert Image.open(a.storage.vehicle_photo(vid)).size == (200, 400)
         tid = a.start_test(vehicle_id=vid, tyyppi="pikatarkastus", mittarilukema=112000)
         assert wait(lambda: not a.recorder.active, 120)
         a.disconnect()
@@ -53,6 +62,7 @@ def test_mittaustiedosto():
         t = b.storage.test(r["id"])
         v = b.storage.vehicle(r["ajoneuvo_id"])
         assert v["rekisteri"] == "ABC-123" and v["kayttoonotto"] == "14.5.2020"
+        assert b.storage.vehicle_photo(v["id"]).exists(), "auton kuva ei siirtynyt mittaustiedostossa"
         assert t["tila"] == "valmis" and t["tarkiste"] == original["tarkiste"]
         assert t["tulos"]["yhteenveto"]["kunto_pct"] == original["tulos"]["yhteenveto"]["kunto_pct"]
         assert len(b.storage.samples(r["id"])) == len(a.storage.samples(tid))

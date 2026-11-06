@@ -48,6 +48,9 @@ if exist "%BUILD%\dist" rmdir /s /q "%BUILD%\dist"
   --add-data "%APPDIR%akux\data;akux\data" ^
   --hidden-import serial.tools.list_ports ^
   --collect-submodules akux ^
+  --collect-all webview ^
+  --hidden-import clr ^
+  --hidden-import clr_loader ^
   --paths "%APPDIR%." ^
   --exclude-module tkinter ^
   --distpath "%BUILD%\dist" --workpath "%BUILD%\work" --specpath "%BUILD%" ^

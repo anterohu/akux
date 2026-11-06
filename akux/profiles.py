@@ -5,7 +5,6 @@ import json
 from functools import lru_cache
 from pathlib import Path
 
-from . import vin as vinmod
 
 PROFILE_FILE = Path(__file__).parent / "data" / "profiles.json"
 
@@ -36,15 +35,28 @@ def get(model_id: str | None) -> dict | None:
     return None
 
 
+def _cells_match(m: dict, n: int) -> bool:
+    sc = m.get("sarjakennot")
+    if sc is None:
+        return False
+    return n in sc if isinstance(sc, list) else n == sc
+
+
 def identify(vin_info: dict | None = None, *, bol_kwh: float | None = None,
              brick_count: int | None = None, cell_v_max: float | None = None,
-             soc: float | None = None) -> tuple[dict | None, list[str]]:
+             soc: float | None = None, platform: str | None = None,
+             nfp_kwh: float | None = None) -> tuple[dict | None, list[str]]:
     """Valitsee todennäköisimmän mallipohjan. Palauttaa (pohja, perustelut)."""
     reasons: list[str] = []
     cands = models()
+    if platform:
+        by_plat = [m for m in cands if m.get("alusta", "m3") == platform]
+        if by_plat:
+            cands = by_plat
     if vin_info and vin_info.get("kelvollinen"):
         mk = vin_info.get("malli_koodi")
-        cands = [m for m in cands if m["malli_koodi"] == mk] or cands
+        by_model = [m for m in cands if mk and mk in m["malli_koodi"]]
+        cands = by_model or cands
         year = vin_info.get("vuosimalli")
         if year:
             by_year = [m for m in cands if year in m["vuodet"]]
@@ -57,7 +69,7 @@ def identify(vin_info: dict | None = None, *, bol_kwh: float | None = None,
             if by_plant:
                 cands = by_plant
                 reasons.append(f"valmistustehdas {plant}")
-        if vin_info.get("akku_koodi") == "F":
+        if vin_info.get("akku_koodi") == "F" and mk in ("3", "Y"):
             lfp = [m for m in cands if m["kemia"] == "LFP"]
             if lfp:
                 cands = lfp
@@ -70,7 +82,7 @@ def identify(vin_info: dict | None = None, *, bol_kwh: float | None = None,
                 reasons.append(f"voimalinja {vin_info.get('voimalinja')}")
 
     if brick_count:
-        by_cells = [m for m in cands if m["sarjakennot"] == brick_count]
+        by_cells = [m for m in cands if _cells_match(m, brick_count)]
         if by_cells:
             cands = by_cells
             reasons.append(f"{brick_count} sarjaan kytkettyä kennoryhmää")
@@ -89,8 +101,58 @@ def identify(vin_info: dict | None = None, *, bol_kwh: float | None = None,
     if bol_kwh and len(cands) > 1:
         cands = sorted(cands, key=lambda m: abs(m["viite_kwh"] - bol_kwh))
         reasons.append(f"akunhallinnan alkuperäinen energia {bol_kwh:.1f} kWh")
+    elif nfp_kwh and len(cands) > 1:
+        # Ilman alkuperäistä energiaa valitaan pienin akku, johon nykyinen energia mahtuu.
+        # Akun energia voi ikääntyessä vain pienentyä.
+        fits = sorted((m for m in cands if m["viite_kwh"] >= nfp_kwh * 0.99), key=lambda m: m["viite_kwh"])
+        if fits:
+            cands = fits + [m for m in cands if m not in fits]
+            reasons.append(f"akunhallinnan täyden akun energia {nfp_kwh:.1f} kWh")
 
     return (cands[0] if cands else None), reasons
+
+
+def connection_guide(malli_koodi: str | None, vuosimalli: int | None = None,
+                     platform: str | None = None) -> dict:
+    """Mihin sovitin kytketään ja millainen välikaapeli tarvitaan."""
+    mk = (malli_koodi or "").upper()
+    y = vuosimalli or 0
+    if mk in ("3", "Y"):
+        if mk == "3" and y >= 2024 or mk == "Y" and y >= 2025:
+            return {"liitin": "Diagnostiikkaliitin, uudistettu malli",
+                    "ohje": "Uudistetussa mallissa (Model 3 vuodesta 2024, Model Y vuodesta 2025) liitin ja sen paikka "
+                            "poikkeavat aiemmista. Varmista välikaapelin myyjältä, että kaapeli on tehty juuri tälle mallille. "
+                            "Jalkatilan OBD-liitäntä ei välitä akun tietoja.",
+                    "varmistettu": False}
+        pins = "20-pinninen" if y and y <= 2020 else "26-pinninen"
+        return {"liitin": f"Diagnostiikkaliitin, {pins}",
+                "ohje": "Liitin on keskikonsolin takapäässä takamatkustajien puolella paneelin takana. Vuosien 2019–2020 "
+                        "autoissa liitin on 20-pinninen ja 2021 alkaen 26-pinninen. Vuodenvaihteen 2020–2021 autoissa "
+                        "laske pinnit tai hanki sarja, jossa on molemmat kaapelit. Jalkatilan OBD-liitäntä ei välitä "
+                        "akun tietoja.",
+                "varmistettu": True}
+    if mk in ("S", "X"):
+        if platform == "sx" or (y and y <= 2020):
+            return {"liitin": "Voimalinjan CAN-väylän diagnostiikkaliitin",
+                    "ohje": "Model S 2012–2021 ja Model X 2015–2021 tarvitsevat välikaapelin, joka tuo voimalinjan "
+                            "CAN-väylän OBD-liitännän nastoihin 6 ja 14. Liitin on erilainen vuosien 2012–09/2015 Model S:ssä "
+                            "ja sitä uudemmissa (12-napainen musta liitin). Tarkista liittimen paikka ja kaapelin sopivuus "
+                            "välikaapelin ohjeesta.",
+                    "varmistettu": False}
+        return {"liitin": "Diagnostiikkaliitin (Model S / X 2021–)",
+                "ohje": "Vuosina 2021–04/2024 valmistetuissa autoissa sininen 20-napainen liitin on kosketusnäytön alla "
+                        "langattoman latausalustan yläpuolella. Tarvitaan Model S/X:lle tehty välikaapeli, joka tuo "
+                        "ajoneuvon CAN-väylän nastoihin 6 ja 14; Model 3:n kaapeli ei välttämättä sovi. Toukokuusta 2024 "
+                        "valmistetuissa autoissa sovitin kytketään suoraan kuljettajan jalkatilan OBD-liitäntään.",
+                "varmistettu": False}
+    if mk == "C":
+        return {"liitin": "Cybertruck",
+                "ohje": "Cybertruckin akkuviestejä ei ole julkisesti selvitetty. Akux tunnistaa auton, mutta mittaus on "
+                        "kokeellinen ja voi jäädä vajaaksi. Kartoita väylä ennen mittausta.",
+                "varmistettu": False}
+    return {"liitin": "Diagnostiikkaliitin",
+            "ohje": "Kytke sovitin auton diagnostiikkaliittimeen mallille sopivalla välikaapelilla.",
+            "varmistettu": False}
 
 
 def ocv_to_soc(cell_v: float, chem_key: str) -> float | None:

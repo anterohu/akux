@@ -9,7 +9,7 @@ import time
 from .decoder import TeslaDecoder
 from .notify import Notifier
 from .recorder import Recorder
-from .sources import ObdLinkSource, ReplaySource
+from .sources import ObdLinkSource
 from .simulator import BatterySimulator
 from .storage import Storage
 
@@ -73,9 +73,10 @@ class App:
             self.disconnect()
             self.decoder.reset()
             if kind == "demo":
-                src = BatterySimulator(**opts)
-            elif kind == "tallenne":
-                src = ReplaySource(port, speed=opts.get("speed", 0))
+                from .simulator import ESITTELYAUTOT
+                car = ESITTELYAUTOT.get(opts.pop("auto", None) or "m3-lr", ESITTELYAUTOT["m3-lr"])
+                src = BatterySimulator(**{**car["opts"], **opts})
+                src.car_name = car["nimi"]
             else:
                 if not port:
                     raise ValueError("Valitse sovittimen portti.")

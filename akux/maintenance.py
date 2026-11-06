@@ -1,4 +1,4 @@
-"""Ylläpito: varmuuskopiot, palautus, päivitys zip-paketista ja laaduntarkistus."""
+"""Ylläpito: varmuuskopiot, palautus ja laaduntarkistus."""
 from __future__ import annotations
 
 import gzip
@@ -6,11 +6,8 @@ import hashlib
 import os
 import io
 import json
-import re
 import shutil
 import sqlite3
-import subprocess
-import sys
 import tempfile
 import time
 import zipfile
@@ -125,46 +122,6 @@ def restore(storage, data: bytes) -> dict:
 
 
 # ----------------------------------------------------------------------
-# Päivitys
-# ----------------------------------------------------------------------
-def inspect_update(data: bytes) -> dict:
-    try:
-        z = zipfile.ZipFile(io.BytesIO(data))
-    except zipfile.BadZipFile:
-        raise ValueError("Tiedosto ei ole Akuxin päivityspaketti.")
-    init = [n for n in z.namelist() if n.endswith("akux/__init__.py")]
-    bat = [n for n in z.namelist() if n.endswith("Asenna.bat")]
-    if not init or not bat:
-        raise ValueError("Tiedosto ei ole Akuxin päivityspaketti.")
-    m = re.search(r'VERSIO\s*=\s*"([^"]+)"', z.read(init[0]).decode("utf-8", "ignore"))
-    new = m.group(1) if m else "?"
-
-    def key(v):
-        return tuple(int(x) if x.isdigit() else 0 for x in v.split("."))
-    root = bat[0][: -len("Asenna.bat")]
-    return {"versio": new, "nykyinen": VERSIO, "uudempi": key(new) > key(VERSIO), "juuri": root}
-
-
-def start_update(data: bytes) -> dict:
-    """Purkaa päivityspaketin ja käynnistää sen asennuksen. Asennus sulkee
-    ohjelman, asentaa uuden version ja avaa sen. Tiedot säilyvät."""
-    info = inspect_update(data)
-    if os.environ.get("AKUX_ALUSTA") == "android":
-        raise ValueError("Android-sovellus päivitetään asentamalla uusi sovellusversio.")
-    if not sys.platform.startswith("win"):
-        raise ValueError("Päivitys ohjelmasta toimii Windowsissa. Pura paketti ja aja asennus käsin.")
-    base = Path(tempfile.gettempdir()) / f"akux-paivitys-{info['versio']}"
-    if base.exists():
-        shutil.rmtree(base, ignore_errors=True)
-    base.mkdir(parents=True)
-    zipfile.ZipFile(io.BytesIO(data)).extractall(base)
-    bat = base / info["juuri"] / "Asenna.bat"
-    subprocess.Popen(["cmd", "/c", "start", "Akux - päivitys", "/D", str(bat.parent), str(bat)],
-                     close_fds=True, creationflags=0x00000008)  # DETACHED_PROCESS
-    return info
-
-
-# ----------------------------------------------------------------------
 # Laaduntarkistus
 # ----------------------------------------------------------------------
 def _check(name, fn):
@@ -238,6 +195,28 @@ def selftest(app, full: bool = True) -> dict:
             errs.append("varaustila")
         return ("ok", "Viestien purku tuottaa oikeat arvot.") if not errs else ("virhe", "Väärin: " + ", ".join(errs))
     out.append(_check("Viestien purku", decode))
+
+    def decode_sx():
+        from .decoder import TeslaDecoder
+        from .simulator import ESITTELYAUTOT, BatterySimulator
+        sim = BatterySimulator(soc=0.5, accel=1, **ESITTELYAUTOT["ms-85"]["opts"])
+        dec = TeslaDecoder()
+        for k in range(120):
+            for cid, data in sim._frames(k * 0.1):
+                dec.feed(k * 0.1, cid, data)
+        s = dec.state
+        errs = []
+        if s.platform != "sx":
+            errs.append("alustan tunnistus")
+        if s.vin != sim.vin:
+            errs.append("valmistenumero")
+        if s.brick_count != 96:
+            errs.append("kennoryhmien määrä")
+        if not s.nfp_kwh or abs(s.nfp_kwh - sim.nfp) > 0.15:
+            errs.append("akun energia")
+        return ("ok", "Model S 2012–2021 ja Model X 2015–2021: purku tuottaa oikeat arvot.") if not errs else \
+            ("virhe", "Väärin: " + ", ".join(errs))
+    out.append(_check("Viestien purku, Model S/X 2012–2021", decode_sx))
 
     def integrity():
         bad, n = [], 0

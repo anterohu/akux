@@ -211,9 +211,33 @@ class Storage:
         rows = self._rows("SELECT id FROM vehicles WHERE vin=?", (vin,))
         return self.vehicle(rows[0]["id"]) if rows else None
 
+    def vehicle_photo(self, vid: int) -> Path:
+        """Auton valokuvan polku (kuvaa ei välttämättä ole)."""
+        return self.dir / "autot" / f"auto_{int(vid):05d}.jpg"
+
+    def save_vehicle_photo(self, vid: int, data: bytes) -> Path:
+        """Tallentaa auton kuvan: oikea asento puhelimen kuvatiedoista, enintään 1600 px, JPEG."""
+        import io as _io
+        from PIL import Image, ImageOps
+        try:
+            im = Image.open(_io.BytesIO(data))
+            im = ImageOps.exif_transpose(im)
+        except Exception as e:  # noqa: BLE001
+            raise ValueError("Kuvaa ei voitu lukea. Käytä JPEG- tai PNG-kuvaa.") from e
+        im = im.convert("RGB")
+        im.thumbnail((1600, 1600))
+        out = self.vehicle_photo(vid)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        im.save(out, "JPEG", quality=86, optimize=True)
+        return out
+
     def delete_vehicle(self, vid: int):
         for t in self.tests(vid):
             self.delete_test(t["id"])
+        try:
+            self.vehicle_photo(vid).unlink()
+        except OSError:
+            pass
         self._exec("DELETE FROM vehicles WHERE id=?", (vid,))
 
     # -- mittaukset -----------------------------------------------------

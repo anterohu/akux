@@ -108,10 +108,6 @@ def test_android_silta():
         q = call(base, "/api/yllapito/tarkistus?laaja=0")
         sov = [c for c in q["tarkistukset"] if c["nimi"] == "Sovittimen yhteys"][0]
         assert sov["tila"] == "ok", sov
-        try:
-            call(base, "/api/yllapito/paivitys", None)
-        except Exception:
-            pass
         call(base, "/api/sulje", {})
         end = time.time() + 10
         while time.time() < end and not bridge.stopped:

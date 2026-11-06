@@ -165,16 +165,6 @@ def test_yllapito():
         _, lst = call(base, "/api/yllapito/varmuuskopiot")
         assert len(lst["varmuuskopiot"]) == 1
 
-        # päivityspaketin tarkistus
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w") as z:
-            z.writestr("Akux/Asenna.bat", "rem")
-            z.writestr("Akux/akux/__init__.py", 'VERSIO = "9.9.9"\n')
-        _, u = call(base, "/api/yllapito/paivitys/tarkista", "POST", raw=buf.getvalue())
-        assert u["versio"] == "9.9.9" and u["uudempi"] and u["juuri"] == "Akux/"
-        code, err = call(base, "/api/yllapito/paivitys/tarkista", "POST", raw=zipb, ok=False)
-        assert code == 400
-
         # palautus oikeasti: tiedot palautuvat ja vanhat siirtyvät talteen
         call(base, "/api/ajoneuvot", "POST", {"nimi": "Toinen"})
         _, meta = call(base, "/api/yllapito/palauta", "POST", raw=zipb)
