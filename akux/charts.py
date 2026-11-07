@@ -179,3 +179,41 @@ def dc_chart(curve: list, width_mm=174, height_mm=64) -> bytes:
     ax.yaxis.set_major_formatter(_fi(0))
     ax.set_title("Latausteho pikalatauksessa")
     return _png(fig)
+
+
+def drive_chart(samples: list[dict], width_mm=174, height_mm=66) -> bytes:
+    """Ajotestin varaustila ja akusta otettu teho. Teho on keskiarvo kahden minuutin jaksoilta."""
+    s = [x for x in samples if x["soc_avg"] is not None and x["v"] and x["i"] is not None]
+    t0 = s[0]["t"] if s else 0
+    bins: dict = {}
+    for x in s:
+        b = int((x["t"] - t0) // 120)
+        acc = bins.setdefault(b, [0.0, 0, x["soc_avg"]])
+        acc[0] += x["v"] * x["i"] / 1000
+        acc[1] += 1
+        acc[2] = x["soc_avg"]
+    keys = sorted(bins)
+    hours = [(k * 120 + 60) / 3600 for k in keys]
+    power = [bins[k][0] / bins[k][1] for k in keys]
+    soc = [bins[k][2] for k in keys]
+    fig, ax = plt.subplots(figsize=(width_mm / 25.4, height_mm / 25.4))
+    ax.plot(hours, soc, color=ACCENT, linewidth=1.6, label="Varaustila (%)", zorder=3)
+    ax.set_ylim(0, 105)
+    ax.set_ylabel("Varaustila (%)")
+    ax.set_xlabel("Aika mittauksen alusta (h)")
+    ax.xaxis.set_major_formatter(_fi(1))
+    ax2 = ax.twinx()
+    ax2.fill_between(hours, 0, power, color=ACCENT_2, alpha=0.18, linewidth=0, zorder=2, step="mid")
+    ax2.step(hours, power, where="mid", color=ACCENT_2, linewidth=0.9, label="Teho akusta (kW, 2 min keskiarvo)",
+             zorder=2)
+    ax2.set_ylabel("Teho (kW)")
+    ax2.grid(False)
+    ax2.spines["right"].set_visible(True)
+    pmax = max(power) if power else 1
+    ax2.set_ylim(min(0.0, min(power, default=0)) * 1.2, max(1.0, pmax * 1.6))
+    ax2.yaxis.set_major_formatter(_fi(0))
+    h1, l1 = ax.get_legend_handles_labels()
+    h2, l2 = ax2.get_legend_handles_labels()
+    ax.legend(h1 + h2, l1 + l2, loc="upper right")
+    ax.set_title("Varaustila ja teho ajon aikana")
+    return _png(fig)

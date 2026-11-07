@@ -178,17 +178,20 @@ OHJE = [
     {
         "id": "raportti", "otsikko": "Raportti ja tulosten tulkinta",
         "osat": [
-            ("p", "Raportin ensimmäisellä sivulla on yhteenveto, tärkeimmät tunnusluvut ja arviot luokkineen. "
-                  "Seuraavilla sivuilla ovat mittauksen yksityiskohdat, kennoryhmien jännitteet, akunhallinnan tiedot, "
-                  "menetelmäkuvaus ja sanasto."),
+            ("p", "Raportti on kaksiosainen. <b>Pääsivuilla</b> (yleensä 4–6 sivua) ovat akun kunto ja tärkeimmät "
+                  "tunnusluvut, tulokset luokkineen, mittauksen tulos kaavioineen ja kennoryhmien jännitteet. Kaikkien "
+                  "kennoryhmien jännitteet ovat lisäsivulla taulukkona. "
+                  "<b>Teknisessä liitteessä</b> ovat mittauksen vaiheet, mittaustarkkuuden erittely, "
+                  "akunhallinnan tiedot, menetelmäkuvaus ja sanasto. Liitteen voi "
+                  "jättää pois asetuksista, jolloin asiakas saa vain pääsivut."),
             ("ul", [
                 "<b>Akun kunto (SOH)</b> on nykyinen kapasiteetti prosentteina alkuperäisestä. Vähintään 90 % on erinomainen, 85–90 % hyvä, 80–85 % tyydyttävä ja 70–80 % heikentynyt.",
                 "<b>Kennoryhmien jännite-ero</b> levossa: alle 15 mV erinomainen, alle 30 mV hyvä ja alle 50 mV tyydyttävä. Suurempi ero tai yksittäinen poikkeava ryhmä kannattaa tarkistaa.",
-                "<b>Epävarmuus</b> kertoo, kuinka paljon mitattu kapasiteetti voi poiketa todellisesta. Se pienenee, kun lataus aloitetaan matalasta varauksesta ja lepojaksot pidetään täysimittaisina.",
+                "<b>Mittaustarkkuus</b> (±) kertoo, kuinka paljon mitattu kapasiteetti voi poiketa todellisesta. Se pienenee, kun lataus aloitetaan matalasta varauksesta ja lepojaksot pidetään täysimittaisina.",
                 "<b>Vertailu ajomäärään</b> kertoo, onko kapasiteetin alenema keskimääräinen, pienempi vai suurempi kuin samalla ajomäärällä yleensä.",
             ]),
             ("p", "Raportissa kerrotaan tietojen alkuperä: tiedot luetaan auton omasta akunhallintajärjestelmästä, "
-                  "eikä Akux muuta niitä. Pikatarkastuksen kunto ja kapasiteetti ovat auton omia arvioita. "
+                  "eikä Akux muuta niitä. Pikatarkastuksen kunto ja kapasiteetti ovat Teslan akunhallinnan ilmoittamia. "
                   "Kapasiteettimittauksessa ja ajotesteissä tulos perustuu auton omiin jännite- ja virtamittauksiin, "
                   "varaustilaan ja energialaskureihin. "
                   "Raportti kuvaa akun tilaa mittaushetkellä, eikä se ole valmistajan lausunto."),

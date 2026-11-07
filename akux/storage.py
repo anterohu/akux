@@ -55,6 +55,7 @@ OLETUSASETUKSET = {
     "itsepurkaus_lepo_min": 30,
     "itsepurkaus_tunnit": 8,
     "vesileima": "toisto",
+    "tekninen_liite": True,
 }
 
 SCHEMA = """

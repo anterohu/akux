@@ -277,7 +277,7 @@ views.yleiskuva = {
       stat("Akun jännite", L.pack_v != null ? n(L.pack_v) : "–", "V", L.pack_i != null ? `Virta ${n(L.pack_i)} A` : ""),
       stat("Teho", L.power_kw != null ? n(Math.abs(L.power_kw)) : "–", "kW", L.power_kw == null ? "" : (L.power_kw < -0.3 ? "Lataus" : (L.power_kw > 0.3 ? "Purku" : "Levossa"))),
       stat("Akun lämpötila", L.temp_min != null ? `${n(L.temp_min)}–${n(L.temp_max)}` : "–", "°C", ""),
-      stat("Täyden akun energia", L.nfp_kwh != null ? n(L.nfp_kwh) : "–", "kWh", L.bol_kwh ? `Uutena ${n(L.bol_kwh)} kWh` : "Akunhallinnan arvio"),
+      stat("Täyden akun energia", L.nfp_kwh != null ? n(L.nfp_kwh) : "–", "kWh", L.bol_kwh ? `Uutena ${n(L.bol_kwh)} kWh` : "Teslan akunhallinta"),
       stat("Kunto (akunhallinta)", soh != null ? n(soh) : "–", "%", "Pikatarkastus tallentaa arvon"),
       stat("Kennoryhmien ero", L.brick_delta_mv != null ? n(L.brick_delta_mv, 0) : "–", "mV", L.bricks_seen ? `${L.bricks_seen}/${L.brick_count || "–"} ryhmää luettu` : ""),
       stat("Mittarilukema", L.odometer_km != null ? n(L.odometer_km, 0) : "–", "km", L.vin || ""),
@@ -868,6 +868,8 @@ views.asetukset = {
           ${[["b", "Kaarimittari (oletus)"], ["a", "Akkukuva ja luokka-asteikko"], ["c", "Tumma tunnuslukukaista"]].map(([k, t]) => `<option value="${k}" ${(s.raportin_ulkoasu || "b") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
         <label class="f"><span>Vesileima</span><select name="vesileima">
           ${[["toisto", "Pienet toistuvat (oletus)"], ["iso", "Suuri vino Akux"], ["rivit", "Harvat vinot rivit"], ["ei", "Ei vesileimaa"]].map(([k, t]) => `<option value="${k}" ${(s.vesileima || "toisto") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        <label class="f"><span>Tekninen liite</span><select name="tekninen_liite">
+          ${[["1", "Mukana raportin lopussa (oletus)"], ["0", "Ei liitettä, vain pääsivut"]].map(([k, t]) => `<option value="${k}" ${((s.tekninen_liite === false) ? "0" : "1") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
       </div>
 
       <div class="card"><h2>Raportin QR-koodi</h2>

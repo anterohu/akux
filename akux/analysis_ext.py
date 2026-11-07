@@ -340,12 +340,12 @@ def assessments(res: dict):
     p = res.get("purku")
     if p and p.get("valmis") and res["tyyppi"] == "pika_ajo" and "vahvistaa_bms" in p:
         ok = p["vahvistaa_bms"]
-        ar.append({"nimi": "Akunhallinnan arvio ajossa", "arvo": "Vahvistettu" if ok else "Poikkeaa",
+        ar.append({"nimi": "Akunhallinnan kapasiteetti ajossa", "arvo": "Vahvistettu" if ok else "Poikkeaa",
                    "luokka": "Erinomainen" if ok else "Tyydyttävä",
                    "kuvaus": f"Ajossa mitattu {fmt(p['taysi_kwh'])} ± {fmt(p['epavarmuus_kwh'])} kWh, "
-                             f"akunhallinnan arvio {fmt((res.get('bms') or {}).get('nfp_kwh'))} kWh."})
-        parts.append("Ajossa mitattu purku vastaa akunhallinnan arviota." if ok else
-                     "Ajossa mitattu purku poikkeaa akunhallinnan arviosta. Tarkka tulos saadaan "
+                             f"Teslan akunhallinnan ilmoittama {fmt((res.get('bms') or {}).get('nfp_kwh'))} kWh."})
+        parts.append("Ajossa mitattu purku vastaa akunhallinnan ilmoittamaa kapasiteettia." if ok else
+                     "Ajossa mitattu purku poikkeaa akunhallinnan ilmoittamasta kapasiteetista. Tarkka tulos saadaan "
                      "kapasiteettimittauksella tai täydellä akkutestillä.")
     yh = res.get("yhdistetty")
     if yh:
