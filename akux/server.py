@@ -101,6 +101,15 @@ class Api:
 
     def _stop(self, action):
         self.exit_action = action
+        try:
+            # Sovellusikkuna tunnistaa tästä, että ohjelma käynnistyy uudelleen eikä sulkeudu
+            marker = self.app.storage.dir / ".uudelleenkaynnistys"
+            if action == "uudelleen":
+                marker.write_text(str(time.time()))
+            elif marker.exists():
+                marker.unlink()
+        except OSError:
+            pass
         if self.httpd:
             threading.Timer(0.4, self.httpd.shutdown).start()
 
@@ -805,15 +814,6 @@ def serve(host=None, port=8765, data_dir=None, open_browser=True, open_window=No
     httpd.daemon_threads = True
     api.httpd = httpd
 
-    def warm_up():
-        # Kaaviokirjasto rakentaa fonttivälimuistinsa ensimmäisellä käyttökerralla. Tehdään se
-        # taustalla heti käynnistyksessä, jotta ensimmäinen raportti valmistuu ilman viivettä.
-        try:
-            from . import charts  # noqa: F401
-            import matplotlib.pyplot  # noqa: F401
-        except Exception:  # noqa: BLE001
-            pass
-    threading.Thread(target=warm_up, name="akux-esilataus", daemon=True).start()
 
     def ticker():
         while True:

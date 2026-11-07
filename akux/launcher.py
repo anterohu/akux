@@ -158,7 +158,7 @@ def _storage_dir(second: bool = False) -> str:
     return str(d)
 
 
-def run_window(wv, url: str | None, test: bool = False, on_start=None) -> int:
+def run_window(wv, url: str | None, test: bool = False, on_start=None, watch: bool = False) -> int:
     """Avaa sovellusikkunan ja odottaa sen sulkemista. url=None näyttää latausnäkymän,
     kunnes on_start(window) lataa käyttöliittymän."""
     api = IkkunaApi(f"http://127.0.0.1:{PORT}")
@@ -170,9 +170,33 @@ def run_window(wv, url: str | None, test: bool = False, on_start=None) -> int:
     if test:
         print("Ikkunatesti: ikkuna luotu", flush=True)
 
+    def watcher():
+        # Kun ohjelma suljetaan (myös asennusohjelman päivittäessä), ikkuna sulkeutuu perässä.
+        # Uudelleenkäynnistys kestää muutaman sekunnin, joten katko sallitaan 20 sekuntia.
+        from .storage import default_data_dir
+        marker = default_data_dir() / ".uudelleenkaynnistys"
+        seen, down_since = False, None
+        while True:
+            time.sleep(1)
+            if _running(PORT):
+                seen, down_since = True, None
+                continue
+            if not seen:
+                continue
+            down_since = down_since or time.time()
+            try:
+                restarting = time.time() - float(marker.read_text()) < 60
+            except (OSError, ValueError):
+                restarting = False
+            if time.time() - down_since > (30 if restarting else 2):
+                close_window(win, grace=4)
+                return
+
     def started():
         if test:
             print("Ikkunatesti: ikkuna auki", flush=True)
+        if watch and not test:
+            threading.Thread(target=watcher, name="akux-ikkunavahti", daemon=True).start()
         if on_start:
             on_start(win)
         if test:
@@ -219,7 +243,33 @@ def _log_to_file():
         sys.stderr = f
 
 
+def _spawn(args: list[str], low_priority: bool = False):
+    """Käynnistää Akuxin erillisen prosessin (palvelin tai esilataus) ilman konsoli-ikkunaa."""
+    base = [sys.executable] + ([] if getattr(sys, "frozen", False) else ["-m", "akux.launcher"])
+    kw = {"close_fds": True}
+    if sys.platform.startswith("win"):
+        flags = 0x08000000 | 0x00000200          # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
+        if low_priority:
+            flags |= 0x00004000                  # BELOW_NORMAL_PRIORITY_CLASS
+        kw["creationflags"] = flags
+    return subprocess.Popen(base + args, **kw)
+
+
+def _warm_up():
+    """Rakentaa kaaviokirjaston fonttivälimuistin. Ajetaan omana matalan prioriteetin prosessinaan."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot  # noqa: F401
+        from . import charts  # noqa: F401
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def main():
+    if "--esilataus" in sys.argv:
+        _warm_up()
+        return
     if getattr(sys, "frozen", False):
         _log_to_file()
     url = f"http://127.0.0.1:{PORT}"
@@ -229,47 +279,40 @@ def main():
         # Ikkunatesti ei saa koskaan jäädä odottamaan
         threading.Thread(target=lambda: (time.sleep(100), print("Ikkunatesti: aikaraja", flush=True), os._exit(6)),
                          daemon=True).start()
-    wv = _webview()
+    no_window = "--ei-ikkunaa" in sys.argv
+    wv = None if no_window else _webview()
     if test:
         print("Ikkunatesti: näyttökomponentti", "löytyi" if wv else "puuttuu", flush=True)
     if _running(PORT):
+        if no_window:
+            return
         if wv:
-            sys.exit(run_window(wv, url, test=test))
+            sys.exit(run_window(wv, url, test=test, watch=True))
         if test:
             print("Ikkunatesti: WebView2-ikkuna ei ole käytettävissä")
             sys.exit(3)
         open_window(url)
         return
-    from .server import serve
-    no_window = "--ei-ikkunaa" in sys.argv
-    if wv and not no_window:
-        # Palvelin taustasäikeessä, sovellusikkuna pääsäikeessä
-        state = {"ikkuna": None, "toiminto": None}
-
-        def server_thread():
-            action_ = serve(port=PORT, open_window=None, open_browser=False, idle_exit=IDLE_EXIT_S)
-            state["toiminto"] = action_
-            if action_ == "uudelleen":
-                _restart(with_window=True)
-            if state["ikkuna"]:
-                close_window(state["ikkuna"])
-
-        th = threading.Thread(target=server_thread, name="akux-palvelin")
+    if wv:
+        # Palvelin omaan prosessiinsa: ikkuna ei voi hidastaa mittausta eikä palvelinta, ja
+        # mittaus jatkuu, vaikka ikkuna suljetaan.
+        _spawn(["--ei-ikkunaa"])
 
         def on_start(win):
-            state["ikkuna"] = win
             for _ in range(240):              # odotetaan, että palvelin vastaa (enintään 2 min)
                 if _running(PORT):
                     win.load_url(url)
                     return
-                if not th.is_alive():
-                    return
                 time.sleep(0.5)
+            print("Palvelin ei käynnistynyt", flush=True)
 
-        th.start()
-        run_window(wv, None, on_start=on_start)
-        th.join()            # käynnissä oleva mittaus jatkuu, vaikka ikkuna suljetaan
+        run_window(wv, None, on_start=on_start, watch=True)
         return
+    from .server import serve
+    try:
+        _spawn(["--esilataus"], low_priority=True)
+    except Exception:  # noqa: BLE001
+        pass
     action = serve(port=PORT, open_window=None if no_window else open_window, open_browser=False,
                    idle_exit=IDLE_EXIT_S)
     if action == "uudelleen":

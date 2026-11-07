@@ -70,6 +70,8 @@ nav a.active { background: var(--accent-soft); color: var(--accent); }
 main { padding: 28px 32px 60px; max-width: 1180px; width: 100%; min-width: 0; }
 select { max-width: 100%; text-overflow: ellipsis; }
 #aDemo .demo { margin: 16px 0; }
+.back { display: inline-flex; align-items: center; gap: 6px; margin: -4px 0 10px; font-size: 13px; color: var(--muted); text-decoration: none; }
+.back:hover { color: var(--ink); }
 .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
 
 .grid { display: grid; gap: 16px; }

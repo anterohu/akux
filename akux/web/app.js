@@ -107,7 +107,16 @@ $$("#nav a").forEach(a => a.addEventListener("click", () => document.body.classL
 
 // ---------- reititys ----------
 const views = {};
+// Mistä alanäkymään tultiin: Takaisin-painike palaa samaan paikkaan
+let prevHash = "", curHash = "";
+function backLink(fallback, label) {
+  const from = prevHash && prevHash !== curHash ? prevHash : "";
+  const target = from && (/^#\/autot\/\d+$/.test(from) || from === "#/mittaukset" || from === "#/autot") ? from : fallback;
+  const lbl = target === "#/mittaukset" ? "Mittaukset" : target === "#/autot" ? "Autot" : /^#\/autot\/\d+$/.test(target) ? "Auton tiedot" : label;
+  return { html: `<a class="back" href="${target}">← ${esc(lbl)}</a>`, target };
+}
 function route() {
+  if (location.hash !== curHash) { prevHash = curHash; curHash = location.hash; }
   const [name, arg] = (location.hash.replace(/^#\//, "") || "yleiskuva").split("/");
   const v = views[name] || views.yleiskuva;
   $$("#nav a").forEach(a => a.classList.toggle("active", a.dataset.v === name));
@@ -523,6 +532,9 @@ function miniStat(l, v, u) {
 views.autot = {
   render(arg) {
     if (arg === "uusi") return this.renderForm(null);
+    if (arg && location.hash.endsWith("/muokkaa")) {
+      return api(`/api/ajoneuvot/${Number(arg)}`).then(v => this.renderForm(v));
+    }
     if (arg) return this.renderOne(Number(arg));
     this.renderList();
   },
@@ -548,7 +560,8 @@ views.autot = {
   async renderForm(v) {
     const { mallit } = await api("/api/mallit");
     const live = S && S.live && S.live.vin && !S.auto_tunnettu ? S.live.vin : "";
-    view.innerHTML = `<div class="head"><div><h1>${v ? "Muokkaa autoa" : "Lisää auto"}</h1><div class="muted">Malli tunnistetaan valmistenumerosta. Tarkentuneet tiedot tallentuvat autolle ensimmäisen mittauksen jälkeen.</div></div></div>
+    const bk = v ? { html: `<a class="back" href="#/autot/${v.id}">← ${esc(v.nimi)}</a>` } : backLink("#/autot", "Autot");
+    view.innerHTML = `${bk.html}<div class="head"><div><h1>${v ? "Muokkaa autoa" : "Lisää auto"}</h1><div class="muted">Malli tunnistetaan valmistenumerosta. Tarkentuneet tiedot tallentuvat autolle ensimmäisen mittauksen jälkeen.</div></div></div>
       <div class="grid g2">
         <div class="card" id="vForm">
           <label class="f"><span>Valmistenumero (VIN)</span><div class="row" style="flex-wrap:nowrap"><input name="vin" value="${esc(v ? v.vin || "" : live)}" maxlength="17" style="text-transform:uppercase">
@@ -598,10 +611,9 @@ views.autot = {
   },
   async renderOne(id) {
     const v = await api(`/api/ajoneuvot/${id}`);
-    if (location.hash.endsWith("/muokkaa")) return;
     const o = v.opitut || {};
     const m = v.malli || {};
-    view.innerHTML = `<div class="head"><div><h1>${esc(v.nimi)}</h1><div class="muted">${esc(m.nimi || "Malli tunnistetaan ensimmäisessä mittauksessa")}</div></div>
+    view.innerHTML = `<a class="back" href="#/autot">← Autot</a><div class="head"><div><h1>${esc(v.nimi)}</h1><div class="muted">${esc(m.nimi || "Malli tunnistetaan ensimmäisessä mittauksessa")}</div></div>
       <div class="row"><button class="btn" id="vEdit">Muokkaa</button><a class="btn primary" href="#/mittaus">Uusi mittaus</a></div></div>
       ${!v.mittaukset.length ? `<div class="notice"><b>Seuraava vaihe:</b> tee autolle pikatarkastus. Ohjelma lukee silloin akunhallinnasta alkuperäisen kapasiteetin, kennoryhmien määrän ja akun tyypin ja tallentaa ne autolle.</div>` : ""}
       <div class="grid g2">
@@ -624,7 +636,7 @@ views.autot = {
       ${v.liitanta ? `<div class="card">${guideHtml(v.liitanta, true)}</div>` : ""}
       <div class="card"><h2>Mittaukset</h2>${testTable(v.mittaukset)}</div>
       <div class="row" style="margin-top:16px"><span class="spacer"></span><button class="btn danger sm" id="vDel">Poista auto ja sen mittaukset</button></div>`;
-    $("#vEdit").onclick = () => this.renderForm(v);
+    $("#vEdit").onclick = () => (location.hash = `#/autot/${v.id}/muokkaa`);
     $("#vPhoto").onchange = e => {
       const f = e.target.files[0];
       if (!f) return;
@@ -684,7 +696,8 @@ views.mittaukset = {
     const y = r.yhteenveto || {};
     const v = t.ajoneuvo || {};
     const done = t.tila === "valmis" && y.teksti;
-    view.innerHTML = `<div class="head"><div><h1>${t.tyyppi === "kapasiteetti" ? "Kapasiteettimittaus" : "Pikatarkastus"}</h1>
+    const bk = backLink("#/mittaukset", "Mittaukset");
+    view.innerHTML = `${bk.html}<div class="head"><div><h1>${t.tyyppi === "kapasiteetti" ? "Kapasiteettimittaus" : "Pikatarkastus"}</h1>
       <div class="muted">${esc(v.nimi || "")} · ${date(t.aloitettu)}</div></div>
       <div class="row">${done ? `<a class="btn primary" href="/api/mittaukset/${id}/raportti.pdf" target="_blank">Avaa raportti (PDF)</a>` : ""}
         <a class="btn" href="/api/mittaukset/${id}/tiedosto.akux">Mittaustiedosto</a>
@@ -717,7 +730,7 @@ views.mittaukset = {
     };
     $("#tDel").onclick = () => {
       if (!confirm("Poistetaanko mittaus ja sen raakadata pysyvästi?")) return;
-      act(() => api(`/api/mittaukset/${id}`, { method: "DELETE" }), "Mittaus poistettu").then(() => history.back());
+      act(() => api(`/api/mittaukset/${id}`, { method: "DELETE" }), "Mittaus poistettu").then(() => (location.hash = bk.target));
     };
   },
 };
