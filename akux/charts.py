@@ -132,3 +132,50 @@ def trend_chart(points: list[tuple], width_mm=174, height_mm=55) -> bytes:
     ax.set_ylim(min(70, min(ys) - 3), 101)
     ax.set_title("Akun kunnon kehitys")
     return _png(fig)
+
+
+def group_bar_chart(values: list, title: str, ylabel: str, highlight=(), ref=None, center=False,
+                    width_mm=174, height_mm=58, decimals=1) -> bytes:
+    """Kennoryhmäkohtainen pylväskaavio (resistanssi, itsepurkautuminen)."""
+    vals = [v if v is not None else 0 for v in values]
+    hl = set(highlight)
+    colors = [BAD if (k + 1) in hl else ACCENT for k in range(len(vals))]
+    fig, ax = plt.subplots(figsize=(width_mm / 25.4, height_mm / 25.4))
+    ax.bar(range(1, len(vals) + 1), vals, color=colors, width=0.72, zorder=3)
+    if ref is not None:
+        ax.axhline(ref, color=INK, linewidth=0.7, zorder=4, linestyle="--")
+    if center:
+        lim = max(1.0, max(abs(x) for x in vals) * 1.25)
+        ax.set_ylim(-lim, lim)
+        ax.axhline(0, color=INK, linewidth=0.7, zorder=4)
+    else:
+        nz = [v for v in vals if v]
+        if nz:
+            lo, hi = min(nz), max(nz)
+            pad = max((hi - lo) * 0.3, hi * 0.05)
+            ax.set_ylim(max(0, lo - pad), hi + pad)
+    ax.set_xlim(0.3, len(vals) + 0.7)
+    ax.set_ylabel(ylabel)
+    ax.set_xlabel("Kennoryhmä")
+    step = 8 if len(vals) > 60 else 4
+    ax.set_xticks([1] + list(range(step, len(vals) + 1, step)))
+    ax.yaxis.set_major_formatter(_fi(decimals))
+    ax.grid(axis="x", visible=False)
+    ax.set_title(title)
+    return _png(fig)
+
+
+def dc_chart(curve: list, width_mm=174, height_mm=64) -> bytes:
+    """Pikalatauksen teho varaustilan funktiona."""
+    xs = [c[0] for c in curve]
+    ys = [c[1] for c in curve]
+    fig, ax = plt.subplots(figsize=(width_mm / 25.4, height_mm / 25.4))
+    ax.plot(xs, ys, color=ACCENT, linewidth=1.6, zorder=3)
+    ax.fill_between(xs, ys, color=ACCENT, alpha=0.08, zorder=2)
+    ax.set_xlabel("Varaustila (%)")
+    ax.set_ylabel("Latausteho (kW)")
+    ax.set_ylim(0, max(ys) * 1.15 if ys else 1)
+    ax.xaxis.set_major_formatter(_fi(0))
+    ax.yaxis.set_major_formatter(_fi(0))
+    ax.set_title("Latausteho pikalatauksessa")
+    return _png(fig)

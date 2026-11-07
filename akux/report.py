@@ -568,13 +568,20 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     cap = r.get("kapasiteetti") or {}
     bms = r.get("bms") or {}
     summ = r["yhteenveto"]
-    is_cap = r["tyyppi"] == "kapasiteetti"
+    tyyppi = r["tyyppi"]
+    is_cap = tyyppi in ("kapasiteetti", "taysi")
+    purku = r.get("purku") or {}
+    yhd = r.get("yhdistetty") or {}
+    kuorma = r.get("kuorma") or {}
+    dc = r.get("pikalataus") or {}
+    itse = r.get("itsepurkaus") or {}
 
     company_line = "  ·  ".join(x for x in (s.get("yritys_osoite"), s.get("yritys_puhelin"),
                                             s.get("yritys_sahkoposti"), s.get("yritys_www")) if x)
     report_no = f"{time.strftime('%Y', time.localtime(test['aloitettu']))}-{tid:05d}"
     title = "Akux-testi"
-    test_kind = "Akun kapasiteettimittaus" if is_cap else "Akun pikatarkastus"
+    from .recorder import TYYPIT
+    test_kind = TYYPIT.get(tyyppi, "Akun tarkastus")
     ctx = {
         "company": s.get("yritys_nimi"), "company_line": company_line, "logo": s.get("logo"),
         "title": f"{title}  ·  {test_kind}", "report_no": report_no, "vesileima": s.get("vesileima") or "toisto", "date": _date(test.get("paattynyt") or test["aloitettu"], False),
@@ -652,10 +659,9 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         return cell
 
     if soh is not None:
-        lahde_txt = {"Kapasiteettimittaus": "Kapasiteettimittaus",
-                     "Akunhallinnan arvio": "Teslan akunhallinta"}.get(summ.get("kunto_lahde"),
-                                                                       summ.get("kunto_lahde") or "")
-        cap_pct = cap.get("soh_epavarmuus_pct") if summ.get("kunto_lahde") == "Kapasiteettimittaus" else None
+        lahde_txt = {"Akunhallinnan arvio": "Teslan akunhallinta"}.get(summ.get("kunto_lahde"),
+                                                                    summ.get("kunto_lahde") or "")
+        cap_pct = summ.get("epavarmuus_pct") if summ.get("kunto_lahde") != "Akunhallinnan arvio" else None
         caption = lahde_txt + (f"  ·  ±{fmt(cap_pct)} %-yks." if cap_pct else "")
     else:
         caption = "Ei laskettavissa"
@@ -776,9 +782,19 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
 
     def cond(n_, v_, p_=""):
         rows_c.append([P(n_, "cell"), P(v_ if v_ not in (None, "") else "–", "cellb"), P(p_, "small")])
-    cond("Mittaustapa", "Kapasiteettimittaus latauksen aikana" if is_cap else "Pikatarkastus levossa",
-         "Akkuun mennyt energia mitattu akun omasta jännitteestä ja virrasta" if is_cap
-         else "Akunhallinnan tiedot ja kennoryhmien jännitteet")
+    tapa = {
+        "pikatarkastus": ("Pikatarkastus levossa", "Akunhallinnan tiedot ja kennoryhmien jännitteet"),
+        "kapasiteetti": ("Kapasiteettimittaus latauksen aikana",
+                         "Akkuun mennyt energia mitattu akun omasta jännitteestä ja virrasta"),
+        "taysi": ("Purku ajamalla ja lataus täyteen",
+                  "Kapasiteetti mitattu sekä ajossa että latauksessa"),
+        "ajotesti": ("Purkumittaus ajon aikana", "Akusta otettu energia Teslan elinkaaren energialaskureista"),
+        "pika_ajo": ("Lyhyt purkumittaus ajon aikana", "Akusta otettu energia Teslan elinkaaren energialaskureista"),
+        "kuormitus": ("Kuormitus kiihdytyksillä", "Kennoryhmien jännite ja akun virta samanaikaisesti"),
+        "pikalataus": ("Pikalataus tasavirtalaturilla", "Latausteho, varaustila ja kennoryhmien jännitteet"),
+        "itsepurkaus": ("Seisonta yön yli", "Kennoryhmien lepojännitteet seisonnan alussa ja lopussa"),
+    }.get(tyyppi, (test_kind, ""))
+    cond("Mittaustapa", tapa[0], tapa[1])
     cond("Mittauksen kesto", _dur((meta.get("t_loppu") or 0) - (meta.get("t_alku") or 0)) if meta.get("t_loppu") else None,
          f"{_date(test['aloitettu'])} alkaen")
     if tt.get("alku_min") is not None:
@@ -790,7 +806,21 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         cond("Lepo ennen latausta ja sen jälkeen",
              f"{fmt(cap.get('lepo_alku_min'), 0)} min ja {fmt(cap.get('lepo_loppu_min'), 0)} min", "Suositus 30 min")
         cond("Latauksen keskiteho akkuun", f"{fmt(cap.get('keskiteho_kw'))} kW", "Vaihtovirtalataus")
-    elif cs:
+    if purku.get("soc_alku") is not None:
+        cond("Varaustila ajon alussa ja lopussa", f"{fmt(purku['soc_alku'])} % → {fmt(purku['soc_loppu'])} %",
+             f"Muutos {fmt(purku.get('soc_muutos'))} %-yksikköä")
+        if purku.get("matka_km"):
+            cond("Ajettu matka", f"{fmt(purku['matka_km'], 0)} km",
+                 f"{purku['osat']} ajokertaa" if (purku.get("osat") or 1) > 1 else "Yksi ajokerta")
+    if kuorma.get("kuormitustapahtumat"):
+        cond("Kuormitustapahtumia", f"{kuorma['kuormitustapahtumat']} kpl",
+             f"Suurin teho {fmt(kuorma.get('teho_max_kw'), 0)} kW")
+    if dc.get("soc_alku") is not None:
+        cond("Varaustila latauksen alussa ja lopussa", f"{fmt(dc['soc_alku'])} % → {fmt(dc['soc_loppu'])} %",
+             f"Kesto {fmt(dc.get('kesto_min'), 0)} min")
+    if itse.get("tunnit"):
+        cond("Seisonta-aika", f"{fmt(itse['tunnit'], 1)} h", "Suositus vähintään 8 tuntia")
+    if tyyppi == "pikatarkastus" and cs:
         cond("Akun virta mittaushetkellä", f"{fmt(cs.get('virta_a'))} A", "Alle 3 A tarkoittaa, että akku on levossa")
         cond("Varaustila", f"{fmt(cs.get('soc'))} %" if cs.get("soc") is not None else None, "Kennoryhmien keskiarvo")
         if cs.get("naytteita"):
@@ -806,7 +836,12 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
               "tallentaa ne muuttamattomina. ")
     if is_cap:
         origin += ("Kapasiteettimittauksen tulos perustuu akunhallinnan jännite- ja virtamittauksiin, ja se on "
-                   "tarkistettu akunhallinnan omasta latauslaskurista. Menetelmä on kuvattu menetelmäsivulla. ")
+                   "tarkistettu akunhallinnan omasta latauslaskurista. ")
+    if purku.get("valmis"):
+        origin += ("Purkumittauksen tulos perustuu Teslan elinkaaren energialaskureihin ja akunhallinnan "
+                   "varaustilaan. ")
+    if is_cap or purku.get("valmis") or kuorma or dc or itse:
+        origin += "Menetelmä on kuvattu menetelmäsivulla. "
     if not r["viite"]["lahde"].startswith("Auton akunhallinta"):
         origin += f"Alkuperäisen kapasiteetin lähde: {r['viite']['lahde'].lower()}. "
     origin += ("Tulosten tarkkuus riippuu auton antureiden tarkkuudesta. Raportti kuvaa akun tilaa mittaushetkellä, "
@@ -900,6 +935,185 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
             E.append(CondPageBreak(55 * mm))
             E.append(Spacer(1, 4 * mm))
             E.append(_img(charts.voltage_spread_chart(samples, t0), CW))
+
+    # ---------------- Purkumittaus (ajotestit ja täysi akkutesti) ------
+    def result_table(rows_, highlight_):
+        t_ = _table(rows_, [66 * mm, 30 * mm, CW - 96 * mm])
+        for hr_ in highlight_:
+            t_.setStyle(TableStyle([("BACKGROUND", (0, hr_), (-1, hr_), PANEL)]))
+        return t_
+
+    if purku.get("valmis"):
+        E.append(PageBreak())
+        E.append(P("Purkumittaus ajossa", "h2"))
+        osat = purku.get("osat") or 1
+        E.append(P("Akusta ajon aikana otettu energia luettiin Teslan elinkaaren energialaskureista ja varaustilan "
+                   "muutos akunhallinnasta. Varaustila luettiin levossa ennen ajoa ja sen jälkeen, jolloin "
+                   "akunhallinnan lukema on tarkimmillaan." + (
+                       f" Mittaus koottiin {osat} ajokerrasta." if osat > 1 else ""), "body"))
+        E.append(Spacer(1, 4 * mm))
+        rows = [[P("Suure", "label"), P("Arvo", "label"), P("Peruste", "label")]]
+        hl = []
+
+        def addp(n, v, p="", strong=False):
+            if strong:
+                hl.append(len(rows))
+            rows.append([P(n, "cellb" if strong else "cell"), P(v, "cellb"), P(p, "small")])
+        addp("Varaustila ennen ajoa", f"{fmt(purku['soc_alku'])} %", "Teslan akunhallinta, levossa")
+        addp("Varaustila ajon jälkeen", f"{fmt(purku['soc_loppu'])} %", "Teslan akunhallinta, levossa")
+        if purku.get("matka_km"):
+            addp("Ajettu matka", f"{fmt(purku['matka_km'], 0)} km",
+                 f"Keskikulutus {fmt(purku['kulutus_wh_km'], 0)} Wh/km" if purku.get("kulutus_wh_km") else "")
+        if purku.get("purku_kwh") is not None:
+            addp("Akusta otettu energia", f"{fmt(purku['purku_kwh'], 2)} kWh", "Teslan elinkaaren purkulaskuri")
+            addp("Jarrutuksissa palautunut energia", f"{fmt(purku['palautus_kwh'], 2)} kWh",
+                 "Teslan elinkaaren latauslaskuri")
+        addp("Nettoenergia navoilta", f"{fmt(purku['netto_kwh'], 2)} kWh", purku.get("lahde") or "")
+        addp("Sisäiset häviöt ajossa", f"{fmt(purku['haviot_kwh'], 2)} kWh",
+             f"R · ∫ I² dt, R = {fmt(purku.get('r_kaytetty_mohm'), 0)} mΩ")
+        addp("Energia mittausvälin ulkopuolella", f"{fmt(purku['e_alapuoli_kwh'] + purku['e_ylapuoli_kwh'], 2)} kWh",
+             "Mitattu Ah-kapasiteetti ja akkukemian lepojännitekäyrä")
+        addp("Akun kokonaiskapasiteetti", f"{fmt(purku['taysi_kwh'], 1)} kWh",
+             f"Epävarmuus noin ±{fmt(purku['epavarmuus_kwh'])} kWh", strong=True)
+        if bms.get("nfp_kwh") and purku.get("ero_bms_pct") is not None:
+            addp("Teslan akunhallinnan oma arvio", f"{fmt(bms['nfp_kwh'], 1)} kWh",
+                 f"Ero mitattuun {fmt(purku['ero_bms_pct'])} %")
+        E.append(result_table(rows, hl))
+        qrows = [[P("Tarkistus", "label"), P("Tulos", "label"), P("", "label")]]
+        for q in purku.get("laatu", []):
+            qrows.append([P(q["nimi"], "cell"), P(q["arvo"], "cell"), Pill("Kunnossa" if q["ok"] else "Huomioitava")])
+        qrows.append([P("Kokonaisarvio", "cellb"), P(purku.get("laatu_luokka"), "cellb"), ""])
+        uo = purku.get("epavarmuus_osat", {})
+        urows = [[P("Epävarmuuden osa", "label"), P("kWh", "label")]]
+        for k, label in (("laskurit", "Energialaskurit (1 %)"), ("varaustila", "Varaustilan lukema"),
+                         ("haviot", "Häviöiden korjaus"), ("ekstrapolointi", "Mittausvälin ulkopuolinen osuus"),
+                         ("jannitekayra", "Lepojännitekäyrä")):
+            if uo.get(k) is not None:
+                urows.append([P(label, "cell"), P(fmt(uo[k], 2), "cellr")])
+        urows.append([P("Yhdistetty epävarmuus", "cellb"), P(fmt(purku["epavarmuus_kwh"], 2), "cellr")])
+        side = Table([[_table(qrows, [44 * mm, 24 * mm, 22 * mm]), _table(urows, [CW - 90 * mm - 26 * mm, 18 * mm])]],
+                     colWidths=[92 * mm, CW - 92 * mm], hAlign="LEFT")
+        side.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"),
+                                  ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
+        E.append(KeepTogether([Spacer(1, 3 * mm), P("Mittauksen luotettavuus", "h3"), side]))
+
+    if yhd.get("valmis"):
+        E.append(Spacer(1, 6 * mm))
+        rows = [[P("Mittaus", "label"), P("Kapasiteetti", "label"), P("Epävarmuus", "label")],
+                [P("Lataus täyteen", "cell"), P(f"{fmt(yhd['lataus_kwh'], 1)} kWh", "cellb"),
+                 P(f"±{fmt(cap.get('epavarmuus_kwh'))} kWh", "cell")],
+                [P("Purku ajossa", "cell"), P(f"{fmt(yhd['purku_kwh'], 1)} kWh", "cellb"),
+                 P(f"±{fmt(purku.get('epavarmuus_kwh'))} kWh", "cell")],
+                [P("Tulos", "cellb"), P(f"{fmt(yhd['taysi_kwh'], 1)} kWh", "cellb"),
+                 P(f"±{fmt(yhd['epavarmuus_kwh'])} kWh", "cellb")]]
+        vt = _table(rows, [66 * mm, 40 * mm, CW - 106 * mm])
+        vt.setStyle(TableStyle([("BACKGROUND", (0, 3), (-1, 3), PANEL)]))
+        txt = (f"Lataus- ja purkumittauksen ero on {fmt(yhd['ero_kwh'], 2)} kWh ({fmt(yhd['ero_pct'])} %). "
+               + ("Tulokset ovat yhtäpitävät mittausten epävarmuuden rajoissa, joten tulos on niiden "
+                  "tarkkuudella painotettu keskiarvo. Kaksi toisistaan riippumatonta mittausta vahvistaa tuloksen."
+                  if yhd["yhtapitavat"] else
+                  "Ero on suurempi kuin mittausten epävarmuus selittää. Tuloksena käytetään tarkempaa "
+                  "latausmittausta. Ero voi johtua esimerkiksi lyhyestä levosta ennen ajoa tai ajon jälkeen."))
+        E.append(KeepTogether([P("Lataus- ja purkumittauksen vertailu", "h3"), vt, Spacer(1, 2 * mm),
+                               P(txt, "small")]))
+
+    # ---------------- Kuormitus ------------------------------------------
+    if kuorma:
+        E.append(PageBreak())
+        E.append(P("Kennoryhmät kuormassa", "h2"))
+        E.append(P("Kun akusta otetaan suuri virta, kunkin kennoryhmän jännite laskee sen sisäisen resistanssin "
+                   "mukaan. Resistanssi määritettiin jokaiselle kennoryhmälle sen jännitteen ja samanaikaisen "
+                   "akun virran riippuvuudesta. Muita selvästi suurempi resistanssi viittaa heikentyneeseen "
+                   "kennoryhmään tai liitokseen.", "body"))
+        E.append(Spacer(1, 3 * mm))
+        vals = kuorma.get("ryhmat_mohm") or []
+        if any(vals):
+            E.append(_img(charts.group_bar_chart(
+                vals, "Kennoryhmien sisäinen resistanssi", "mΩ",
+                highlight=[p["nro"] for p in kuorma.get("poikkeavat", [])], ref=kuorma.get("r_mediaani_mohm"),
+                decimals=2), CW))
+            E.append(P("Katkoviiva on kaikkien kennoryhmien mediaani. Korostetut ryhmät poikkeavat mediaanista "
+                       "vähintään 20 %.", "small"))
+            E.append(Spacer(1, 3 * mm))
+        rows = [[P("Suure", "label"), P("Arvo", "label"), P("Selite", "label")]]
+
+        def addk(n, v, p=""):
+            rows.append([P(n, "cell"), P(v, "cellb"), P(p, "small")])
+        addk("Akun sisäinen resistanssi", f"{fmt(kuorma['r_akku_mohm'], 0)} mΩ", "Kennoryhmien resistanssien summa")
+        addk("Kennoryhmän resistanssi, mediaani", f"{fmt(kuorma['r_mediaani_mohm'], 3)} mΩ", "")
+        addk("Suurin resistanssi", f"{fmt(kuorma['r_max_mohm'], 3)} mΩ",
+             f"Ryhmä {kuorma['r_max_nro']}, {fmt(kuorma['hajonta_pct'], 0)} % yli mediaanin")
+        addk("Poikkeavat ryhmät", ", ".join(f"{p['nro']} (+{fmt(p['poikkeama_pct'], 0)} %)"
+                                            for p in kuorma.get("poikkeavat", [])) or "Ei havaittu",
+             "Vähintään 20 % yli mediaanin")
+        if kuorma.get("teho_max_kw"):
+            addk("Suurin teho akusta", f"{fmt(kuorma['teho_max_kw'], 0)} kW", "Mittauksen aikana")
+        if kuorma.get("talteenotto_max_kw"):
+            addk("Suurin jarrutusteho akkuun", f"{fmt(kuorma['talteenotto_max_kw'], 0)} kW", "")
+        pj = kuorma.get("pienin_jannite_kuormassa")
+        if pj:
+            addk("Pienin kennoryhmän jännite kuormassa", f"{fmt(pj['v'], 3)} V",
+                 f"Ryhmä {pj['nro']}, virta {fmt(pj['virta_a'], 0)} A")
+        addk("Luokka", kuorma.get("luokka") or "–", "Suurimman resistanssin poikkeama mediaanista")
+        E.append(KeepTogether(_table(rows, [66 * mm, 40 * mm, CW - 106 * mm])))
+
+    # ---------------- Pikalataus -----------------------------------------
+    if dc:
+        E.append(PageBreak())
+        E.append(P("Pikalataus", "h2"))
+        E.append(P("Pikalatauksen aikana tallennettiin latausteho, varaustila, akun lämpötila ja kennoryhmien "
+                   "välinen jännite-ero. Latausteho laskee varaustilan noustessa akunhallinnan ohjaamana. "
+                   "Tehoon vaikuttavat myös akun lämpötila ja laturin oma enimmäisteho.", "body"))
+        E.append(Spacer(1, 3 * mm))
+        if len(dc.get("kayra") or []) >= 3:
+            E.append(_img(charts.dc_chart(dc["kayra"]), CW))
+            E.append(Spacer(1, 3 * mm))
+        rows = [[P("Suure", "label"), P("Arvo", "label"), P("Selite", "label")]]
+
+        def addd(n, v, p=""):
+            rows.append([P(n, "cell"), P(v, "cellb"), P(p, "small")])
+        addd("Huipputeho", f"{fmt(dc['huipputeho_kw'], 0)} kW", f"Varaustilassa {fmt(dc['huippu_soc'], 0)} %")
+        addd("Varaustila alussa ja lopussa", f"{fmt(dc['soc_alku'])} % → {fmt(dc['soc_loppu'])} %", "")
+        addd("Ladattu energia akkuun", f"{fmt(dc['energia_kwh'], 1)} kWh", dc.get("energia_lahde") or "")
+        addd("Kesto ja keskiteho", f"{fmt(dc['kesto_min'], 0)} min, {fmt(dc.get('keskiteho_kw'), 0)} kW", "")
+        if dc.get("aika_20_80_min"):
+            addd("Lataus 20 → 80 %", f"{fmt(dc['aika_20_80_min'], 0)} min", "")
+        if dc.get("lampotila_alku") is not None:
+            addd("Akun lämpötila", f"{fmt(dc['lampotila_alku'])} → {fmt(dc['lampotila_max'])} °C", "Alussa ja enimmillään")
+        if dc.get("jannite_ero_max_mv") is not None:
+            addd("Suurin jännite-ero latauksessa", f"{fmt(dc['jannite_ero_max_mv'], 0)} mV",
+                 f"Luokka: {(dc.get('luokka') or '–').lower()}")
+        E.append(KeepTogether(_table(rows, [66 * mm, 40 * mm, CW - 106 * mm])))
+
+    # ---------------- Itsepurkautuminen ----------------------------------
+    if itse:
+        E.append(PageBreak())
+        E.append(P("Itsepurkautuminen", "h2"))
+        E.append(P(f"Kennoryhmien lepojännitteet luettiin seisonnan alussa ja {fmt(itse['tunnit'], 1)} tunnin "
+                   "kuluttua. Kaikkien ryhmien jännite muuttuu seisonnassa yhtä paljon, koska ne ovat sarjassa. "
+                   "Muita nopeammin laskeva jännite viittaa kennoryhmän sisäiseen vuotoon.", "body"))
+        E.append(Spacer(1, 3 * mm))
+        E.append(_img(charts.group_bar_chart(
+            itse["suhteellinen_mv_vrk"], "Jännitteen muutos suhteessa muihin ryhmiin", "mV / vrk",
+            highlight=[p["nro"] for p in itse.get("poikkeavat", [])], center=True, decimals=1), CW))
+        E.append(P(f"Korostetut ryhmät laskevat yli {fmt(itse['raja_mv_vrk'], 1)} mV vuorokaudessa muita "
+                   "nopeammin.", "small"))
+        E.append(Spacer(1, 3 * mm))
+        rows = [[P("Suure", "label"), P("Arvo", "label"), P("Selite", "label")]]
+
+        def addi(n, v, p=""):
+            rows.append([P(n, "cell"), P(v, "cellb"), P(p, "small")])
+        addi("Seisonta-aika", f"{fmt(itse['tunnit'], 1)} h", "")
+        addi("Jännitteen muutos, mediaani", f"{_signed(itse['muutos_mediaani_mv'])} mV", "Kaikkien ryhmien yhteinen muutos")
+        addi("Eniten poikkeava ryhmä", f"{itse['heikoin_nro']}",
+             f"{fmt(itse['heikoin_mv_vrk'], 2)} mV/vrk suhteessa muihin")
+        addi("Poikkeavat ryhmät", ", ".join(str(p["nro"]) for p in itse.get("poikkeavat", [])) or "Ei havaittu",
+             f"Raja {fmt(itse['raja_mv_vrk'], 1)} mV/vrk")
+        if itse.get("seisonta_w") is not None:
+            addi("Auton energiankulutus seisonnassa", f"{fmt(itse['seisonta_w'], 0)} W",
+                 f"{fmt(itse['seisonta_kwh'], 2)} kWh, Teslan energialaskurit")
+        addi("Luokka", itse.get("luokka") or "–", "")
+        E.append(KeepTogether(_table(rows, [66 * mm, 40 * mm, CW - 106 * mm])))
 
     # ---------------- Kennoryhmät --------------------------------------
     if cs:
@@ -1069,7 +1283,8 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
          "kennoryhmien määrän perusteella. Käytetty lähde näkyy raportissa."),
         ("Akun kunto (SOH)", "Kunto on akun nykyinen kokonaiskapasiteetti jaettuna alkuperäisellä "
          "kapasiteetilla. Pikatarkastuksessa nykyinen kapasiteetti on akunhallinnan oma arvio. "
-         "Kapasiteettimittauksessa se on mitattu latauksen aikana."),
+         "Kapasiteettimittauksessa se on mitattu latauksen aikana, ajotesteissä ajon aikana ja täydessä "
+         "akkutestissä molemmilla tavoilla."),
     ]
     if is_cap:
         meth += [
@@ -1083,6 +1298,40 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
             ("Epävarmuus", "Epävarmuus yhdistetään neliöllisesti jännite- ja virtamittauksen tarkkuudesta (1 %), "
              "varaustilan lukemasta latauksen alussa ja lopussa, mittausvälin ulkopuolisesta osuudesta, häviöiden "
              "korjauksesta ja mahdollisista mittausdatan katkoista."),
+        ]
+    if purku.get("valmis"):
+        meth += [
+            ("Purkumittaus", "Ajon aikana akusta otettu energia luetaan Teslan elinkaaren energialaskureista, "
+             "joista vähennetään jarrutuksissa akkuun palautunut energia. Akun sisäiset häviöt (R · ∫ I² dt) "
+             "lisätään, jolloin saadaan akusta purkautunut energia. Varaustilan muutos luetaan akunhallinnasta "
+             "levossa ennen ajoa ja sen jälkeen. Ampeerituntikapasiteetti ja akkukemian lepojännitekäyrä antavat "
+             "koko akun kapasiteetin. Mittaus voidaan koota useasta ajokerrasta."),
+        ]
+    if yhd.get("valmis"):
+        meth += [
+            ("Täysi akkutesti", "Kapasiteetti mitataan kahdesti toisistaan riippumattomasti: purkamalla ajossa ja "
+             "lataamalla täyteen. Jos tulokset ovat yhtäpitävät kaksinkertaisen yhdistetyn epävarmuuden rajoissa, "
+             "tulos on niiden epävarmuuksilla painotettu keskiarvo. Muuten käytetään latausmittausta."),
+        ]
+    if kuorma:
+        meth += [
+            ("Kennoryhmien resistanssi", "Jokaisen kennoryhmän jännite ja samanhetkinen akun virta tallennetaan "
+             "kuormituksen aikana. Ryhmän sisäinen resistanssi on jännitteen ja virran välisen suoran kulmakerroin "
+             "(pienimmän neliösumman menetelmä). Luokat suurimman resistanssin poikkeamalle mediaanista: enintään "
+             "10 % erinomainen, 20 % hyvä, 35 % tyydyttävä."),
+        ]
+    if dc:
+        meth += [
+            ("Pikalataus", "Latausteho lasketaan akunhallinnan jännitteestä ja virrasta kymmenen sekunnin välein. "
+             "Kennoryhmien jännite-ero huomioidaan vain tasaisen tehon kohdista. Jännite-eron luokat: alle 50 mV "
+             "erinomainen, alle 80 mV hyvä, alle 120 mV tyydyttävä."),
+        ]
+    if itse:
+        meth += [
+            ("Itsepurkautuminen", "Kennoryhmien lepojännitteet keskiarvoistetaan seisonnan alussa ja lopussa. "
+             "Kunkin ryhmän muutoksesta vähennetään kaikkien ryhmien mediaanimuutos, jolloin auton oma kulutus "
+             "ja varaustilan lasku eivät vaikuta tulokseen. Tulos muunnetaan millivolteiksi vuorokaudessa. "
+             "Poikkeavan raja on 2 mV/vrk, LFP-akuilla 1 mV/vrk."),
         ]
     meth += [
         ("Kennoryhmät", "Kennoryhmien jännitteet luetaan akunhallinnasta 0,1 mV:n tarkkuudella. Poikkeavaksi "
