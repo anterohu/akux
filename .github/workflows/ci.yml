@@ -142,9 +142,13 @@ jobs:
 
           Invoke-RestMethod "$b/api/sulje" -Method Post -ContentType "application/json" -Body '{}' | Out-Null
           # Palvelin sulkeutuu heti ja sovellusikkuna muutaman sekunnin kuluessa
-          for ($i = 0; $i -lt 20 -and (Get-Process Akux -ErrorAction SilentlyContinue); $i++) { Start-Sleep 1 }
-          if (Get-Process Akux -ErrorAction SilentlyContinue) { throw "Akux ei sulkeutunut" }
-          Write-Host "Akux sulkeutui hallitusti"
+          # Palvelin ja ikkuna sulkeutuvat heti. Matalan prioriteetin esilatausprosessi voi kylmäkäynnistyksessä
+          # olla vielä hetken käynnissä, joten odotetaan enintään minuutti ja näytetään jäljellä olevat prosessit.
+          for ($i = 0; $i -lt 60 -and (Get-Process Akux -ErrorAction SilentlyContinue); $i++) { Start-Sleep 1 }
+          Get-CimInstance Win32_Process -Filter "Name='Akux.exe'" | ForEach-Object { Write-Host "Käynnissä: $($_.ProcessId) $($_.CommandLine)" }
+          $left = Get-CimInstance Win32_Process -Filter "Name='Akux.exe'" | Where-Object { $_.CommandLine -notlike "*--esilataus*" }
+          if ($left) { throw "Akux ei sulkeutunut" }
+          Write-Host "Akux sulkeutui $i sekunnissa"
       - name: Ohjelman loki
         if: failure()
         shell: pwsh
