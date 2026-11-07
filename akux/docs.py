@@ -113,6 +113,69 @@ OHJE = [
         ],
     },
     {
+        "id": "testit", "otsikko": "Mittaustyypit",
+        "osat": [
+            ("p", "Akuxissa on kahdeksan mittausta. Ne on ryhmitelty sen mukaan, missä mittaus tehdään. "
+                  "Akun kunto prosentteina saadaan kapasiteettimittauksesta, ajotestistä ja täydestä akkutestistä. "
+                  "Muut mittaukset kertovat akusta asioita, joita kapasiteetti ei kerro."),
+            ("ul", [
+                "<b>Pikatarkastus</b> (1–3 min): akunhallinnan kapasiteettiarvio, kennoryhmien jännitteet, lämpötilat ja elinkaaritiedot.",
+                "<b>Kapasiteettimittaus</b> (8–14 h): akun kapasiteetti mitattuna latauksen aikana.",
+                "<b>Itsepurkaustesti</b> (yön yli): kennoryhmien jännitteiden muutos seisonnassa.",
+                "<b>Täysi akkutesti</b> (1–2 päivää): kapasiteetti mitattuna sekä ajossa että latauksessa. Tarkin tulos.",
+                "<b>Ajotesti</b> (yksi tai useampi ajokerta): kapasiteetti mitattuna tavallisessa ajossa.",
+                "<b>Pika-ajotesti</b> (1–2 h): tarkistaa, vastaako akunhallinnan arvio ajossa mitattua.",
+                "<b>Kuormitustesti</b> (noin 10 min): kennoryhmien sisäinen resistanssi kiihdytyksissä.",
+                "<b>Pikalataustesti</b> (30–45 min): latausteho ja kennoryhmien tasaisuus pikalaturilla.",
+            ]),
+            ("note", "Raportti näyttää mitatun kunnon vain, kun mittaus täyttää tarkkuusvaatimuksen: kunnon epävarmuus "
+                     "enintään ±3 %-yksikköä ja mittauksen laatu vähintään kohtalainen. Muuten raportti kertoo syyn, "
+                     "ja kuntona näytetään Teslan akunhallinnan oma arvio."),
+        ],
+    },
+    {
+        "id": "ajotestit", "otsikko": "Ajotesti ja täysi akkutesti",
+        "osat": [
+            ("p", "Ajotestissä akusta ajon aikana otettu energia luetaan Teslan elinkaaren energialaskureista ja "
+                  "varaustila akunhallinnasta. Varaustila luetaan levossa ennen ajoa ja sen jälkeen. Täydessä "
+                  "akkutestissä ajoa seuraa lataus täyteen, ja tulos yhdistetään kahdesta riippumattomasta mittauksesta."),
+            ("ol", [
+                "<b>Lataa akku täyteen</b> edellisenä päivänä. Ajo aloitetaan vähintään 80 %:n varauksesta.",
+                "<b>Aloita mittaus</b> pysäköitynä ja pidä auto hereillä lepojakson ajan (15 min).",
+                "<b>Aja tavalliseen tapaan.</b> Ajotestissä ajetaan enintään 10 %:n ja täydessä akkutestissä enintään 15 %:n varaukseen. Ohjelma ilmoittaa, kun tavoite on saavutettu.",
+                "<b>Ajon voi jakaa useaan kertaan.</b> Kun pysäköit, valitse <b>Jatka myöhemmin</b> ja sulje ohjelma. Seuraavalla ajokerralla kytke sovitin ja valitse Mittaus-sivulla <b>Jatka</b>. Älä lataa autoa välillä.",
+                "<b>Pysäköi lopuksi</b> ja anna akun levätä. Täydessä akkutestissä aloita sen jälkeen lataus täyteen kuten kapasiteettimittauksessa.",
+            ]),
+            ("ul", [
+                "Jos autoa ladataan tauon aikana, Teslan latauslaskuri paljastaa sen, ja asia merkitään raporttiin.",
+                "Pika-ajotesti on lyhyt ajo, jolla tarkistetaan akunhallinnan arvio. Lyhyen ajon varaustilan muutos ei riitä tarkkaan kuntoprosenttiin, joten pika-ajotesti ei anna omaa kuntoa.",
+            ]),
+            ("note", "Älä käytä ohjelmaa ajon aikana. Aseta tietokone tai puhelin niin, ettei se liiku ajossa, ja noudata liikennesääntöjä."),
+        ],
+    },
+    {
+        "id": "muut_testit", "otsikko": "Kuormitus-, pikalataus- ja itsepurkaustesti",
+        "osat": [
+            ("p", "<b>Kuormitustesti.</b> Kun akusta otetaan suuri virta, kunkin kennoryhmän jännite laskee sen sisäisen "
+                  "resistanssin mukaan. Tee turvallisessa paikassa kuusi reipasta kiihdytystä, esimerkiksi 30–80 km/h. "
+                  "Ohjelma laskee kiihdytykset itse ja päättää mittauksen, kun pysäköit. Muita selvästi suurempi "
+                  "resistanssi viittaa heikentyneeseen kennoryhmään tai liitokseen."),
+            ("p", "<b>Pikalataustesti.</b> Aloita alle 30 %:n varauksesta. Navigoi pikalaturille auton navigaattorilla, "
+                  "jotta akku esilämmitetään. Anna latauksen jatkua vähintään 80 %:iin. Raporttiin tulee latauskäyrä, "
+                  "huipputeho, latausaika 20 → 80 % ja kennoryhmien suurin jännite-ero latauksen aikana. Latausteho "
+                  "riippuu myös laturista ja akun lämpötilasta."),
+            ("p", "<b>Itsepurkaustesti.</b> Aloita illalla. Auto lepää 30 minuuttia, minkä jälkeen ohjelma lukee "
+                  "kaikkien kennoryhmien jännitteet. Valitse <b>Jatka myöhemmin</b>, sulje ohjelma ja anna auton "
+                  "nukkua yön yli. Aamulla herätä auto, kytke sovitin ja valitse <b>Jatka</b>. Älä aja tai lataa autoa "
+                  "seisonnan aikana."),
+            ("p", "<b>LFP-akut</b> (esimerkiksi Model 3 ja Model Y Standard Range): LFP-kennon lepojännite muuttuu "
+                  "keskimmäisillä varaustiloilla hyvin vähän. Tee itsepurkaustesti heti täyteen latauksen jälkeen, yli "
+                  "90 %:n varauksessa. Muuten raportti kertoo, ettei tulosta voitu mitata luotettavasti."),
+            ("note", "Itsepurkaustesti vertaa kennoryhmiä toisiinsa, joten auton oma kulutus ei vaikuta tulokseen. "
+                     "Mittauksen havaitsemisraja näkyy raportissa. Mitä pidempi seisonta, sitä pienempi poikkeama havaitaan."),
+        ],
+    },
+    {
         "id": "raportti", "otsikko": "Raportti ja tulosten tulkinta",
         "osat": [
             ("p", "Raportin ensimmäisellä sivulla on yhteenveto, tärkeimmät tunnusluvut ja arviot luokkineen. "
@@ -126,7 +189,8 @@ OHJE = [
             ]),
             ("p", "Raportissa kerrotaan tietojen alkuperä: tiedot luetaan auton omasta akunhallintajärjestelmästä, "
                   "eikä Akux muuta niitä. Pikatarkastuksen kunto ja kapasiteetti ovat auton omia arvioita. "
-                  "Kapasiteettimittauksessa Akux laskee tuloksen auton omien jännite- ja virta-antureiden mittauksista. "
+                  "Kapasiteettimittauksessa ja ajotesteissä tulos perustuu auton omiin jännite- ja virtamittauksiin, "
+                  "varaustilaan ja energialaskureihin. "
                   "Raportti kuvaa akun tilaa mittaushetkellä, eikä se ole valmistajan lausunto."),
             ("p", "Jokaisen raportin tiedot voidaan todentaa. Kaikki mittauksen aikana vastaanotetut viestit "
                   "tallennetaan muuttamattomina, ja raporttiin merkitään niiden tarkiste. Mittauksen sivulla "
@@ -233,6 +297,9 @@ SANASTO = [
     ("Sisäinen resistanssi", "Akun sisäinen vastus. Siinä syntyy latauksessa lämpöä, joka ei varastoidu akkuun."),
     ("Epävarmuus", "Arvio siitä, kuinka paljon mitattu tulos voi poiketa todellisesta arvosta."),
     ("Tarkiste", "Raakadatasta laskettu tunniste, jonka avulla voidaan todentaa, ettei aineistoa ole muutettu."),
+    ("Elinkaaren energialaskurit", "Akunhallinnan laskurit, jotka kertovat akusta otetun ja siihen ladatun energian koko akun käyttöiän ajalta."),
+    ("Itsepurkautuminen", "Kennoryhmän varauksen hidas väheneminen seisonnassa. Muita nopeampi itsepurkautuminen viittaa sisäiseen vuotoon."),
+    ("Havaitsemisraja", "Pienin poikkeama, jonka mittaus pystyy luotettavasti erottamaan mittauskohinasta."),
 ]
 SANASTO.sort(key=lambda x: x[0].lower())
 

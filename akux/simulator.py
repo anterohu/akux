@@ -46,8 +46,10 @@ class BatterySimulator(Source):
                  cells: int = 96, accel: float = 1.0, temp_c: float = 21.0,
                  weak_cell: int | None = 47, energy_format: str = "uusi", seed: int = 7,
                  chem: str = "NCA", vin: str | None = None, platform: str = "m3",
-                 sx_counter_swap: bool = False, sx_current_sign: int = 1):
+                 sx_counter_swap: bool = False, sx_current_sign: int = 1,
+                 leak_cell: int | None = None, leak_pct_day: float = 0.0, dc_kw: float = 110.0):
         super().__init__()
+        self.leak_cell, self.leak_pct_day, self.dc_kw = leak_cell, leak_pct_day, dc_kw
         self.platform = platform
         self.sx_counter_swap = sx_counter_swap
         self.sx_current_sign = sx_current_sign
@@ -120,12 +122,32 @@ class BatterySimulator(Source):
     def _pack_voltage(self, current):
         return sum(self._ocv(s) - current * r for s, r in zip(self._cell_socs(), self.r_cell))
 
+    def _leak(self, dt):
+        """Itsepurkautuva kennoryhmä (vika): menettää varausta myös levossa."""
+        if self.leak_cell and self.leak_pct_day:
+            k = self.leak_cell - 1
+            self.rest[k] = max(0.0, self.rest[k] - self.q[k] * self.leak_pct_day / 100 * dt / 86400)
+
     def _step(self, dt):
         socs = self._cell_socs()
         v_est = self._pack_voltage(self.current)
         if self.mode == "drive":
             p = self.drive_kw * (1 + 0.6 * self.rng.uniform(-1, 1))
+            if self.rng.random() < 0.12:                    # jarrutusenergian palautus
+                p = -0.5 * self.drive_kw
             self.current = p * 1000 / v_est
+        elif self.mode == "kiihdytys":
+            ph = (self.sim_t % 8.0)
+            p = 140.0 if ph < 1.6 else (-25.0 if 5.5 <= ph < 6.5 else 10.0)
+            self.current = p * 1000 / v_est
+        elif self.mode == "pikalataus":
+            smax = max(socs)
+            if smax >= 0.95:
+                self.current = 0.0
+            else:
+                soc = sum(socs) / self.n
+                p = self.dc_kw if soc < 0.5 else max(20.0, self.dc_kw * (1 - (soc - 0.5) / 0.5 * 0.8))
+                self.current = -p * 1000 / v_est
         elif self.mode == "charge":
             smax = max(socs)
             if smax >= 0.999 or self.full_complete:
@@ -156,6 +178,9 @@ class BatterySimulator(Source):
             self.total_chg += e
         if self.mode == "drive":
             self.odo += dt * 90 / 3600
+        elif self.mode == "kiihdytys":
+            self.odo += dt * 50 / 3600
+        self._leak(dt)
         heat = (self.current ** 2) * self.r_pack * dt / 400_000
         self.temp += heat - (self.temp - self.ambient) * dt / 7200
 
@@ -348,6 +373,7 @@ class BatterySimulator(Source):
                     for cid, data in self._frames(self.sim_t):
                         self._cb(self.sim_t, cid, data)
             else:
+                self._leak(dt)
                 self.sim_t += dt
             spent = time.time() - t0
             self._stop.wait(max(0.0, tick - spent))

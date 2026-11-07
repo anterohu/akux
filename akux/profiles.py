@@ -190,3 +190,15 @@ def mean_ocv(chem_key: str, soc_from: float, soc_to: float) -> float:
         s = soc_from + (soc_to - soc_from) * (k + 0.5) / steps
         total += v(s)
     return total / steps
+
+
+def ocv_slope(chem_key: str, soc: float) -> float:
+    """Lepojännitekäyrän jyrkkyys varaustilassa soc (mV kennoa kohden yhtä %-yksikköä kohden)."""
+    curve = chemistry(chem_key)["ocv"]
+
+    def v(s):
+        s = min(100.0, max(0.0, s))
+        i = min(9, int(s // 10))
+        return curve[i] + (curve[i + 1] - curve[i]) * (s - 10 * i) / 10
+    lo, hi = max(0.0, soc - 5), min(100.0, soc + 5)
+    return (v(hi) - v(lo)) / (hi - lo) * 1000 if hi > lo else 1.0

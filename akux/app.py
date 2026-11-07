@@ -44,7 +44,14 @@ class App:
         return self.storage.settings()
 
     def _mark_interrupted(self):
+        from .recorder import JATKETTAVAT, JATKETTAVAT_VAIHEET
         for t in self.storage.tests():
+            state = (t.get("tulos") or {}).get("keskeneräinen") or {}
+            if t["tila"] == "käynnissä" and t["tyyppi"] in JATKETTAVAT and state.get("vaihe") in JATKETTAVAT_VAIHEET:
+                self.storage.update_test(t["id"], tila="kesken")
+                self.storage.add_event(t["id"], time.time(),
+                                       "Ohjelma suljettiin kesken mittauksen. Mittausta voi jatkaa.")
+                continue
             if t["tila"] == "käynnissä":
                 self.storage.update_test(t["id"], tila="keskeytynyt")
                 self.storage.add_event(t["id"], t["aloitettu"],
@@ -72,7 +79,9 @@ class App:
         with self.lock:
             self.disconnect()
             self.decoder.reset()
-            if kind == "demo":
+            if kind == "demo" and opts.get("sim") is not None:
+                src = opts.pop("sim")          # testit: sama simuloitu auto uudelleen
+            elif kind == "demo":
                 from .simulator import ESITTELYAUTOT
                 car = ESITTELYAUTOT.get(opts.pop("auto", None) or "m3-lr", ESITTELYAUTOT["m3-lr"])
                 src = BatterySimulator(**{**car["opts"], **opts})
@@ -88,7 +97,10 @@ class App:
     def disconnect(self):
         with self.lock:
             if self.recorder.active:
-                self.recorder.cancel()
+                if self.recorder.can_pause():
+                    self.recorder.pause("Yhteys autoon katkaistiin")
+                else:
+                    self.recorder.cancel()
             if self.source:
                 self.source.stop()
             self.source = None
@@ -96,6 +108,16 @@ class App:
 
     def start_test(self, **kw):
         tid = self.recorder.start(**kw)
+        _keep_awake(True)
+        return tid
+
+    def resume_test(self, tid: int):
+        t = self.storage.test(tid) or {}
+        v = self.storage.vehicle(t.get("vehicle_id")) or {}
+        live = self.decoder.state.vin
+        if v.get("vin") and live and v["vin"] != live:
+            raise ValueError("Kytketty auto ei ole sama kuin mittauksen auto.")
+        self.recorder.resume(tid)
         _keep_awake(True)
         return tid
 

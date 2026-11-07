@@ -1,0 +1,276 @@
+"""Versio 1.4: kaikki testityypit simulaattorilla, myös keskeytys ja jatkaminen.
+
+Ajo: python tests/test_testityypit.py
+"""
+import os
+import sys
+import tempfile as _tf
+import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+os.environ.setdefault("AKUX_MITTAUSKANSIO", _tf.mkdtemp(prefix="akux-testi-"))
+
+from akux.app import App  # noqa: E402
+from akux.simulator import BatterySimulator  # noqa: E402
+
+LYHYT = {"lepo_alku_min": 10, "lepo_loppu_min": 10, "ajo_lepo_min": 10, "itsepurkaus_lepo_min": 10,
+         "itsepurkaus_tunnit": 6, "kuormitus_tapahtumat": 6, "mittaus_tallennus": False}
+
+
+def wait_until(cond, timeout=240, step=0.1):
+    end = time.time() + timeout
+    while time.time() < end:
+        if cond():
+            return True
+        time.sleep(step)
+    return False
+
+
+def _app(tmp):
+    app = App(tmp)
+    app.storage.save_settings(LYHYT)
+    return app
+
+
+def _start(app, src, tyyppi):
+    app.connect("demo", sim=src)
+    assert wait_until(lambda: app.decoder.state.vin and app.decoder.state.brick_count and
+                      app.decoder.state.soc_avg is not None, 30)
+    st = app.decoder.state
+    v = app.storage.find_vehicle_by_vin(st.vin)
+    vid = v["id"] if v else app.storage.add_vehicle({"vin": st.vin, "nimi": "Testiauto"})
+    return app.start_test(vehicle_id=vid, tyyppi=tyyppi, mittarilukema=None, mittaaja="Testi")
+
+
+def _phase(app, name, timeout=120):
+    ok = wait_until(lambda: app.recorder.vaihe == name, timeout)
+    assert ok, f"vaihe {app.recorder.vaihe} ≠ {name}"
+
+
+def _done(app, tid, timeout=180):
+    assert wait_until(lambda: not app.recorder.active, timeout), app.recorder.vaihe
+    t = app.storage.test(tid)
+    assert t["tila"] == "valmis", t["tila"]
+    assert "virhe" not in (t["tulos"] or {}), t["tulos"].get("virhe")
+    return t
+
+
+def _report(app, tid):
+    from akux import report
+    p = report.build(app.storage, tid)
+    assert p.exists() and p.stat().st_size > 20000
+    return p
+
+
+def test_ajotesti_kahdessa_osassa(tmp):
+    app = _app(tmp)
+    src = BatterySimulator(soc=0.92, accel=400, weak_cell=None)
+    tid = _start(app, src, "ajotesti")
+    _phase(app, "lepo_ajo_alku")
+    p = app.recorder.progress()
+    assert p["voi_tauottaa"] and p.get("lepo_tavoite_s") == 600
+    _phase(app, "ajo", 60)
+    src.set_mode("drive", 18.0)
+    assert wait_until(lambda: (app.decoder.state.soc_avg or 100) < 55, 120)
+    # Ensimmäinen ajo päättyy: yhteys katkaistaan, mittaus jää kesken
+    src.set_mode("park")
+    app.disconnect()
+    t = app.storage.test(tid)
+    assert t["tila"] == "kesken", t["tila"]
+    # Ohjelma käynnistetään uudelleen ja mittausta jatketaan
+    app2 = _app(tmp)
+    app2.connect("demo", sim=src)
+    assert wait_until(lambda: app2.decoder.state.vin, 20)
+    app2.resume_test(tid)
+    assert app2.recorder.vaihe == "ajo" and app2.recorder.osat == 2
+    src.set_mode("drive", 18.0)
+    assert wait_until(lambda: (app2.recorder.progress() or {}).get("tavoite_saavutettu"), 200)
+    src.set_mode("park")
+    t = _done(app2, tid, 200)
+    r = t["tulos"]
+    pu = r["purku"]
+    assert pu["valmis"], pu
+    assert pu["osat"] == 2
+    err = pu["taysi_kwh"] - src.nfp
+    print(f"Ajotesti {pu['taysi_kwh']:.2f} kWh, todellinen {src.nfp}, ±{pu['epavarmuus_kwh']:.2f}, "
+          f"laatu {pu['laatu_luokka']}, matka {pu.get('matka_km')}",
+          [q for q in pu["laatu"] if not q["ok"]])
+    assert abs(err) < max(2.0, 1.5 * pu["epavarmuus_kwh"]), err
+    assert r["paatulos"]["lahde"] == "Ajotesti"
+    assert r["yhteenveto"]["kunto_lahde"] == "Ajotesti"
+    _report(app2, tid)
+    app2.disconnect()
+    return app2
+
+
+def test_pika_ajotesti(tmp):
+    app = _app(tmp)
+    src = BatterySimulator(soc=0.7, accel=400, weak_cell=None)
+    tid = _start(app, src, "pika_ajo")
+    _phase(app, "lepo_ajo_alku")
+    app.recorder.skip_phase()
+    _phase(app, "ajo", 10)
+    src.set_mode("drive", 18.0)
+    assert wait_until(lambda: (app.recorder.progress() or {}).get("tavoite_saavutettu"), 120)
+    src.set_mode("park")
+    t = _done(app, tid)
+    pu = t["tulos"]["purku"]
+    assert pu["valmis"], pu
+    print(f"Pika-ajotesti {pu['taysi_kwh']:.2f} kWh ±{pu['epavarmuus_kwh']:.2f}, laatu {pu['laatu_luokka']}",
+          [q for q in pu["laatu"] if not q["ok"]])
+    assert abs(pu["taysi_kwh"] - src.nfp) < max(3.0, 1.5 * pu["epavarmuus_kwh"])
+    assert pu["laatu_luokka"] != "Hyvä"           # lyhyt ajo ja ohitettu lepo
+    r = t["tulos"]
+    assert "paatulos" not in r                    # pika-ajotesti ei anna kuntoprosenttia
+    assert r["yhteenveto"]["kunto_lahde"] == "Akunhallinnan arvio"
+    assert pu["vahvistaa_bms"] is True
+    _report(app, tid)
+    app.disconnect()
+
+
+def test_taysi_akkutesti(tmp):
+    app = _app(tmp)
+    src = BatterySimulator(soc=0.95, accel=400)
+    tid = _start(app, src, "taysi")
+    _phase(app, "lepo_ajo_alku")
+    _phase(app, "ajo", 60)
+    src.set_mode("drive", 20.0)
+    assert wait_until(lambda: (app.recorder.progress() or {}).get("tavoite_saavutettu"), 240)
+    src.set_mode("park")
+    _phase(app, "lepo_alku", 60)
+    _phase(app, "odota_lataus", 60)
+    src.set_mode("charge", 11.0)
+    _phase(app, "lataus", 30)
+    _phase(app, "lepo_loppu", 400)
+    src.set_mode("park")
+    t = _done(app, tid)
+    r = t["tulos"]
+    y = r["yhdistetty"]
+    assert y and y["valmis"], (r.get("purku"), r.get("kapasiteetti", {}).get("valmis"))
+    print(f"Täysi akkutesti {y['taysi_kwh']:.2f} ±{y['epavarmuus_kwh']:.2f} (lataus {y['lataus_kwh']:.2f}, "
+          f"purku {y['purku_kwh']:.2f}), todellinen {src.nfp}")
+    assert y["yhtapitavat"]
+    assert abs(y["taysi_kwh"] - src.nfp) < max(1.5, 1.5 * y["epavarmuus_kwh"])
+    assert y["epavarmuus_kwh"] <= min(r["kapasiteetti"]["epavarmuus_kwh"], r["purku"]["epavarmuus_kwh"]) + 1e-9
+    assert r["yhteenveto"]["kunto_lahde"] == "Täysi akkutesti"
+    _report(app, tid)
+    app.disconnect()
+
+
+def test_kuormitustesti(tmp):
+    app = _app(tmp)
+    src = BatterySimulator(soc=0.8, accel=4, weak_cell=None)
+    src.r_cell[30] *= 1.6                         # yksi kennoryhmä selvästi muita suurempi resistanssi
+    tid = _start(app, src, "kuormitus")
+    _phase(app, "kuormitus", 60)
+    src.set_mode("kiihdytys")
+    assert wait_until(lambda: app.recorder.load_events >= 6, 120)
+    src.set_mode("park")
+    t = _done(app, tid, 60)
+    k = t["tulos"]["kuorma"]
+    print(f"Kuormitus R {k['r_akku_mohm']:.1f} mΩ (todellinen {sum(src.r_cell) * 1000:.1f}), hajonta "
+          f"{k['hajonta_pct']:.1f} %, suurin ryhmä {k['r_max_nro']}, huippu {k['teho_max_kw']:.0f} kW")
+    assert k["r_max_nro"] == 31, k["r_max_nro"]
+    assert any(p["nro"] == 31 for p in k["poikkeavat"])
+    assert abs(k["r_akku_mohm"] - sum(src.r_cell) * 1000) / (sum(src.r_cell) * 1000) < 0.15
+    _report(app, tid)
+    app.disconnect()
+
+
+def test_pikalataustesti(tmp):
+    app = _app(tmp)
+    src = BatterySimulator(soc=0.15, accel=60, dc_kw=150.0)
+    tid = _start(app, src, "pikalataus")
+    _phase(app, "odota_pikalataus", 20)
+    src.set_mode("pikalataus")
+    _phase(app, "pikalataus", 30)
+    assert wait_until(lambda: (app.decoder.state.soc_avg or 0) > 80, 200)
+    src.set_mode("park")
+    t = _done(app, tid, 60)
+    dc = t["tulos"]["pikalataus"]
+    print(f"Pikalataus huippu {dc['huipputeho_kw']:.0f} kW, {dc['energia_kwh']:.1f} kWh, "
+          f"20→80 % {dc.get('aika_20_80_min')} min, ero {dc['jannite_ero_max_mv']} mV")
+    assert 140 <= dc["huipputeho_kw"] <= 160
+    assert dc["aika_20_80_min"] and 15 < dc["aika_20_80_min"] < 60
+    assert dc["jannite_ero_max_mv"] < 120
+    _report(app, tid)
+    app.disconnect()
+
+
+def test_itsepurkaustesti_ja_tauko(tmp):
+    app = _app(tmp)
+    src = BatterySimulator(soc=0.6, accel=20, weak_cell=None, leak_cell=12, leak_pct_day=0.6)
+    tid = _start(app, src, "itsepurkaus")
+    _phase(app, "odotus", 120)
+    src.set_accel(600)
+    app.disconnect()                       # yö: ohjelma suljetaan välillä
+    assert app.storage.test(tid)["tila"] == "kesken"
+    time.sleep(2)
+    app2 = _app(tmp)
+    app2.connect("demo", sim=src)
+    assert wait_until(lambda: app2.decoder.state.vin, 20)
+    app2.resume_test(tid)
+    _phase(app2, "itse_loppu", 120)
+    src.set_accel(20)
+    t = _done(app2, tid, 200)
+    sd = t["tulos"]["itsepurkaus"]
+    print(f"Itsepurkaus {sd['tunnit']:.1f} h, heikoin {sd['heikoin_nro']} {sd['heikoin_mv_vrk']:.2f} mV/vrk, "
+          f"luokka {sd['luokka']}")
+    assert sd["heikoin_nro"] == 12
+    assert sd["luokka"] in ("Tyydyttävä", "Poikkeava")
+    assert sd["riittava"] and len(sd["poikkeavat"]) == 1, sd["poikkeavat"]
+    _report(app2, tid)
+    app2.disconnect()
+
+
+def test_hylkays(tmp):
+    app = _app(tmp)
+    src = BatterySimulator(soc=0.9, accel=200)
+    tid = _start(app, src, "ajotesti")
+    _phase(app, "lepo_ajo_alku")
+    app.recorder.pause()
+    assert app.storage.test(tid)["tila"] == "kesken"
+    app.recorder.discard(tid)
+    assert app.storage.test(tid)["tila"] == "keskeytetty"
+    app.disconnect()
+
+
+def test_lataus_tauon_aikana(tmp):
+    app = _app(tmp)
+    src = BatterySimulator(soc=0.9, accel=400, weak_cell=None)
+    tid = _start(app, src, "ajotesti")
+    _phase(app, "ajo", 60)
+    src.set_mode("drive", 18.0)
+    assert wait_until(lambda: (app.decoder.state.soc_avg or 100) < 60, 120)
+    src.set_mode("park")
+    app.disconnect()
+    # Tauon aikana autoa ladataan (ohjelma ei ole yhteydessä)
+    src.set_mode("charge", 11.0)
+    for _ in range(600):
+        src._step(5.0)
+        src.sim_t += 5.0
+    src.set_mode("park")
+    app2 = _app(tmp)
+    app2.connect("demo", sim=src)
+    assert wait_until(lambda: app2.decoder.state.vin and app2.decoder.state.total_charge_kwh, 20)
+    app2.resume_test(tid)
+    assert wait_until(lambda: "jatkotauko" not in app2.recorder.marks, 20)
+    assert "ladattu_ajossa" in app2.recorder.marks
+    assert any("tauon aikana" in n for n in app2.recorder.notes)
+    app2.recorder.cancel()
+    app2.disconnect()
+
+
+ALL = [test_lataus_tauon_aikana, test_ajotesti_kahdessa_osassa, test_pika_ajotesti, test_taysi_akkutesti, test_kuormitustesti,
+       test_pikalataustesti, test_itsepurkaustesti_ja_tauko, test_hylkays]
+
+if __name__ == "__main__":
+    only = sys.argv[1:]
+    for fn in ALL:
+        if only and fn.__name__ not in only:
+            continue
+        t0 = time.time()
+        with _tf.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            fn(tmp)
+        print(f"OK {fn.__name__} ({time.time() - t0:.0f} s)")

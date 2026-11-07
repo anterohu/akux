@@ -155,6 +155,7 @@ class TeslaDecoder:
         self._brick_max_mux = -1
         self._brick_seen_mux: set[int] = set()
         self._hv_listeners = []
+        self._brick_listeners = []
         self._sx_reset()
 
     def _sx_reset(self):
@@ -178,6 +179,20 @@ class TeslaDecoder:
     def remove_hv_listener(self, fn):
         if fn in self._hv_listeners:
             self._hv_listeners.remove(fn)
+
+    def add_brick_listener(self, fn):
+        """fn(t, numero, volts, amps) kutsutaan jokaisesta kennoryhmän jännitelukemasta."""
+        self._brick_listeners.append(fn)
+
+    def remove_brick_listener(self, fn):
+        if fn in self._brick_listeners:
+            self._brick_listeners.remove(fn)
+
+    def _brick_value(self, t, k, v):
+        self.state.bricks[k] = v
+        if self._brick_listeners and self.state.pack_i is not None:
+            for fn in list(self._brick_listeners):
+                fn(t, k, v, self.state.pack_i)
 
     def reset(self):
         with self.lock:
@@ -345,7 +360,7 @@ class TeslaDecoder:
                 break
             v = (d[off] | (d[off + 1] << 8)) * 0.0001
             if 1.5 <= v <= 4.6:
-                self.state.bricks[mux * 3 + k + 1] = v
+                self._brick_value(t, mux * 3 + k + 1, v)
         if status == 0x02:
             self.state.brick_count = mux * 3 + 1
         else:
@@ -527,7 +542,7 @@ class TeslaDecoder:
                     continue
                 v = raw * 0.000305
                 if 1.5 <= v <= 4.5:
-                    st.bricks[page * 4 + k + 1] = v
+                    self._brick_value(t, page * 4 + k + 1, v)
             if len(self._sx_brick_pages) >= 24 or (page == 0 and len(self._sx_brick_pages) > 10):
                 if st.bricks:
                     st.brick_count = max(st.bricks)

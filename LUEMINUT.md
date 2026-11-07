@@ -1,4 +1,4 @@
-# Akux 1.3
+# Akux 1.4
 
 Akux lukee Teslan ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta OBDLink-sovittimella ja tekee tuloksista selkeän ja yksityiskohtaisen PDF-raportin ostajalle, asiakkaalle tai omaan käyttöön. Kaikki mittausarvot ovat auton akunhallinnan luovuttamia.
 
@@ -28,8 +28,13 @@ Mittaustiedosto sisältää kaiken: auton tiedot, mittausnäytteet, kennoryhmien
 ## Mitä ohjelmassa on
 
 - **Yleiskuva:** yhteys autoon, akun tiedot reaaliajassa, kennoryhmäkaavio ja yhteystesti. Ensimmäisellä käyttökerralla näkyy käyttöönoton tarkistuslista.
-- **Mittaus:** pikatarkastus (1–3 min) tai ohjattu kapasiteettimittaus. Vaiheet etenevät itsestään, ja mittausolosuhteet tarkistetaan koko ajan.
-- **Esimerkkiautot:** Autot-sivulta saa kolme esimerkkiautoa valmiine mittauksineen ja raportteineen, joten ohjelmaa voi tutkia ilman autoa.
+- **Mittaus:** kahdeksan mittausta kolmessa ryhmässä. Vaiheet etenevät itsestään, ja mittausolosuhteet tarkistetaan koko ajan.
+  - *Paikallaan:* pikatarkastus (1–3 min), kapasiteettimittaus latauksen aikana (8–14 h) ja itsepurkaustesti (yön yli).
+  - *Ajossa:* täysi akkutesti (purku ajossa ja lataus täyteen), ajotesti, pika-ajotesti ja kuormitustesti.
+  - *Pikalaturilla:* pikalataustesti.
+  - Ajotestit ja itsepurkaustesti voi jättää **jatkettavaksi myöhemmin** ja jatkaa ohjelman uudelleenkäynnistyksen jälkeen. Jos autoa ladataan tauon aikana, se havaitaan Teslan latauslaskurista.
+  - Raportti näyttää mitatun kunnon vain, kun epävarmuus on enintään ±3 %-yksikköä ja mittauksen laatu riittää. Muuten näytetään Teslan akunhallinnan arvio ja syy.
+- **Esimerkkiautot:** Autot-sivulta saa kolme esimerkkiautoa, joissa on valmiit raportit kaikista mittaustyypeistä, joten ohjelmaa voi tutkia ilman autoa.
 - **Autot:** ohjelma tunnistaa auton valmistenumerosta ja oppii akun tiedot ensimmäisessä mittauksessa. Mittaus estetään, jos kytketty auto ei ole sama kuin valittu.
 - **Mittaukset:** tulokset, raportit, mittausdata ja raakadatan eheyden tarkistus.
 - **Ohjeet:** koko käyttöohje ohjelmassa ja PDF-muodossa.
@@ -40,7 +45,7 @@ Mittaustiedosto sisältää kaiken: auton tiedot, mittausnäytteet, kennoryhmien
 
 1. Yhteenveto: kunto, kapasiteetti, jännite-ero, Teslan akunhallinnan omat arvot, sanallinen tulos, mitä tulos tarkoittaa ja auton tiedot (myös rekisterinumero ja vapaaehtoinen auton kuva). Sivulla on allekirjoituskohta ja raportin tunnistetiedot QR-koodina.
 2. Arviot luokkineen (myös akkutakuu) ja mittausolosuhteet.
-3. Kapasiteettimittaus: latauskäyrä, laskennan jokainen vaihe, luotettavuuden tarkistukset ja epävarmuuden erittely.
+3. Mittauksen oma sivu: kapasiteettimittaus (latauskäyrä, laskennan vaiheet, epävarmuus), purkumittaus ajossa, lataus- ja purkumittauksen vertailu, kennoryhmien resistanssi kuormassa, pikalatauksen tehokäyrä tai kennoryhmien itsepurkautuminen.
 4. Kennoryhmät: kaaviot ja tunnusluvut, kapasiteettimittauksessa myös matalassa varauksessa.
 5. Jokaisen kennoryhmän jännitetaulukko tunnuslukuineen, kapasiteettimittauksessa myös matalassa varauksessa.
 6. Akunhallinnan tiedot, elinkaaren energialaskurit, vertailu ajomäärään ja kunnon kehitys.
@@ -76,6 +81,8 @@ python tests/test_yllapito.py        # asetukset, ilmoitukset, varmuuskopio, pä
 python tests/test_android_silta.py   # Android-sovelluksen USB-yhteys ja käynnistys
 python tests/test_mittaustiedosto.py # mittaustiedoston tallennus, avaus ja eheys
 python tests/test_mallit.py          # kaikki mallit, Model S/X:n vanha viestirakenne
+python tests/test_testityypit.py     # kaikki testityypit, tauko ja jatko, lataus tauon aikana
+python tests/test_autot_ja_kemiat.py # datan luku bitintarkasti ja jokainen testi NCA-, LFP- ja NMC-akuilla sekä Model S:llä
 ```
 
 GitHub ajaa jokaisen muutoksen jälkeen kaikki testit, rakentaa Windows-asennusohjelman ja testaa asennuksen, mittauksen, raportin ja päivityksen oikealla Windows-koneella sekä rakentaa Android-sovelluksen ja testaa sen Android-emulaattorissa. Vasta kun kaikki on hyväksytty, versio julkaistaan Releases-sivulle.

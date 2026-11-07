@@ -384,7 +384,8 @@ class Api:
                 "aloitettu": t["aloitettu"], "paattynyt": t["paattynyt"], "mittarilukema": t["mittarilukema"],
                 "kunto_pct": y.get("kunto_pct"), "kunto_luokka": y.get("kunto_luokka"),
                 "kapasiteetti_kwh": y.get("kapasiteetti_kwh"), "epavarmuus_kwh": y.get("epavarmuus_kwh"),
-                "ero_mv": (r.get("kennot") or {}).get("ero_mv"), "virhe": r.get("virhe")}
+                "ero_mv": (r.get("kennot") or {}).get("ero_mv"), "virhe": r.get("virhe"),
+                "osat": (r.get("purku") or {}).get("osat")}
 
     def aloita(self, q, body):
         vid = int(body.get("ajoneuvo_id") or 0)
@@ -398,7 +399,8 @@ class Api:
                 " Lisää tämä auto ensin Autot-sivulla."
             raise ApiError(f"Kytketyn auton valmistenumero {bus_vin} ei vastaa valittua autoa ({veh['vin']})." + hint)
         tyyppi = body.get("tyyppi")
-        if tyyppi not in ("pikatarkastus", "kapasiteetti"):
+        from .recorder import TYYPIT
+        if tyyppi not in TYYPIT:
             raise ApiError("Valitse mittauksen tyyppi.")
         verdict = self._bus_verdict()
         if not verdict or not verdict["kunnossa"]:
@@ -419,6 +421,35 @@ class Api:
 
     def keskeyta(self, q, body):
         self.app.recorder.cancel()
+        return {"ok": True}
+
+    def tauko(self, q, body):
+        r = self.app.recorder
+        if not r.can_pause():
+            raise ApiError("Tätä mittausta ei voi jatkaa myöhemmin tässä vaiheessa.")
+        r.pause("Mittaus jätettiin jatkettavaksi myöhemmin")
+        return {"ok": True}
+
+    def jatka(self, q, body, tid):
+        t = self.app.storage.test(tid)
+        if not t or t["tila"] != "kesken":
+            raise ApiError("Mittausta ei voi jatkaa.")
+        if self.app.recorder.active:
+            raise ApiError("Toinen mittaus on käynnissä.")
+        verdict = self._bus_verdict()
+        if not verdict or not verdict["kunnossa"]:
+            raise ApiError("Akun tietoja ei vielä vastaanoteta. Kytke sovitin ja herätä auto ennen jatkamista.")
+        try:
+            self.app.resume_test(tid)
+        except (RuntimeError, ValueError) as e:
+            raise ApiError(str(e))
+        return {"id": tid}
+
+    def hylkaa(self, q, body, tid):
+        t = self.app.storage.test(tid)
+        if not t or t["tila"] != "kesken":
+            raise ApiError("Mittausta ei löydy.")
+        self.app.recorder.discard(tid)
         return {"ok": True}
 
     def mittaukset(self, q, body):
@@ -492,9 +523,18 @@ class Api:
 
     def tallenna_asetukset(self, q, body):
         body.pop("puhelin_avain", None)
-        for k in ("lepo_alku_min", "lepo_loppu_min", "kapasiteetti_lahto_soc_max", "lampotila_min", "lampotila_max"):
+        # Mittausten raja-arvot: virheellinen tai tyhjä arvo jätetään pois, muut rajataan järkevälle välille
+        limits = {"lepo_alku_min": (0, 240), "lepo_loppu_min": (0, 240), "kapasiteetti_lahto_soc_max": (5, 60),
+                  "lampotila_min": (-20, 40), "lampotila_max": (0, 60), "ajo_lepo_min": (0, 240),
+                  "ajo_loppu_soc": (3, 50), "pika_ajo_soc": (10, 60), "kuormitus_tapahtumat": (3, 30),
+                  "itsepurkaus_lepo_min": (5, 240), "itsepurkaus_tunnit": (2, 72)}
+        for k, (lo, hi) in limits.items():
             if k in body:
-                body[k] = _num(body[k])
+                v = _num(body[k])
+                if v is None:
+                    body.pop(k)
+                else:
+                    body[k] = max(lo, min(hi, int(round(v)) if k != "lampotila_min" and k != "lampotila_max" else v))
         return self.app.storage.save_settings(body)
 
     def esimerkit(self, q, body):
@@ -572,6 +612,8 @@ ROUTES = [
     ("POST", r"/api/vin", "vin"), ("GET", r"/api/mallit", "mallit"),
     ("POST", r"/api/mittaukset", "aloita"), ("POST", r"/api/mittaukset/aktiivinen/ohita", "ohita"),
     ("POST", r"/api/mittaukset/aktiivinen/keskeyta", "keskeyta"),
+    ("POST", r"/api/mittaukset/aktiivinen/tauko", "tauko"),
+    ("POST", r"/api/mittaukset/(\d+)/jatka", "jatka"), ("POST", r"/api/mittaukset/(\d+)/hylkaa", "hylkaa"),
     ("GET", r"/api/mittaukset", "mittaukset"), ("GET", r"/api/mittaukset/(\d+)", "mittaus"),
     ("DELETE", r"/api/mittaukset/(\d+)", "poista_mittaus"), ("POST", r"/api/mittaukset/avaa", "avaa_mittaus"),
     ("POST", r"/api/mittaukset/(\d+)/tallenna", "tallenna_kansioon"), ("GET", r"/api/mittaukset/(\d+)/tarkista", "tarkista"),

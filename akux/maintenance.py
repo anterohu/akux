@@ -244,6 +244,40 @@ def selftest(app, full: bool = True) -> dict:
         return "ok", f"{n} mittauksen raakadata tarkistettu, kaikki muuttumattomia." if n else "Ei tarkistettavia mittauksia."
     out.append(_check("Raakadatan eheys", integrity))
 
+    def ext_calc():
+        """Ajo-, kuormitus- ja itsepurkaustestien laskenta tunnetulla aineistolla."""
+        import random
+        from . import analysis_ext as ext
+        rng = random.Random(3)
+        from .recorder import _reg_add
+        regs = {}
+        for k in range(1, 97):
+            r = 0.00075 * (1.5 if k == 40 else 1.0)
+            acc = [0, 0.0, 0.0, 0.0]
+            for w in range(4):                      # neljä aikaikkunaa, joissa lepojännite on eri
+                ocv = 3.9 - 0.05 * w
+                win = []
+                for _ in range(20):
+                    i = rng.choice((5.0, 350.0))
+                    win.append((0.0, i, ocv - i * r + rng.gauss(0, 0.0003)))
+                _reg_add(acc, win)
+            regs[str(k)] = acc
+        load = ext.analyze_load({"kuorma": {"kennot": regs}}, 96)
+        if not load or load["r_max_nro"] != 40 or abs(load["r_akku_mohm"] - 72.6) > 3:
+            return "virhe", "Kennoryhmien resistanssin laskenta ei tuottanut odotettua tulosta."
+        base = [3.80 + rng.gauss(0, 0.002) for _ in range(96)]
+        end = [b - 0.009 - (0.004 if k == 10 else 0.0) for k, b in enumerate(base)]
+        mk = lambda t, v: {"t": t, "kennot": v, "kennot_sd": [0.0003] * 96, "kennot_n": [60] * 96}  # noqa: E731
+        sd = ext.analyze_self_discharge({"merkinnat": {"itse_alku": mk(0, base), "itse_loppu": mk(8 * 3600, end)}}, "NCA")
+        if not sd or [p["nro"] for p in sd["poikkeavat"]] != [11] or not sd["riittava"]:
+            return "virhe", "Itsepurkautumisen laskenta ei tuottanut odotettua tulosta."
+        c = ext.combine({"valmis": True, "taysi_kwh": 75.5, "epavarmuus_kwh": 1.2, "laatu_luokka": "Hyvä"},
+                        {"valmis": True, "taysi_kwh": 76.0, "epavarmuus_kwh": 1.6}, 80.5)
+        if not c["yhtapitavat"] or not (75.5 < c["taysi_kwh"] < 76.0) or c["epavarmuus_kwh"] >= 1.2:
+            return "virhe", "Lataus- ja purkumittauksen yhdistäminen ei tuottanut odotettua tulosta."
+        return "ok", "Resistanssi, itsepurkautuminen ja tulosten yhdistäminen laskettiin oikein."
+    out.append(_check("Ajo-, kuormitus- ja itsepurkaustestien laskenta", ext_calc))
+
     if full:
         def chain():
             from .app import App

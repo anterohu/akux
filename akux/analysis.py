@@ -8,6 +8,7 @@ import time
 from . import VERSIO, profiles
 from . import vin as vinmod
 
+TARKKUUSRAJA_PCT = 3.0   # päätuloksen suurin sallittu epävarmuus (kunto, %-yksikköä)
 SOH_LUOKAT = [(90, "Erinomainen"), (85, "Hyvä"), (80, "Tyydyttävä"), (70, "Heikentynyt"), (0, "Takuurajan alittava")]
 ERO_LUOKAT = [(15, "Erinomainen"), (30, "Hyvä"), (50, "Tyydyttävä"), (1e9, "Poikkeava")]
 
@@ -258,12 +259,74 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
 
     res["takuu"] = warranty_status(vehicle, model, odo, test.get("aloitettu"))
 
-    if test["tyyppi"] == "pikatarkastus":
+    from . import analysis_ext as ext
+    tyyppi = test["tyyppi"]
+    n_bricks = brick_count or (model or {}).get("sarjakennot") or 96
+    if isinstance(n_bricks, list):
+        n_bricks = n_bricks[-1]
+    if tyyppi == "pikatarkastus":
         _analyze_quick(res, snaps, samples)
-    else:
+    elif tyyppi in ("kapasiteetti", "taysi"):
         _analyze_capacity(res, snaps, samples, meta, chem_key, ref_kwh, nfp, buffer)
+    else:
+        _analyze_cells_other(res, snaps, meta, tyyppi)
+
+    # Kennoryhmien resistanssi lasketaan ajosta: kiihdytykset ja jarrutukset vaihtelevat virtaa nopeasti
+    load = ext.analyze_load(meta, brick_count) if tyyppi in ("kuormitus", "ajotesti", "pika_ajo", "taysi") else None
+    if load:
+        res["kuorma"] = load
+    if tyyppi in ("ajotesti", "pika_ajo", "taysi"):
+        res["purku"] = ext.analyze_discharge(res, meta, chem_key, n_bricks, ref_kwh, nfp, tyyppi, load)
+        if not res["purku"].get("valmis") and res["purku"].get("syy"):
+            res["huomiot"].append("Purkumittausta ei voitu laskea: " + res["purku"]["syy"])
+    if tyyppi == "taysi":
+        res["yhdistetty"] = ext.combine(res.get("kapasiteetti") or {}, res.get("purku") or {}, ref_kwh)
+    if tyyppi == "pikalataus":
+        res["pikalataus"] = ext.analyze_dc(meta)
+    if tyyppi == "itsepurkaus":
+        res["itsepurkaus"] = ext.analyze_self_discharge(meta, chem_key)
+
+    # Raportin päätulos: täydessä testissä yhdistetty, ajotestissä purkumittaus
+    cands = {"taysi": [(res.get("yhdistetty"), "Täysi akkutesti"), (res.get("kapasiteetti"), "Kapasiteettimittaus"),
+                       (res.get("purku"), "Ajotesti")],
+             "ajotesti": [(res.get("purku"), "Ajotesti")],
+             "kapasiteetti": [(res.get("kapasiteetti"), "Kapasiteettimittaus")]}.get(tyyppi, [])
+    # Pika-ajotesti ei anna kuntoprosenttia: lyhyen ajon varaustilan muutos ei riitä tarkkaan tulokseen.
+    # Se tarkistaa, vastaako akunhallinnan oma arvio ajossa mitattua.
+    pk = res.get("purku") or {}
+    if tyyppi == "pika_ajo" and pk.get("valmis") and nfp:
+        diff = pk["taysi_kwh"] - nfp
+        pk["vahvistaa_bms"] = abs(diff) <= max(2 * pk["epavarmuus_kwh"], 0.02 * nfp)
+    # Laatuportti: päätulokseksi kelpaa vain riittävän tarkka ja hyvälaatuinen mittaus
+    primary = None
+    rejected = []
+    for c in cands:
+        p0 = c[0]
+        if not (p0 and p0.get("valmis")):
+            continue
+        u_pct = p0.get("soh_epavarmuus_pct")
+        if u_pct is None and ref_kwh and p0.get("epavarmuus_kwh"):
+            u_pct = p0["epavarmuus_kwh"] / ref_kwh * 100
+        if p0.get("laatu_luokka") == "Heikko" or (u_pct is not None and u_pct > TARKKUUSRAJA_PCT):
+            p0["hylatty"] = True
+            rejected.append(f"{c[1]} ei täyttänyt raportin tarkkuusvaatimusta (epävarmuus ±{fmt(u_pct)} "
+                            f"%-yksikköä, vaatimus enintään ±{fmt(TARKKUUSRAJA_PCT, 0)}"
+                            + (", mittauksen laatu heikko" if p0.get("laatu_luokka") == "Heikko" else "") + ").")
+            continue
+        primary = c
+        break
+    if rejected:
+        res["huomiot"].extend(rejected)
+        if not primary:
+            res["huomiot"].append("Akun kuntona näytetään Teslan akunhallinnan oma arvio.")
+    if primary and primary[0] and primary[0].get("valmis"):
+        res["paatulos"] = {**{k: primary[0].get(k) for k in ("taysi_kwh", "epavarmuus_kwh", "soh_pct",
+                                                              "soh_epavarmuus_pct", "laatu_luokka")},
+                           "valmis": True, "lahde": primary[1],
+                           "ero_bms_pct": ((primary[0]["taysi_kwh"] - nfp) / nfp * 100) if nfp else None}
 
     _summarize(res)
+    ext.assessments(res)
     res["kapasiteetit"] = _gross_net(res, ref_kwh, buffer)
     res["tarkiste"] = test.get("tarkiste")
     return res
@@ -295,6 +358,31 @@ def _analyze_quick(res, snaps, samples):
         res["huomiot"].append("LFP-akun akunhallinta arvioi kapasiteetin luotettavimmin, kun akku on ladattu täyteen "
                               "viime päivinä. Tesla suosittelee LFP-akun lataamista täyteen vähintään kerran viikossa. "
                               "Tarkin tulos saadaan kapasiteettimittauksella.")
+
+
+def _analyze_cells_other(res, snaps, meta, tyyppi):
+    """Kennoryhmien jännitteet ajo-, kuormitus-, pikalataus- ja itsepurkaustesteissä."""
+    m = meta.get("merkinnat", {})
+    if tyyppi in ("ajotesti", "pika_ajo"):
+        s_hi = _snap(snaps, "ajo_alku")
+        s_lo = _snap(snaps, "loppu")
+        if s_hi:
+            res["kennot"] = cell_stats(s_hi["data"].get("kennot"), s_hi["data"].get("soc_avg"), s_hi["data"].get("pack_i"))
+            res["kennot_otsikko"] = "Kennoryhmien jännitteet levossa ennen ajoa"
+        if s_lo:
+            res["kennot_matala"] = cell_stats(s_lo["data"].get("kennot"), s_lo["data"].get("soc_avg"),
+                                              s_lo["data"].get("pack_i"))
+        return
+    src = {"kuormitus": (m.get("kuorma_lepo") or {}), "itsepurkaus": (m.get("itse_loppu") or {})}.get(tyyppi)
+    if src and src.get("kennot"):
+        res["kennot"] = cell_stats(src["kennot"], src.get("soc_avg"), 0.0)
+        res["kennot_otsikko"] = {"kuormitus": "Kennoryhmien jännitteet levossa ennen kuormitusta",
+                                 "itsepurkaus": "Kennoryhmien jännitteet seisonnan jälkeen"}[tyyppi]
+        return
+    s_end = _snap(snaps, "loppu")
+    if s_end:
+        res["kennot"] = cell_stats(s_end["data"].get("kennot"), s_end["data"].get("soc_avg"), s_end["data"].get("pack_i"))
+        res["kennot_otsikko"] = "Kennoryhmien jännitteet mittauksen lopussa"
 
 
 def _median(vals):
@@ -488,10 +576,11 @@ def _summarize(res):
     km = res["ajoneuvo"].get("mittarilukema_km")
     summary = {}
 
-    if cap.get("valmis") and cap.get("soh_pct"):
-        soh = cap["soh_pct"]
-        summary.update(kunto_pct=soh, kunto_lahde="Kapasiteettimittaus", kapasiteetti_kwh=cap["taysi_kwh"],
-                       epavarmuus_kwh=cap.get("epavarmuus_kwh"))
+    pt = res.get("paatulos") or {}
+    if pt.get("valmis") and pt.get("soh_pct"):
+        soh = pt["soh_pct"]
+        summary.update(kunto_pct=soh, kunto_lahde=pt["lahde"], kapasiteetti_kwh=pt["taysi_kwh"],
+                       epavarmuus_kwh=pt.get("epavarmuus_kwh"), epavarmuus_pct=pt.get("soh_epavarmuus_pct"))
     elif bms.get("soh_pct"):
         soh = bms["soh_pct"]
         summary.update(kunto_pct=soh, kunto_lahde="Akunhallinnan arvio", kapasiteetti_kwh=bms.get("nfp_kwh"))
@@ -521,13 +610,13 @@ def _summarize(res):
                        "kuvaus": f"Kapasiteetin alenema {fmt(actual_loss)} %, keskimäärin noin {fmt(exp)} % "
                                  f"{fmt(km, 0)} km:n kohdalla."})
 
-    if cap.get("valmis"):
-        ar.append({"nimi": "Mitattu kapasiteetti", "arvo": f"{fmt(cap['taysi_kwh'])} kWh",
-                   "luokka": None, "kuvaus": f"Epävarmuus noin ±{fmt(cap['epavarmuus_kwh'])} kWh. "
-                                             f"Mittauksen luotettavuus: {cap['laatu_luokka'].lower()}."})
+    if pt.get("valmis"):
+        ar.append({"nimi": "Mitattu kapasiteetti", "arvo": f"{fmt(pt['taysi_kwh'])} kWh",
+                   "luokka": None, "kuvaus": f"{pt['lahde']}. Epävarmuus noin ±{fmt(pt['epavarmuus_kwh'])} kWh. "
+                                             f"Mittauksen luotettavuus: {(pt.get('laatu_luokka') or '–').lower()}."})
         if bms.get("nfp_kwh"):
             ar.append({"nimi": "Akunhallinnan arvio", "arvo": f"{fmt(bms['nfp_kwh'])} kWh", "luokka": None,
-                       "kuvaus": f"Ero mitattuun {fmt(cap.get('ero_bms_pct'))} %."})
+                       "kuvaus": f"Ero mitattuun {fmt(pt.get('ero_bms_pct'))} %."})
 
     cs = res.get("kennot")
     if cs:
@@ -579,7 +668,7 @@ def _summarize(res):
     parts = []
     if soh is not None:
         kwh = summary.get("kapasiteetti_kwh")
-        src = "mitattu" if summary.get("kunto_lahde") == "Kapasiteettimittaus" else "akunhallinnan arvio"
+        src = "akunhallinnan arvio" if summary.get("kunto_lahde") == "Akunhallinnan arvio" else "mitattu"
         parts.append(f"Akun kapasiteetti on {fmt(soh, 1)} % alkuperäisestä ({src} {fmt(kwh)} kWh, "
                      f"uutena {fmt(ref)} kWh).")
         v = summary.get("vertailu")

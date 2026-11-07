@@ -48,6 +48,12 @@ OLETUSASETUKSET = {
     "mittaus_kansio": "",
     "qr_osoite": "",
     "raportin_ulkoasu": "b",
+    "ajo_lepo_min": 15,
+    "ajo_loppu_soc": 10,
+    "pika_ajo_soc": 20,
+    "kuormitus_tapahtumat": 6,
+    "itsepurkaus_lepo_min": 30,
+    "itsepurkaus_tunnit": 8,
     "vesileima": "toisto",
 }
 
