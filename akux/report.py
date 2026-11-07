@@ -610,6 +610,8 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     out_path = out_path or (storage.dir / "raportit" / f"Akkuraportti_{report_no}.pdf")
     doc = ReportDoc(out_path, ctx)
     E = [NextPageTemplate("page")]
+    A = []      # tekninen liite: mittauksen vaiheet, kennoryhmäluettelo, menetelmä ja tietolähteet
+    liite = s.get("tekninen_liite", True) is not False
 
     # ---------------- Sivu 1: yhteenveto -------------------------------
     model_name = veh.get("malli") or (vi.get("malli") and f"Tesla {vi['malli']}") or "Tesla"
@@ -754,16 +756,16 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     E.append(Spacer(1, 5 * mm))
 
     # Arviot
-    rows = [[P("Arvio", "label"), P("Tulos", "label"), P("Luokka", "label"), P("Selite", "label")]]
+    rows = [[P("Kohde", "label"), P("Tulos", "label"), P("Luokka", "label"), P("Selite", "label")]]
     for a in r.get("arviot", []):
         rows.append([P(a["nimi"], "cellb"), P(a["arvo"], "cell"), Pill(a.get("luokka")), P(a["kuvaus"], "small")])
     E.append(PageBreak())
     E.append(P("Yhteenveto", "h2"))
     E.append(P(summ.get("teksti", ""), "body"))
     E.append(Spacer(1, 5 * mm))
-    E.append(P("Arviot", "h2"))
-    E.append(P("Jokainen arvio on luokiteltu menetelmäsivulla kuvattujen rajojen mukaan. Luokat: erinomainen, "
-               "hyvä, tyydyttävä, heikentynyt ja poikkeava.", "small"))
+    E.append(P("Tulokset", "h2"))
+    E.append(P("Luokat: erinomainen, hyvä, tyydyttävä, heikentynyt ja poikkeava." + (
+        " Luokkien rajat on kuvattu teknisessä liitteessä." if liite else ""), "small"))
     E.append(Spacer(1, 3 * mm))
     E.append(_table(rows, [52 * mm, 25 * mm, 29 * mm, CW - 106 * mm]))
 
@@ -775,7 +777,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
 
     # Mittausolosuhteet
     E.append(Spacer(1, 6 * mm))
-    E.append(P("Mittausolosuhteet", "h3"))
+    E.append(P("Mittaus", "h3"))
     tt = r.get("lampotilat") or {}
     meta = r.get("meta") or {}
     rows_c = [[P("Tieto", "label"), P("Arvo", "label"), P("Selite", "label")]]
@@ -798,14 +800,14 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     cond("Mittauksen kesto", _dur((meta.get("t_loppu") or 0) - (meta.get("t_alku") or 0)) if meta.get("t_loppu") else None,
          f"{_date(test['aloitettu'])} alkaen")
     if tt.get("alku_min") is not None:
-        cond("Akun lämpötila alussa", f"{fmt(tt['alku_min'])}–{fmt(tt['alku_max'])} °C", "Suositus 15–35 °C")
-        cond("Akun lämpötila lopussa", f"{fmt(tt['loppu_min'])}–{fmt(tt['loppu_max'])} °C", "")
+        cond("Akun lämpötila alussa ja lopussa", f"{fmt(tt['alku_min'])}–{fmt(tt['alku_max'])} °C → "
+             f"{fmt(tt['loppu_min'])}–{fmt(tt['loppu_max'])} °C", "Suositus 15–35 °C")
     if is_cap and cap.get("soc_alku") is not None:
         cond("Varaustila latauksen alussa ja lopussa", f"{fmt(cap['soc_alku'])} % → {fmt(cap['soc_loppu'])} %",
              f"Muutos {fmt(cap.get('dsoc'))} %-yksikköä")
-        cond("Lepo ennen latausta ja sen jälkeen",
-             f"{fmt(cap.get('lepo_alku_min'), 0)} min ja {fmt(cap.get('lepo_loppu_min'), 0)} min", "Suositus 30 min")
-        cond("Latauksen keskiteho akkuun", f"{fmt(cap.get('keskiteho_kw'))} kW", "Vaihtovirtalataus")
+        if tyyppi == "kapasiteetti":
+            cond("Lepo ennen latausta ja sen jälkeen",
+                 f"{fmt(cap.get('lepo_alku_min'), 0)} min ja {fmt(cap.get('lepo_loppu_min'), 0)} min", "Suositus 30 min")
     if purku.get("soc_alku") is not None:
         cond("Varaustila ajon alussa ja lopussa", f"{fmt(purku['soc_alku'])} % → {fmt(purku['soc_loppu'])} %",
              f"Muutos {fmt(purku.get('soc_muutos'))} %-yksikköä")
@@ -861,9 +863,8 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     if is_cap and cap:
         E.append(PageBreak())
         E.append(P("Kapasiteettimittaus", "h2"))
-        E.append(P("Akku ladattiin matalasta varaustilasta täyteen, ja akkuun mennyt energia laskettiin "
-                   "auton akunhallinnan jännite- ja virtamittauksista koko latauksen ajalta. Laturin häviöt eivät "
-                   "siksi vaikuta tulokseen.", "body"))
+        E.append(P("Akku ladattiin matalasta varaustilasta täyteen. Akkuun mennyt energia on mitattu auton "
+                   "akunhallinnan jännitteestä ja virrasta, joten laturin häviöt eivät vaikuta tulokseen.", "body"))
         E.append(Spacer(1, 4 * mm))
         cs_ = samples
         if tyyppi == "taysi":
@@ -878,45 +879,54 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
             rows = [[P("Suure", "label"), P("Arvo", "label"), P("Peruste", "label")]]
             highlight = []
 
+            rows_d = [[P("Vaihe", "label"), P("Arvo", "label"), P("Peruste", "label")]]
+
             def add(n, v, p="", strong=False):
                 if strong:
                     highlight.append(len(rows))
                 rows.append([P(n, "cellb" if strong else "cell"), P(v, "cellb"), P(p, "small")])
-            add("Varaustila latauksen alussa", f"{fmt(cap['soc_alku'])} %", "Teslan akunhallinta")
-            add("Varaustila latauksen lopussa", f"{fmt(cap['soc_loppu'])} %",
-                "Akunhallinta ilmoitti latauksen valmiiksi" if cap.get("taysi") else "Lataus päättyi")
-            add("Latauksen kesto", _dur(cap.get("lataus_kesto_s")),
-                f"Keskiteho akkuun {fmt(cap.get('keskiteho_kw'))} kW")
-            add("Akkuun mennyt energia (navoilta)", f"{fmt(cap['e_napa_kwh'], 2)} kWh",
-                "Teslan latauslaskuri" if cap.get("laskuri_kaytetty") else "Akunhallinnan jännite ja virta, ∫ U · I dt")
-            if cap.get("laskuri_kwh") and not cap.get("laskuri_kaytetty"):
-                add("Teslan latauslaskuri samalta ajalta", f"{fmt(cap['laskuri_kwh'], 2)} kWh",
-                    f"Vertailu: ero {fmt(cap.get('laskuri_ero_pct'))} %")
-            add("Akun sisäinen resistanssi", f"{fmt(cap['r_ohm'] * 1000, 0)} mΩ" if cap.get("r_ohm") else "–",
-                "Jännitteen nousu latauksen alussa")
-            add("Sisäiset häviöt latauksessa", f"{fmt(cap['e_haviot_kwh'], 2)} kWh", "R · ∫ I² dt")
-            if cap.get("katkot_kwh"):
-                add("Katkojen aikainen energia", f"{fmt(cap['katkot_kwh'], 2)} kWh", "Akunhallinnan energialaskenta")
-            add("Varastoitunut energia mittausvälillä", f"{fmt(cap['e_kemia_kwh'], 2)} kWh", "")
-            add("Energia lähtövarauksen alapuolella", f"{fmt(cap['e_alapuoli_kwh'], 2)} kWh",
-                "Mitattu Ah-kapasiteetti ja akkukemian lepojännitekäyrä")
-            if cap.get("e_ylapuoli_kwh", 0) > 0.05:
-                add("Energia loppuvarauksen yläpuolella", f"{fmt(cap['e_ylapuoli_kwh'], 2)} kWh", "Sama menetelmä")
+
+            def add_d(n, v, p=""):
+                rows_d.append([P(n, "cell"), P(v, "cellb"), P(p, "small")])
+            add("Varaustila latauksen alussa ja lopussa", f"{fmt(cap['soc_alku'])} % → {fmt(cap['soc_loppu'])} %",
+                "Teslan akunhallinta" + ("; lataus valmis" if cap.get("taysi") else ""))
+            add("Akkuun ladattu energia", f"{fmt(cap['e_napa_kwh'], 1)} kWh",
+                f"Latauksen kesto {_dur(cap.get('lataus_kesto_s'))}")
             add("Akun kokonaiskapasiteetti", f"{fmt(cap['taysi_kwh'], 1)} kWh",
-                f"Epävarmuus noin ±{fmt(cap['epavarmuus_kwh'])} kWh", strong=True)
+                f"Mittaustarkkuus ±{fmt(cap['epavarmuus_kwh'])} kWh", strong=True)
             if cap.get("kaytettava_kwh") is not None:
                 add("Käytettävissä oleva energia", f"{fmt(cap['kaytettava_kwh'], 1)} kWh",
-                    f"Kokonaiskapasiteetti vähennettynä akunhallinnan suojavaralla ({fmt(bms.get('puskuri_kwh'))} kWh)")
+                    f"Suojavara {fmt(bms.get('puskuri_kwh'))} kWh vähennetty")
             if bms.get("nfp_kwh"):
-                add("Teslan akunhallinnan oma arvio", f"{fmt(bms['nfp_kwh'], 1)} kWh",
+                add("Teslan akunhallinnan ilmoittama", f"{fmt(bms['nfp_kwh'], 1)} kWh",
                     f"Ero mitattuun {fmt(cap.get('ero_bms_pct'))} %")
+            add_d("Akkuun mennyt energia navoilta", f"{fmt(cap['e_napa_kwh'], 2)} kWh",
+                  "Teslan latauslaskuri" if cap.get("laskuri_kaytetty") else "Akunhallinnan jännite ja virta, ∫ U · I dt")
+            if cap.get("laskuri_kwh") and not cap.get("laskuri_kaytetty"):
+                add_d("Teslan latauslaskuri samalta ajalta", f"{fmt(cap['laskuri_kwh'], 2)} kWh",
+                      f"Vertailu: ero {fmt(cap.get('laskuri_ero_pct'))} %")
+            add_d("Latauksen keskiteho akkuun", f"{fmt(cap.get('keskiteho_kw'))} kW", "")
+            add_d("Akun sisäinen resistanssi", f"{fmt(cap['r_ohm'] * 1000, 0)} mΩ" if cap.get("r_ohm") else "–",
+                  "Jännitteen nousu latauksen alussa")
+            add_d("Sisäiset häviöt latauksessa", f"{fmt(cap['e_haviot_kwh'], 2)} kWh", "R · ∫ I² dt")
+            if cap.get("katkot_kwh"):
+                add_d("Katkojen aikainen energia", f"{fmt(cap['katkot_kwh'], 2)} kWh", "Akunhallinnan energialaskuri")
+            add_d("Varastoitunut energia mittausvälillä", f"{fmt(cap['e_kemia_kwh'], 2)} kWh", "")
+            add_d("Energia lähtövarauksen alapuolella", f"{fmt(cap['e_alapuoli_kwh'], 2)} kWh",
+                  "Mitattu Ah-kapasiteetti ja akkukemian lepojännitekäyrä")
+            if cap.get("e_ylapuoli_kwh", 0) > 0.05:
+                add_d("Energia loppuvarauksen yläpuolella", f"{fmt(cap['e_ylapuoli_kwh'], 2)} kWh", "Sama menetelmä")
+            add_d("Akun kokonaiskapasiteetti", f"{fmt(cap['taysi_kwh'], 2)} kWh",
+                  f"Mittaustarkkuus ±{fmt(cap['epavarmuus_kwh'], 2)} kWh")
             if cap.get("ocv_kwh"):
-                add("Rinnakkaisarvio lepojännitteistä", f"{fmt(cap['ocv_kwh'], 1)} kWh",
-                    "Varaustila arvioitu lepojännitteestä, ei akunhallinnasta. Suuntaa antava.")
+                add_d("Vertailuarvo lepojännitteistä", f"{fmt(cap['ocv_kwh'], 1)} kWh",
+                      "Varaustila lepojännitteestä, ei akunhallinnasta. Suuntaa antava.")
             ct = _table(rows, [66 * mm, 30 * mm, CW - 96 * mm])
             for hr in highlight:
                 ct.setStyle(TableStyle([("BACKGROUND", (0, hr), (-1, hr), PANEL)]))
             E.append(ct)
+            A.append(P("Kapasiteettimittauksen vaiheet", "h2"))
+            A.append(_table(rows_d, [66 * mm, 30 * mm, CW - 96 * mm]))
 
             qrows = [[P("Tarkistus", "label"), P("Tulos", "label"), P("", "label")]]
             for q in cap.get("laatu", []):
@@ -937,11 +947,12 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
                          colWidths=[92 * mm, CW - 92 * mm], hAlign="LEFT")
             side.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"),
                                       ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
-            E.append(KeepTogether([Spacer(1, 3 * mm), P("Mittauksen luotettavuus", "h3"), side]))
+            A.append(KeepTogether([Spacer(1, 3 * mm), P("Mittauksen luotettavuus", "h3"), side]))
         if cs_:
-            E.append(CondPageBreak(55 * mm))
-            E.append(Spacer(1, 4 * mm))
-            E.append(_img(charts.voltage_spread_chart(cs_, t0), CW))
+            A.append(CondPageBreak(55 * mm))
+            A.append(Spacer(1, 4 * mm))
+            A.append(_img(charts.voltage_spread_chart(cs_, t0), CW))
+            A.append(Spacer(1, 6 * mm))
 
     # ---------------- Purkumittaus (ajotestit ja täysi akkutesti) ------
     def result_table(rows_, highlight_):
@@ -954,38 +965,56 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         E.append(PageBreak())
         E.append(P("Purkumittaus ajossa", "h2"))
         osat = purku.get("osat") or 1
-        E.append(P("Akusta ajon aikana otettu energia luettiin Teslan elinkaaren energialaskureista ja varaustilan "
-                   "muutos akunhallinnasta. Varaustila luettiin levossa ennen ajoa ja sen jälkeen, jolloin "
-                   "akunhallinnan lukema on tarkimmillaan." + (
+        E.append(P("Ajossa akusta otettu energia on luettu Teslan energialaskureista ja varaustila akunhallinnasta "
+                   "levossa ennen ajoa ja sen jälkeen." + (
                        f" Mittaus koottiin {osat} ajokerrasta." if osat > 1 else ""), "body"))
         E.append(Spacer(1, 4 * mm))
+        ds_ = [x for x in samples if x.get("vaihe") in ("lepo_ajo_alku", "ajo", "lepo_ajo_loppu")]
+        if len(ds_) >= 10:
+            E.append(_img(charts.drive_chart(ds_), CW))
+            E.append(Spacer(1, 3 * mm))
         rows = [[P("Suure", "label"), P("Arvo", "label"), P("Peruste", "label")]]
         hl = []
+
+        rows_d = [[P("Vaihe", "label"), P("Arvo", "label"), P("Peruste", "label")]]
 
         def addp(n, v, p="", strong=False):
             if strong:
                 hl.append(len(rows))
             rows.append([P(n, "cellb" if strong else "cell"), P(v, "cellb"), P(p, "small")])
-        addp("Varaustila ennen ajoa", f"{fmt(purku['soc_alku'])} %", "Teslan akunhallinta, levossa")
-        addp("Varaustila ajon jälkeen", f"{fmt(purku['soc_loppu'])} %", "Teslan akunhallinta, levossa")
+
+        def addp_d(n, v, p=""):
+            rows_d.append([P(n, "cell"), P(v, "cellb"), P(p, "small")])
+        addp("Varaustila ennen ajoa ja sen jälkeen", f"{fmt(purku['soc_alku'])} % → {fmt(purku['soc_loppu'])} %",
+             "Teslan akunhallinta, levossa")
         if purku.get("matka_km"):
             addp("Ajettu matka", f"{fmt(purku['matka_km'], 0)} km",
                  f"Keskikulutus {fmt(purku['kulutus_wh_km'], 0)} Wh/km" if purku.get("kulutus_wh_km") else "")
-        if purku.get("purku_kwh") is not None:
-            addp("Akusta otettu energia", f"{fmt(purku['purku_kwh'], 2)} kWh", "Teslan elinkaaren purkulaskuri")
-            addp("Jarrutuksissa palautunut energia", f"{fmt(purku['palautus_kwh'], 2)} kWh",
-                 "Teslan elinkaaren latauslaskuri")
-        addp("Nettoenergia navoilta", f"{fmt(purku['netto_kwh'], 2)} kWh", purku.get("lahde") or "")
-        addp("Sisäiset häviöt ajossa", f"{fmt(purku['haviot_kwh'], 2)} kWh",
-             f"R · ∫ I² dt, R = {fmt(purku.get('r_kaytetty_mohm'), 0)} mΩ")
-        addp("Energia mittausvälin ulkopuolella", f"{fmt(purku['e_alapuoli_kwh'] + purku['e_ylapuoli_kwh'], 2)} kWh",
-             "Mitattu Ah-kapasiteetti ja akkukemian lepojännitekäyrä")
+        addp("Akusta otettu energia", f"{fmt(purku['netto_kwh'], 1)} kWh", "Teslan energialaskurit")
+        pk_ok = not purku.get("hylatty") and tyyppi != "pika_ajo"
         addp("Akun kokonaiskapasiteetti", f"{fmt(purku['taysi_kwh'], 1)} kWh",
-             f"Epävarmuus noin ±{fmt(purku['epavarmuus_kwh'])} kWh", strong=True)
+             f"Mittaustarkkuus ±{fmt(purku['epavarmuus_kwh'])} kWh", strong=pk_ok)
         if bms.get("nfp_kwh") and purku.get("ero_bms_pct") is not None:
-            addp("Teslan akunhallinnan oma arvio", f"{fmt(bms['nfp_kwh'], 1)} kWh",
+            addp("Teslan akunhallinnan ilmoittama", f"{fmt(bms['nfp_kwh'], 1)} kWh",
                  f"Ero mitattuun {fmt(purku['ero_bms_pct'])} %")
+        if purku.get("purku_kwh") is not None:
+            addp_d("Akusta otettu energia", f"{fmt(purku['purku_kwh'], 2)} kWh", "Teslan elinkaaren purkulaskuri")
+            addp_d("Jarrutuksissa palautunut energia", f"{fmt(purku['palautus_kwh'], 2)} kWh",
+                   "Teslan elinkaaren latauslaskuri")
+        addp_d("Nettoenergia navoilta", f"{fmt(purku['netto_kwh'], 2)} kWh", purku.get("lahde") or "")
+        addp_d("Sisäiset häviöt ajossa", f"{fmt(purku['haviot_kwh'], 2)} kWh",
+               f"R · ∫ I² dt, R = {fmt(purku.get('r_kaytetty_mohm'), 0)} mΩ")
+        addp_d("Energia mittausvälin ulkopuolella", f"{fmt(purku['e_alapuoli_kwh'] + purku['e_ylapuoli_kwh'], 2)} kWh",
+               "Mitattu Ah-kapasiteetti ja akkukemian lepojännitekäyrä")
+        addp_d("Akun kokonaiskapasiteetti", f"{fmt(purku['taysi_kwh'], 2)} kWh",
+               f"Mittaustarkkuus ±{fmt(purku['epavarmuus_kwh'], 2)} kWh")
         E.append(result_table(rows, hl))
+        if tyyppi == "pika_ajo":
+            E.append(Spacer(1, 2 * mm))
+            E.append(P("Pika-ajotesti tarkistaa Teslan akunhallinnan ilmoittaman kapasiteetin. Lyhyen ajon tulosta "
+                       "ei käytetä akun kuntoprosenttina.", "small"))
+        A.append(P("Purkumittauksen vaiheet", "h2"))
+        A.append(_table(rows_d, [66 * mm, 30 * mm, CW - 96 * mm]))
         qrows = [[P("Tarkistus", "label"), P("Tulos", "label"), P("", "label")]]
         for q in purku.get("laatu", []):
             qrows.append([P(q["nimi"], "cell"), P(q["arvo"], "cell"), Pill("Kunnossa" if q["ok"] else "Huomioitava")])
@@ -1002,11 +1031,12 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
                      colWidths=[92 * mm, CW - 92 * mm], hAlign="LEFT")
         side.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"),
                                   ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
-        E.append(KeepTogether([Spacer(1, 3 * mm), P("Mittauksen luotettavuus", "h3"), side]))
+        A.append(KeepTogether([Spacer(1, 3 * mm), P("Mittauksen luotettavuus", "h3"), side]))
+        A.append(Spacer(1, 6 * mm))
 
     if yhd.get("valmis"):
         E.append(Spacer(1, 6 * mm))
-        rows = [[P("Mittaus", "label"), P("Kapasiteetti", "label"), P("Epävarmuus", "label")],
+        rows = [[P("Mittaus", "label"), P("Kapasiteetti", "label"), P("Mittaustarkkuus", "label")],
                 [P("Lataus täyteen", "cell"), P(f"{fmt(yhd['lataus_kwh'], 1)} kWh", "cellb"),
                  P(f"±{fmt(cap.get('epavarmuus_kwh'))} kWh", "cell")],
                 [P("Purku ajossa", "cell"), P(f"{fmt(yhd['purku_kwh'], 1)} kWh", "cellb"),
@@ -1016,11 +1046,9 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         vt = _table(rows, [66 * mm, 40 * mm, CW - 106 * mm])
         vt.setStyle(TableStyle([("BACKGROUND", (0, 3), (-1, 3), PANEL)]))
         txt = (f"Lataus- ja purkumittauksen ero on {fmt(yhd['ero_kwh'], 2)} kWh ({fmt(yhd['ero_pct'])} %). "
-               + ("Tulokset ovat yhtäpitävät mittausten epävarmuuden rajoissa, joten tulos on niiden "
-                  "tarkkuudella painotettu keskiarvo. Kaksi toisistaan riippumatonta mittausta vahvistaa tuloksen."
+               + ("Kaksi toisistaan riippumatonta mittausta vahvistaa tuloksen."
                   if yhd["yhtapitavat"] else
-                  "Ero on suurempi kuin mittausten epävarmuus selittää. Tuloksena käytetään tarkempaa "
-                  "latausmittausta. Ero voi johtua esimerkiksi lyhyestä levosta ennen ajoa tai ajon jälkeen."))
+                  "Ero on suurempi kuin mittaustarkkuus selittää, joten tuloksena käytetään latausmittausta."))
         E.append(KeepTogether([P("Lataus- ja purkumittauksen vertailu", "h3"), vt, Spacer(1, 2 * mm),
                                P(txt, "small")]))
 
@@ -1135,7 +1163,8 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
 
     # ---------------- Kennoryhmät --------------------------------------
     if cs:
-        E.append(PageBreak())
+        E.append(CondPageBreak(150 * mm) if tyyppi in ("ajotesti", "pika_ajo") else PageBreak())
+        E.append(Spacer(1, 4 * mm))
         E.append(P("Kennoryhmät", "h2"))
         E.append(P(f"Akussa on {cs['lkm']} sarjaan kytkettyä kennoryhmää. Kunkin ryhmän jännite on luettu "
                    "akunhallinnasta. Levossa mitattu jännite-ero kertoo, kuinka tasaisesti kennoryhmät ovat "
@@ -1230,9 +1259,19 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
                        f"Kennoryhmien jännitteet levossa ennen latausta, varaustila {fmt(low.get('soc'))} %. "
                        "Matalassa varauksessa heikentyneen ryhmän jännite laskee muita enemmän.")
 
+    # ---------------- Vertailu ajomäärään ja aiemmat mittaukset ------
+    hist = [t for t in storage.tests(test["vehicle_id"]) if t["tila"] == "valmis" and t["tulos"]
+            and (t["tulos"].get("yhteenveto") or {}).get("kunto_pct") and t["mittarilukema"]]
+    pts = sorted({(t["mittarilukema"], t["tulos"]["yhteenveto"]["kunto_pct"]) for t in hist})
+    if len({km for km, _ in pts}) >= 2:
+        E.append(CondPageBreak(70 * mm))
+        E.append(Spacer(1, 4 * mm))
+        E.append(_img(charts.trend_chart(pts), CW))
+
     # ---------------- Akunhallinta ja elinkaari -----------------------
-    E.append(PageBreak())
-    E.append(P("Akunhallinnan tiedot", "h2"))
+    A.append(CondPageBreak(90 * mm))
+    A.append(Spacer(1, 6 * mm))
+    A.append(P("Akunhallinnan tiedot", "h2"))
     lt = r.get("elinkaari") or {}
     tt = r.get("lampotilat") or {}
     rows = [[P("Tieto", "label"), P("Arvo", "label"), P("Selite", "label")]]
@@ -1240,7 +1279,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     def add(n, v, p=""):
         rows.append([P(n, "cell"), P(v, "cellb"), P(p, "small")])
     add("Täyden akun energia", f"{fmt(bms.get('nfp_kwh'))} kWh" if bms.get("nfp_kwh") else "–",
-        "Akunhallinnan arvio akun nykyisestä kokonaisenergiasta")
+        "Akunhallinnan ilmoittama akun nykyinen kokonaisenergia")
     add("Alkuperäinen energia", f"{fmt(r['viite']['kwh'])} kWh" if r["viite"]["kwh"] else "–", r["viite"]["lahde"])
     if bms.get("soh_pct"):
         add("Kunto akunhallinnan mukaan", f"{fmt(bms['soh_pct'])} %", "Täyden akun energia / alkuperäinen energia")
@@ -1268,28 +1307,13 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         add("Täysiä lataussyklejä", f"noin {fmt(lt['syklit'], 0)}", "Otettu energia / alkuperäinen energia")
     if lt.get("kulutus_wh_km"):
         add("Keskikulutus elinkaaren aikana", f"{fmt(lt['kulutus_wh_km'], 0)} Wh/km", "Otettu energia / mittarilukema")
-    E.append(_table(rows, [62 * mm, 34 * mm, CW - 96 * mm]))
-
-    v = summ.get("vertailu")
-    if v:
-        E.append(P("Vertailu ajomäärään", "h3"))
-        E.append(P(f"Akun kapasiteetti on alentunut {fmt(v['toteutunut_alenema_pct'])} %. Teslan julkaiseman "
-                   f"keskiarvon perusteella alenema on {fmt(odo, 0)} km:n kohdalla tyypillisesti noin "
-                   f"{fmt(v['odotettu_alenema_pct'])} %. Arvio: <b>{v['arvio'].lower()}</b>. Vertailu on suuntaa "
-                   "antava, koska alenemaan vaikuttavat myös ikä, lataustavat ja ilmasto.", "body"))
-
-    hist = [t for t in storage.tests(test["vehicle_id"]) if t["tila"] == "valmis" and t["tulos"]
-            and (t["tulos"].get("yhteenveto") or {}).get("kunto_pct") and t["mittarilukema"]]
-    pts = sorted({(t["mittarilukema"], t["tulos"]["yhteenveto"]["kunto_pct"]) for t in hist})
-    if len({km for km, _ in pts}) >= 2:
-        E.append(Spacer(1, 4 * mm))
-        E.append(_img(charts.trend_chart(pts), CW))
+    A.append(_table(rows, [62 * mm, 34 * mm, CW - 96 * mm]))
 
     # ---------------- Menetelmä ja tietolähteet -----------------------
-    E.append(PageBreak())
-    E.append(P("Menetelmä ja tietolähteet", "h2"))
-    E.append(origin_box)
-    E.append(Spacer(1, 5 * mm))
+    A.append(PageBreak())
+    A.append(P("Menetelmä ja tietolähteet", "h2"))
+    A.append(origin_box)
+    A.append(Spacer(1, 5 * mm))
     meth = [
         ("Tiedonkeruu", "Tiedot luettiin auton CAN-väylältä diagnostiikkaliitännän kautta. Ohjelma ainoastaan kuuntelee "
          "väylää eikä lähetä autolle viestejä tai muuta sen asetuksia. Viestien sisältö puretaan avoimien, "
@@ -1369,12 +1393,13 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
          "raportti on laskettu juuri tästä aineistosta."),
     ]
     for head, txt in meth:
-        E.append(KeepTogether([P(head, "h3"), P(txt, "body")]))
+        A.append(KeepTogether([P(head, "h3"), P(txt, "body")]))
 
-    E.append(P("Mittauksen tiedot", "h3"))
+    A.append(P("Mittauksen tiedot", "h3"))
     info = r.get("meta", {}).get("sovitin") or {}
-    E.append(_kv([
-        ("Ohjelma", f"{NIMI} {r.get('versio', VERSIO)}"),
+    A.append(_kv([
+        ("Ohjelma", f"{NIMI} {VERSIO}" + (f" (mittaus tallennettu versiolla {r['versio']})"
+                                      if r.get("versio") and r["versio"] != VERSIO else "")),
         ("Tietolähde", f"{r.get('meta', {}).get('lahde') or '–'}, {info.get('sovitin') or '–'}"),
         ("Viestiarkkitehtuuri", veh.get("alusta_nimi") or "–"),
         ("Akunhallinnan energiaviestin muoto", {"uusi": "Uudempi (kanavoitu)", "vanha": "Vanhempi",
@@ -1396,14 +1421,23 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     tail += [Spacer(1, 5 * mm), P("Raportti perustuu mittaushetken tietoihin. Akun kunto voi muuttua käytön ja ajan "
                                   "myötä. Raportti ei ole valmistajan takuulausunto.", "small")]
     # Lyhyt tapahtumaluettelo pidetään yhtenäisenä; pitkä saa jatkua seuraavalle sivulle
-    E.extend([KeepTogether(tail)] if len(events) <= 25 else tail)
+    A.extend([KeepTogether(tail)] if len(events) <= 25 else tail)
 
     # ---------------- Sanasto ------------------------------------------
     from .docs import SANASTO
-    E.append(PageBreak())
-    E.append(P("Sanasto", "h2"))
-    E.append(_table([[P(a, "cellb"), P(b, "cell")] for a, b in SANASTO], [50 * mm, CW - 50 * mm], header=False,
+    A.append(PageBreak())
+    A.append(P("Sanasto", "h2"))
+    A.append(_table([[P(a, "cellb"), P(b, "cell")] for a, b in SANASTO], [50 * mm, CW - 50 * mm], header=False,
                     valign="TOP"))
 
+    if liite and A:
+        E.append(PageBreak())
+        E.append(P("Tekninen liite", "h1"))
+        E.append(P("Liitteessä on mittauksen vaiheet ja mittaustarkkuuden erittely, akunhallinnan tiedot sekä "
+                   "menetelmän ja tietolähteiden kuvaus.", "sub"))
+        E.append(Spacer(1, 6 * mm))
+        while A and isinstance(A[0], (PageBreak, CondPageBreak)):
+            A.pop(0)
+        E.extend(A)
     doc.build(E)
     return out_path

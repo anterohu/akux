@@ -33,7 +33,7 @@ Mittaustiedosto sisältää kaiken: auton tiedot, mittausnäytteet, kennoryhmien
   - *Ajossa:* täysi akkutesti (purku ajossa ja lataus täyteen), ajotesti, pika-ajotesti ja kuormitustesti.
   - *Pikalaturilla:* pikalataustesti.
   - Ajotestit ja itsepurkaustesti voi jättää **jatkettavaksi myöhemmin** ja jatkaa ohjelman uudelleenkäynnistyksen jälkeen. Jos autoa ladataan tauon aikana, se havaitaan Teslan latauslaskurista.
-  - Raportti näyttää mitatun kunnon vain, kun epävarmuus on enintään ±3 %-yksikköä ja mittauksen laatu riittää. Muuten näytetään Teslan akunhallinnan arvio ja syy.
+  - Raportti näyttää mitatun kunnon vain, kun epävarmuus on enintään ±3 %-yksikköä ja mittauksen laatu riittää. Muuten näytetään Teslan akunhallinnan ilmoittama arvo ja syy.
 - **Esimerkkiautot:** Autot-sivulta saa kolme esimerkkiautoa, joissa on valmiit raportit kaikista mittaustyypeistä, joten ohjelmaa voi tutkia ilman autoa.
 - **Autot:** ohjelma tunnistaa auton valmistenumerosta ja oppii akun tiedot ensimmäisessä mittauksessa. Mittaus estetään, jos kytketty auto ei ole sama kuin valittu.
 - **Mittaukset:** tulokset, raportit, mittausdata ja raakadatan eheyden tarkistus.
@@ -43,14 +43,20 @@ Mittaustiedosto sisältää kaiken: auton tiedot, mittausnäytteet, kennoryhmien
 
 ## Raportti
 
-1. Yhteenveto: kunto, kapasiteetti, jännite-ero, Teslan akunhallinnan omat arvot, sanallinen tulos, mitä tulos tarkoittaa ja auton tiedot (myös rekisterinumero ja vapaaehtoinen auton kuva). Sivulla on allekirjoituskohta ja raportin tunnistetiedot QR-koodina.
-2. Arviot luokkineen (myös akkutakuu) ja mittausolosuhteet.
-3. Mittauksen oma sivu: kapasiteettimittaus (latauskäyrä, laskennan vaiheet, epävarmuus), purkumittaus ajossa, lataus- ja purkumittauksen vertailu, kennoryhmien resistanssi kuormassa, pikalatauksen tehokäyrä tai kennoryhmien itsepurkautuminen.
-4. Kennoryhmät: kaaviot ja tunnusluvut, kapasiteettimittauksessa myös matalassa varauksessa.
-5. Jokaisen kennoryhmän jännitetaulukko tunnuslukuineen, kapasiteettimittauksessa myös matalassa varauksessa.
-6. Akunhallinnan tiedot, elinkaaren energialaskurit, vertailu ajomäärään ja kunnon kehitys.
-7. Menetelmä ja tietolähteet, mittauksen tapahtumat ja raakadatan tarkiste.
-8. Sanasto.
+Raportti on kaksiosainen. Pääsivut on tarkoitettu asiakkaalle, tekninen liite tarkistajalle. Liitteen voi jättää pois asetuksista.
+
+**Pääsivut**
+1. Etusivu: akun kunto, kapasiteetti brutto ja netto, jännite-ero, Teslan akunhallinnan omat arvot, mitä tulos tarkoittaa ja auton tiedot (myös rekisterinumero ja vapaaehtoinen auton kuva). Allekirjoituskohta ja raportin tunnistetiedot QR-koodina.
+2. Yhteenveto, tulokset luokkineen (myös akkutakuu) ja mittauksen tiedot.
+3. Mittauksen oma sivu kaavioineen: kapasiteettimittaus, purkumittaus ajossa, lataus- ja purkumittauksen vertailu, kennoryhmien resistanssi, pikalatauksen tehokäyrä tai itsepurkautuminen.
+4. Kennoryhmät: kaaviot ja tunnusluvut sekä kunnon kehitys, jos autosta on aiempia mittauksia.
+5. Lisäsivu: jokaisen kennoryhmän jännite taulukkona, kapasiteettimittauksessa myös matalassa varauksessa.
+
+**Tekninen liite**
+- Mittauksen vaiheet ja mittaustarkkuuden erittely.
+- Akunhallinnan tiedot ja elinkaaren energialaskurit.
+- Menetelmä ja tietolähteet, mittauksen tapahtumat ja raakadatan tarkiste.
+- Sanasto.
 
 ## Päivittäminen
 

@@ -318,7 +318,7 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
     if rejected:
         res["huomiot"].extend(rejected)
         if not primary:
-            res["huomiot"].append("Akun kuntona näytetään Teslan akunhallinnan oma arvio.")
+            res["huomiot"].append("Akun kuntona näytetään Teslan akunhallinnan ilmoittama arvo.")
     if primary and primary[0] and primary[0].get("valmis"):
         res["paatulos"] = {**{k: primary[0].get(k) for k in ("taysi_kwh", "epavarmuus_kwh", "soh_pct",
                                                               "soh_epavarmuus_pct", "laatu_luokka")},
@@ -612,10 +612,10 @@ def _summarize(res):
 
     if pt.get("valmis"):
         ar.append({"nimi": "Mitattu kapasiteetti", "arvo": f"{fmt(pt['taysi_kwh'])} kWh",
-                   "luokka": None, "kuvaus": f"{pt['lahde']}. Epävarmuus noin ±{fmt(pt['epavarmuus_kwh'])} kWh. "
+                   "luokka": None, "kuvaus": f"{pt['lahde']}. Mittaustarkkuus ±{fmt(pt['epavarmuus_kwh'])} kWh. "
                                              f"Mittauksen luotettavuus: {(pt.get('laatu_luokka') or '–').lower()}."})
         if bms.get("nfp_kwh"):
-            ar.append({"nimi": "Akunhallinnan arvio", "arvo": f"{fmt(bms['nfp_kwh'])} kWh", "luokka": None,
+            ar.append({"nimi": "Teslan akunhallinnan ilmoittama", "arvo": f"{fmt(bms['nfp_kwh'])} kWh", "luokka": None,
                        "kuvaus": f"Ero mitattuun {fmt(pt.get('ero_bms_pct'))} %."})
 
     cs = res.get("kennot")
@@ -668,7 +668,7 @@ def _summarize(res):
     parts = []
     if soh is not None:
         kwh = summary.get("kapasiteetti_kwh")
-        src = "akunhallinnan arvio" if summary.get("kunto_lahde") == "Akunhallinnan arvio" else "mitattu"
+        src = "Teslan akunhallinnan ilmoittama" if summary.get("kunto_lahde") == "Akunhallinnan arvio" else "mitattu"
         parts.append(f"Akun kapasiteetti on {fmt(soh, 1)} % alkuperäisestä ({src} {fmt(kwh)} kWh, "
                      f"uutena {fmt(ref)} kWh).")
         v = summary.get("vertailu")
@@ -692,7 +692,7 @@ def _summarize(res):
     if hr and hr["poikkeama_mv"] < -15:
         parts.append(f"Kennoryhmä {hr['nro']} on matalassa varauksessa {fmt(abs(hr['poikkeama_mv']), 0)} mV muita "
                      "alempana, mikä viittaa muita pienempään kapasiteettiin.")
-    summary["teksti"] = " ".join(parts) if parts else "Mittauksesta ei saatu riittävästi tietoa arvion tekemiseen."
+    summary["teksti"] = " ".join(parts) if parts else "Mittauksesta ei saatu riittävästi tietoa tuloksen muodostamiseen."
     if soh is not None:
         summary["tulkinta"] = interpretation(soh, cs, cap)
     res["yhteenveto"] = summary

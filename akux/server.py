@@ -535,6 +535,8 @@ class Api:
                     body.pop(k)
                 else:
                     body[k] = max(lo, min(hi, int(round(v)) if k != "lampotila_min" and k != "lampotila_max" else v))
+        if "tekninen_liite" in body:
+            body["tekninen_liite"] = str(body["tekninen_liite"]).lower() not in ("0", "false", "ei", "")
         return self.app.storage.save_settings(body)
 
     def esimerkit(self, q, body):
