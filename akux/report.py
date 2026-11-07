@@ -865,9 +865,14 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
                    "auton akunhallinnan jännite- ja virtamittauksista koko latauksen ajalta. Laturin häviöt eivät "
                    "siksi vaikuta tulokseen.", "body"))
         E.append(Spacer(1, 4 * mm))
-        t0 = samples[0]["t"] if samples else test["aloitettu"]
-        if samples:
-            E.append(_img(charts.capacity_chart(samples, t0), CW))
+        cs_ = samples
+        if tyyppi == "taysi":
+            # Täydessä testissä latauksen kaavio alkaa lepojaksosta ennen latausta (ajo-osuus omalla sivullaan)
+            cs_ = [x for x in samples if x.get("vaihe") in ("lepo_alku", "odota_lataus", "lataus", "lepo_loppu")] \
+                or samples
+        t0 = cs_[0]["t"] if cs_ else test["aloitettu"]
+        if cs_:
+            E.append(_img(charts.capacity_chart(cs_, t0), CW))
             E.append(Spacer(1, 3 * mm))
         if cap.get("valmis"):
             rows = [[P("Suure", "label"), P("Arvo", "label"), P("Peruste", "label")]]
@@ -933,10 +938,10 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
             side.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"),
                                       ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
             E.append(KeepTogether([Spacer(1, 3 * mm), P("Mittauksen luotettavuus", "h3"), side]))
-        if samples:
+        if cs_:
             E.append(CondPageBreak(55 * mm))
             E.append(Spacer(1, 4 * mm))
-            E.append(_img(charts.voltage_spread_chart(samples, t0), CW))
+            E.append(_img(charts.voltage_spread_chart(cs_, t0), CW))
 
     # ---------------- Purkumittaus (ajotestit ja täysi akkutesti) ------
     def result_table(rows_, highlight_):

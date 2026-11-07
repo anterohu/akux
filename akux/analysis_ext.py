@@ -241,7 +241,7 @@ def analyze_dc(meta: dict) -> dict | None:
         "aika_20_80_min": (t80 - t20) / 60 if (t20 and t80) else None,
         "jannite_ero_max_mv": max(deltas) if deltas else None,
         "lampotila_alku": temps[0] if temps else None, "lampotila_max": max(temps) if temps else None,
-        "kayra": [[c[1], c[2]] for c in curve],
+        "kayra": [[c[1], c[2]] for c in curve if c[2] >= 3],
     }
     d = out["jannite_ero_max_mv"] or 0
     out["luokka"] = "Erinomainen" if d <= 50 else "Hyvä" if d <= 80 else "Tyydyttävä" if d <= 120 else "Poikkeava"
