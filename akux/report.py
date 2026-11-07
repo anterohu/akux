@@ -812,7 +812,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         if purku.get("matka_km"):
             cond("Ajettu matka", f"{fmt(purku['matka_km'], 0)} km",
                  f"{purku['osat']} ajokertaa" if (purku.get("osat") or 1) > 1 else "Yksi ajokerta")
-    if kuorma.get("kuormitustapahtumat"):
+    if tyyppi == "kuormitus" and kuorma.get("kuormitustapahtumat"):
         cond("Kuormitustapahtumia", f"{kuorma['kuormitustapahtumat']} kpl",
              f"Suurin teho {fmt(kuorma.get('teho_max_kw'), 0)} kW")
     if dc.get("soc_alku") is not None:
@@ -827,7 +827,9 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
             cond("Kennojännitteiden näytteitä", f"{cs['naytteita']} kpl kennoryhmää kohden", "Tulos on näytteiden keskiarvo")
     src_info = meta.get("sovitin") or {}
     cond("Tietolähde", src_info.get("sovitin") or meta.get("lahde"), "Auton akunhallinta diagnostiikkaliitännän kautta")
-    E.append(_table(rows_c, [50 * mm, 64 * mm, CW - 114 * mm]))
+    # Lyhyt taulukko pidetään otsikkonsa kanssa samalla sivulla, jottei sivulle jää yksittäisiä rivejä
+    ct_ = _table(rows_c, [50 * mm, 64 * mm, CW - 114 * mm])
+    E.append(KeepTogether([E.pop(), ct_]))
 
     # Tietojen alkuperä ja vastuu
     E.append(Spacer(1, 6 * mm))

@@ -51,10 +51,24 @@ JATKETTAVAT_VAIHEET = {"lepo_ajo_alku", "ajo", "lepo_ajo_loppu", "lepo_alku", "o
                        "lepo_itse_alku", "odotus", "itse_loppu"}
 KUORMA_A = 80.0           # kuormitustapahtuman virtaraja (A)
 
+REG_WINDOW_S = 60.0       # resistanssin laskennan aikaikkuna (s)
 LEPO_VIRTA_A = 3.0        # tätä pienempi virta = auto levossa
 LATAUS_VIRTA_A = 2.0      # latausvirran tunnistusraja
 SAMPLE_INTERVAL = 5.0     # näytteenottoväli (s, mittausaikaa)
 SNAPSHOT_INTERVAL = 600.0
+
+
+def _reg_add(acc: list, win: list):
+    """Lisää aikaikkunan keskistetyt summat: Σ(i−ī)², Σ(i−ī)(v−v̄), Σ(v−v̄)²."""
+    if len(win) < 3:
+        return
+    n = len(win)
+    mi = sum(x[1] for x in win) / n
+    mv = sum(x[2] for x in win) / n
+    acc[0] += n - 1
+    acc[1] += sum((x[1] - mi) ** 2 for x in win)
+    acc[2] += sum((x[1] - mi) * (x[2] - mv) for x in win)
+    acc[3] += sum((x[2] - mv) ** 2 for x in win)
 
 
 class Recorder:
@@ -100,7 +114,12 @@ class Recorder:
         self.notes: list[str] = []
         self.finishing = False
         self.i2_out = 0.0            # ∫ I² dt purussa (A²s)
-        self.bricks_reg: dict = {}   # kennoryhmä -> [n, Σi, Σv, Σi², Σiv]
+        # Resistanssi lasketaan lyhyistä aikaikkunoista, joissa varaustila ei ehdi muuttua: kunkin ikkunan
+        # arvot keskistetään ikkunan keskiarvoon, jolloin lepojännitteen hidas muutos ei vääristä tulosta.
+        self.bricks_reg: dict = {}   # kennoryhmä -> [n, Sii, Siv, Svv] (keskistetyt summat)
+        self.pack_reg = [0, 0.0, 0.0, 0.0]
+        self._brick_win: dict = {}   # kennoryhmä -> [(t, i, v), ...]
+        self._pack_win: list = []
         self.p_max_kw = 0.0
         self.p_min_kw = 0.0
         self.v_min_load = None       # (V, numero, A) pienin kennoryhmän jännite kuormassa
@@ -156,6 +175,7 @@ class Recorder:
             t = self.last_hv[0] if self.last_hv else time.time()
             self._event(t, f"{reason}. Mittausta voi jatkaa myöhemmin.")
             st = self.app.decoder.state
+            self._flush_reg()
             self.marks["jatkotauko"] = {"t": t, "lataus_kwh": st.total_charge_kwh, "soc_avg": st.soc_avg,
                                    "vaihe": self.vaihe}
             self.flush()
@@ -223,7 +243,7 @@ class Recorder:
             st.add_event(tid, time.time(), "Kesken jäänyt mittaus hylättiin")
 
     _STATE_KEYS = ("vaihe", "marks", "gaps", "notes", "t_start", "e_in", "e_out", "ah_in", "ah_out", "i2_in",
-                   "i2_out", "bricks_reg", "p_max_kw", "p_min_kw", "v_min_load", "load_events", "curve", "osat",
+                   "i2_out", "bricks_reg", "pack_reg", "p_max_kw", "p_min_kw", "v_min_load", "load_events", "curve", "osat",
                    "brick_acc", "quick_started")
 
     def _state_dict(self) -> dict:
@@ -335,6 +355,14 @@ class Recorder:
                     self.app.notify("ongelmat", "Katko mittausdatassa",
                                     f"Autosta ei saatu tietoja {dt / 60:.0f} minuuttiin. Mittaus jatkuu.")
             self.last_hv = (t, v, i)
+            if self.vaihe in ("ajo", "kuormitus", "pikalataus"):
+                self._pack_win.append((t, i, v))
+                if t - self._pack_win[0][0] >= REG_WINDOW_S / 2:
+                    _reg_add(self.pack_reg, self._pack_win)
+                    self._pack_win = []
+            elif self._pack_win:
+                _reg_add(self.pack_reg, self._pack_win)
+                self._pack_win = []
             pk = v * i / 1000
             self.p_max_kw = max(self.p_max_kw, pk)
             self.p_min_kw = min(self.p_min_kw, pk)
@@ -384,17 +412,25 @@ class Recorder:
             acc[1] += 1
             acc[2] += v * v
         if self.vaihe not in ("ajo", "kuormitus", "pikalataus"):
+            if self._brick_win:
+                self._flush_reg()
             return
-        r = self.bricks_reg.get(k)
-        if r is None:
-            r = self.bricks_reg[k] = [0, 0.0, 0.0, 0.0, 0.0]
-        r[0] += 1
-        r[1] += i
-        r[2] += v
-        r[3] += i * i
-        r[4] += i * v
+        w = self._brick_win.setdefault(k, [])
+        w.append((t, i, v))
+        if t - w[0][0] >= REG_WINDOW_S:
+            _reg_add(self.bricks_reg.setdefault(k, [0, 0.0, 0.0, 0.0]), w)
+            self._brick_win[k] = []
         if i >= KUORMA_A and (self.v_min_load is None or v < self.v_min_load[0]):
             self.v_min_load = (v, k, i)
+
+    def _flush_reg(self):
+        for k, w in self._brick_win.items():
+            if w:
+                _reg_add(self.bricks_reg.setdefault(k, [0, 0.0, 0.0, 0.0]), w)
+        self._brick_win = {}
+        if self._pack_win:
+            _reg_add(self.pack_reg, self._pack_win)
+            self._pack_win = []
 
     def flush(self):
         if self.test_id and self.pending_samples:
@@ -845,6 +881,7 @@ class Recorder:
 
     def _finish(self, t):
         self.finishing = True
+        self._flush_reg()
         snap_name = {KAPASITEETTI: "lepo_loppu", TAYSI: "lepo_loppu", PIKA: "pikatarkastus"}.get(self.tyyppi, "loppu")
         snap = self._snapshot(t, snap_name)
         if self.tyyppi in (AJO, PIKA_AJO):
@@ -874,7 +911,8 @@ class Recorder:
         meta = {"merkinnat": self.marks, "aukot": self.gaps, "huomiot": self.notes,
                 "t_alku": self.t_start, "t_loppu": t, "lahde": self.app.source.name if self.app.source else None,
                 "sovitin": (self.app.source.info if self.app.source else {}),
-                "kuorma": {"kennot": {str(k): v for k, v in self.bricks_reg.items()}, "p_max_kw": self.p_max_kw,
+                "kuorma": {"kennot": {str(k): v for k, v in self.bricks_reg.items()}, "pakka": self.pack_reg,
+                           "p_max_kw": self.p_max_kw,
                            "p_min_kw": self.p_min_kw, "v_min": self.v_min_load, "tapahtumat": self.load_events,
                            "i2_out": self.i2_out, "e_out": self.e_out, "e_in": self.e_in},
                 "kayra": self.curve, "osat": self.osat}

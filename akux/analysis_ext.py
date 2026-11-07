@@ -31,34 +31,51 @@ def _counter_delta(c0, c1):
 # ----------------------------------------------------------------------
 # Kennoryhmien käytös kuormassa
 # ----------------------------------------------------------------------
+def _slope(acc):
+    """Keskistettyjen summien [n, Sii, Siv, Svv] kulmakerroin ja sen keskivirhe (resistanssi = −kulmakerroin)."""
+    if not acc or len(acc) < 4:
+        return None
+    n, sii, siv, svv = acc
+    if n < 20 or sii <= 0 or sii / n < 400:        # virran hajonnan pitää olla vähintään 20 A
+        return None
+    b = siv / sii
+    resid = max(svv - siv * siv / sii, 0.0) / max(n - 2, 1)
+    return -b, math.sqrt(resid / sii)
+
+
 def analyze_load(meta: dict, brick_count: int | None) -> dict | None:
     k = meta.get("kuorma") or {}
     regs = {int(a): b for a, b in (k.get("kennot") or {}).items()}
-    rs = {}
-    for nro, (n, si, sv, sii, siv) in regs.items():
-        if n < 20:
+    rs, ses = {}, {}
+    for nro, acc in regs.items():
+        res_ = _slope(acc)
+        if res_ is None:
             continue
-        var_i = sii / n - (si / n) ** 2
-        if var_i < 400:            # virran hajonnan pitää olla vähintään 20 A
-            continue
-        b = (n * siv - si * sv) / (n * sii - si * si)
-        r = -b
-        if 0 < r < 0.02:           # yhden kennoryhmän resistanssi on milliohmeja
-            rs[nro] = r
+        r, se = res_
+        if -0.002 < r < 0.02:      # yhden kennoryhmän resistanssi on alle 20 milliohmia
+            rs[nro], ses[nro] = r, se
     total = brick_count or (max(regs) if regs else 0)
-    if not rs or len(rs) < 0.8 * max(1, total):
+    if not rs or len(rs) < 0.9 * max(1, total):
         return None
+    pack = _slope(k.get("pakka"))
     vals = list(rs.values())
     med = statistics.median(vals)
+    if med <= 0:
+        return None
     worst = max(rs, key=rs.get)
     dev = {nro: (r / med - 1) * 100 for nro, r in rs.items()}
-    outliers = sorted(((nro, d) for nro, d in dev.items() if d >= 20), key=lambda x: -x[1])
+    # Poikkeava vain, jos ero mediaaniin on vähintään 20 % ja selvästi mittauksen epävarmuutta suurempi
+    outliers = sorted(((nro, d) for nro, d in dev.items()
+                       if d >= 20 and rs[nro] - med > 4 * ses[nro]), key=lambda x: -x[1])
     spread = (rs[worst] / med - 1) * 100
     luokka = "Erinomainen" if spread <= 10 else "Hyvä" if spread <= 20 else "Tyydyttävä" if spread <= 35 else "Poikkeava"
-    r_pack = sum(vals) * (total / len(rs)) if total else sum(vals)
+    r_sum = sum(vals) * (total / len(rs)) if total else sum(vals)
+    # Akun kokonaisresistanssi akun jännitteen ja virran riippuvuudesta (sisältää myös liitokset);
+    # jos sitä ei saatu, käytetään kennoryhmien summaa.
+    r_pack = pack[0] if (pack and 0.01 < pack[0] < 0.5) else r_sum
     vmin = k.get("v_min")
     return {
-        "r_akku_mohm": r_pack * 1000, "r_mediaani_mohm": med * 1000, "r_max_mohm": rs[worst] * 1000,
+        "r_akku_mohm": r_pack * 1000, "r_kennot_mohm": r_sum * 1000, "r_mediaani_mohm": med * 1000, "r_max_mohm": rs[worst] * 1000,
         "r_max_nro": worst, "hajonta_pct": spread, "luokka": luokka,
         "poikkeavat": [{"nro": a, "poikkeama_pct": b} for a, b in outliers[:10]],
         "ryhmat_mohm": [rs.get(i) * 1000 if rs.get(i) else None for i in range(1, total + 1)],
@@ -106,7 +123,9 @@ def analyze_discharge(res: dict, meta: dict, chem: str, n_bricks: int, ref_kwh, 
     out["kattavuus_pct"] = max(0.0, min(100.0, coverage * 100))
 
     # Akun sisäiset häviöt: R · ∫I²dt (R kennoryhmien mittauksesta tai kemian tyypillinen arvo)
-    r_ohm = (load or {}).get("r_akku_mohm", 0) / 1000 or DEFAULT_R_OHM.get(chem, 0.08)
+    r_ohm = (load or {}).get("r_akku_mohm", 0) / 1000
+    if not (0.3 * DEFAULT_R_OHM.get(chem, 0.08) < r_ohm < 3 * DEFAULT_R_OHM.get(chem, 0.08)):
+        r_ohm = DEFAULT_R_OHM.get(chem, 0.08)
     i2 = L.get("i2_out", 0) - A.get("i2_out", 0)
     if i2 > 0 and coverage > 0.2:
         loss = r_ohm * i2 / 3.6e6 / min(1.0, coverage)
@@ -318,9 +337,6 @@ def assessments(res: dict):
         res["huomiot"].append("Kuormitusta ei saatu riittävästi kennoryhmien vertailuun. Tee testissä useampi "
                               "reipas kiihdytys.")
     p = res.get("purku")
-    if p and p.get("valmis") and res["tyyppi"] == "taysi":
-        ar.append({"nimi": "Kapasiteetti ajossa (purku)", "arvo": f"{fmt(p['taysi_kwh'])} kWh", "luokka": None,
-                   "kuvaus": f"Epävarmuus noin ±{fmt(p['epavarmuus_kwh'])} kWh."})
     if p and p.get("valmis") and res["tyyppi"] == "pika_ajo" and "vahvistaa_bms" in p:
         ok = p["vahvistaa_bms"]
         ar.append({"nimi": "Akunhallinnan arvio ajossa", "arvo": "Vahvistettu" if ok else "Poikkeaa",
@@ -335,7 +351,8 @@ def assessments(res: dict):
         ar.append({"nimi": "Lataus- ja purkumittauksen vertailu",
                    "arvo": "Yhtäpitävät" if yh["yhtapitavat"] else "Ristiriitaiset",
                    "luokka": "Erinomainen" if yh["yhtapitavat"] else "Tyydyttävä",
-                   "kuvaus": f"Ero {fmt(yh['ero_kwh'], 2)} kWh ({fmt(yh['ero_pct'])} %)."})
+                   "kuvaus": f"Lataus {fmt(yh['lataus_kwh'])} kWh, purku ajossa {fmt(yh['purku_kwh'])} kWh. "
+                             f"Ero {fmt(yh['ero_kwh'], 2)} kWh ({fmt(yh['ero_pct'])} %)."})
         parts.append("Lataus- ja purkumittauksen tulokset ovat yhtäpitävät." if yh["yhtapitavat"] else
                      "Lataus- ja purkumittauksen tulokset poikkeavat toisistaan; tulos perustuu latausmittaukseen.")
     dc = res.get("pikalataus")

@@ -435,6 +435,7 @@ views.mittaus = {
     }
   },
   async renderNew() {
+    if ($("#mSub")) $("#mSub").textContent = "Valitse auto ja mittaus";
     const { ajoneuvot } = await api("/api/ajoneuvot");
     const s = await api("/api/asetukset");
     const known = S && S.auto_tunnettu ? S.auto_tunnettu.id : null;

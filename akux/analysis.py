@@ -271,7 +271,8 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
     else:
         _analyze_cells_other(res, snaps, meta, tyyppi)
 
-    load = ext.analyze_load(meta, brick_count)
+    # Kennoryhmien resistanssi lasketaan ajosta: kiihdytykset ja jarrutukset vaihtelevat virtaa nopeasti
+    load = ext.analyze_load(meta, brick_count) if tyyppi in ("kuormitus", "ajotesti", "pika_ajo", "taysi") else None
     if load:
         res["kuorma"] = load
     if tyyppi in ("ajotesti", "pika_ajo", "taysi"):

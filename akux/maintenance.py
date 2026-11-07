@@ -249,15 +249,19 @@ def selftest(app, full: bool = True) -> dict:
         import random
         from . import analysis_ext as ext
         rng = random.Random(3)
+        from .recorder import _reg_add
         regs = {}
         for k in range(1, 97):
             r = 0.00075 * (1.5 if k == 40 else 1.0)
-            n = si = sv = sii = siv = 0.0
-            for _ in range(60):
-                i = rng.choice((5.0, 350.0))
-                v = 3.9 - i * r + rng.gauss(0, 0.0003)
-                n, si, sv, sii, siv = n + 1, si + i, sv + v, sii + i * i, siv + i * v
-            regs[str(k)] = [n, si, sv, sii, siv]
+            acc = [0, 0.0, 0.0, 0.0]
+            for w in range(4):                      # neljä aikaikkunaa, joissa lepojännite on eri
+                ocv = 3.9 - 0.05 * w
+                win = []
+                for _ in range(20):
+                    i = rng.choice((5.0, 350.0))
+                    win.append((0.0, i, ocv - i * r + rng.gauss(0, 0.0003)))
+                _reg_add(acc, win)
+            regs[str(k)] = acc
         load = ext.analyze_load({"kuorma": {"kennot": regs}}, 96)
         if not load or load["r_max_nro"] != 40 or abs(load["r_akku_mohm"] - 72.6) > 3:
             return "virhe", "Kennoryhmien resistanssin laskenta ei tuottanut odotettua tulosta."
