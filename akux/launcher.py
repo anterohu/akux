@@ -195,8 +195,6 @@ def run_window(wv, url: str | None, test: bool = False, on_start=None, watch: bo
     def started():
         if test:
             print("Ikkunatesti: ikkuna auki", flush=True)
-        if watch and not test:
-            threading.Thread(target=watcher, name="akux-ikkunavahti", daemon=True).start()
         if on_start:
             on_start(win)
         if test:
@@ -220,6 +218,10 @@ def run_window(wv, url: str | None, test: bool = False, on_start=None, watch: bo
             print("Ikkunatesti:", "ok" if ok else "käyttöliittymä ei latautunut", flush=True)
             close_window(win, result["koodi"])
 
+    # Vahti käynnistetään heti eikä vasta ikkunan avauduttua: jos näyttökomponentti jumittuu
+    # käynnistyksessä, ikkunaprosessi päättyy silti, kun ohjelma suljetaan.
+    if watch and not test:
+        threading.Thread(target=watcher, name="akux-ikkunavahti", daemon=True).start()
     try:
         wv.settings["ALLOW_DOWNLOADS"] = True
         wv.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True
