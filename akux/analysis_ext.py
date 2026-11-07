@@ -142,7 +142,8 @@ def analyze_discharge(res: dict, meta: dict, chem: str, n_bricks: int, ref_kwh, 
     e_low = ah_full * soc1 / 100 * n_bricks * profiles.mean_ocv(chem, 0, soc1) / 1000 if soc1 > 0 else 0.0
     e_high = ah_full * (100 - soc0) / 100 * n_bricks * profiles.mean_ocv(chem, soc0, 100) / 1000 if soc0 < 100 else 0.0
 
-    su = 1.0 if (chem != "LFP" or soc0 >= 95) else 2.0
+    # LFP-akun varaustila on tarkimmillaan lähellä täyttä akkua, jossa akunhallinta kalibroituu
+    su = 1.0 if (chem != "LFP" or soc0 >= 90) else 2.0
     u_cnt = 0.01 * net
     u_soc = e_full * math.sqrt(2) * su / dsoc
     u_ext = 0.03 * (e_low + e_high)
