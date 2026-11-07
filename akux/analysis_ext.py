@@ -249,18 +249,48 @@ def analyze_self_discharge(meta: dict, chem: str) -> dict | None:
     rel24 = [((x - med) * 24 / h) if x is not None else None for x in dv]
     worst_i = min((i for i, x in enumerate(rel24) if x is not None), key=lambda i: rel24[i])
     worst = rel24[worst_i]
-    lim = 1.0 if chem == "LFP" else 2.0
-    out_list = [{"nro": i + 1, "mv_vrk": x} for i, x in enumerate(rel24) if x is not None and x <= -lim]
-    out_list.sort(key=lambda d: d["mv_vrk"])
-    luokka = ("Erinomainen" if worst > -lim / 2 else "Hyvä" if worst > -lim else
-              "Tyydyttävä" if worst > -2 * lim else "Poikkeava")
+    # Jännitteen muutos muunnetaan varauksen muutokseksi lepojännitekäyrän jyrkkyydellä. LFP-kennon käyrä on
+    # keskialueella lähes vaakasuora, jolloin pienikin jännite-ero vastaa suurta varauksen muutosta.
+    soc_mid = ((A.get("soc_avg") or 50) + (L.get("soc_avg") or A.get("soc_avg") or 50)) / 2
+    slope = max(0.2, profiles.ocv_slope(chem, soc_mid))          # mV / %-yks.
+    lim_pct = 0.3                                                # %-yks. vuorokaudessa
+    lim = lim_pct * slope                                        # sama raja millivoltteina
+    # Havaitsemisraja: kennoryhmän jännitteen keskiarvon epävarmuus (4 keskivirhettä) muunnettuna mV/vrk.
+    # Kaikki kennoryhmät mitataan samalla anturipiirillä: kohina arvioidaan kaikkien ryhmien mediaanina,
+    # ja kunkin ryhmän keskiarvon epävarmuus saadaan sen näytteiden määrästä. Kohinaa ei tulkita vuodoksi.
+    def pooled(mark):
+        sds = [x for x in (mark.get("kennot_sd") or []) if x is not None]
+        return statistics.median(sds) if sds else None
+    sd0, sd1 = pooled(A), pooled(L)
+    n0, n1 = A.get("kennot_n") or [], L.get("kennot_n") or []
+    thr = []
+    for k in range(len(dv)):
+        if sd0 is None or sd1 is None or k >= len(n0) or k >= len(n1) or not n0[k] or not n1[k]:
+            thr.append(lim)
+            continue
+        se = math.sqrt(sd0 ** 2 / n0[k] + sd1 ** 2 / n1[k]) * 1000
+        thr.append(max(lim, 4 * se * 24 / h))
+    det = statistics.median(thr)
+    sig = [i for i, x in enumerate(rel24) if x is not None and x <= -thr[i]]
+    out_list = sorted(({"nro": i + 1, "mv_vrk": rel24[i], "pct_vrk": rel24[i] / slope} for i in sig),
+                      key=lambda d: d["mv_vrk"])
+    mild = [i for i, x in enumerate(rel24) if x is not None and x <= -max(lim / 2, thr[i] * 0.75)]
+    if not mild:
+        luokka = "Erinomainen"
+    elif not sig:
+        luokka = "Hyvä"
+    else:
+        luokka = "Tyydyttävä" if min(rel24[i] for i in sig) > -2 * max(lim, det) else "Poikkeava"
+    riittava = det <= 1.5 * lim
     cd = _counter_delta(A.get("laskurit"), L.get("laskurit"))
     charged = bool(cd and cd[1] > 0.05)
     used = (cd[0] - cd[1]) if cd else None
     return {
         "tunnit": h, "muutos_mediaani_mv": med, "suhteellinen_mv_vrk": rel24,
         "heikoin_nro": worst_i + 1, "heikoin_mv_vrk": worst, "poikkeavat": out_list[:10], "luokka": luokka,
-        "raja_mv_vrk": lim, "seisonta_kwh": used, "seisonta_w": (used * 1000 / h) if used is not None else None,
+        "raja_mv_vrk": lim, "havaitsemisraja_mv_vrk": det, "riittava": riittava,
+        "jyrkkyys_mv_pct": slope, "raja_pct_vrk": lim_pct, "havaitsemisraja_pct_vrk": det / slope,
+        "heikoin_pct_vrk": worst / slope, "soc_keski": soc_mid, "seisonta_kwh": used, "seisonta_w": (used * 1000 / h) if used is not None else None,
         "soc_alku": A.get("soc_avg"), "soc_loppu": L.get("soc_avg"), "ladattu": charged,
         "lfp": chem == "LFP",
     }
@@ -291,6 +321,15 @@ def assessments(res: dict):
     if p and p.get("valmis") and res["tyyppi"] == "taysi":
         ar.append({"nimi": "Kapasiteetti ajossa (purku)", "arvo": f"{fmt(p['taysi_kwh'])} kWh", "luokka": None,
                    "kuvaus": f"Epävarmuus noin ±{fmt(p['epavarmuus_kwh'])} kWh."})
+    if p and p.get("valmis") and res["tyyppi"] == "pika_ajo" and "vahvistaa_bms" in p:
+        ok = p["vahvistaa_bms"]
+        ar.append({"nimi": "Akunhallinnan arvio ajossa", "arvo": "Vahvistettu" if ok else "Poikkeaa",
+                   "luokka": "Erinomainen" if ok else "Tyydyttävä",
+                   "kuvaus": f"Ajossa mitattu {fmt(p['taysi_kwh'])} ± {fmt(p['epavarmuus_kwh'])} kWh, "
+                             f"akunhallinnan arvio {fmt((res.get('bms') or {}).get('nfp_kwh'))} kWh."})
+        parts.append("Ajossa mitattu purku vastaa akunhallinnan arviota." if ok else
+                     "Ajossa mitattu purku poikkeaa akunhallinnan arviosta. Tarkka tulos saadaan "
+                     "kapasiteettimittauksella tai täydellä akkutestillä.")
     yh = res.get("yhdistetty")
     if yh:
         ar.append({"nimi": "Lataus- ja purkumittauksen vertailu",
@@ -311,20 +350,34 @@ def assessments(res: dict):
         res["huomiot"].append("Pikalatausta ei saatu mitattua.")
     sd = res.get("itsepurkaus")
     if sd:
-        ar.append({"nimi": "Kennoryhmien itsepurkautuminen", "arvo": f"{fmt(sd['heikoin_mv_vrk'], 1)} mV/vrk",
+        reliable = sd.get("riittava", True) and not sd["ladattu"]
+        if not reliable:
+            sd["luokka"] = None
+        ar.append({"nimi": "Kennoryhmien itsepurkautuminen", "arvo": f"{fmt(sd['heikoin_pct_vrk'], 2)} %/vrk",
                    "luokka": sd["luokka"],
-                   "kuvaus": f"Eniten muista poikkeava ryhmä {sd['heikoin_nro']}. Seisonta {fmt(sd['tunnit'], 1)} h."})
+                   "kuvaus": f"Eniten muista poikkeava ryhmä {sd['heikoin_nro']} ({fmt(sd['heikoin_mv_vrk'], 1)} mV/vrk). "
+                             f"Seisonta {fmt(sd['tunnit'], 1)} h."})
         if sd.get("seisonta_w") is not None:
             ar.append({"nimi": "Seisonnan energiankulutus", "arvo": f"{fmt(sd['seisonta_w'], 0)} W", "luokka": None,
                        "kuvaus": f"Auto käytti akusta {fmt(sd['seisonta_kwh'], 2)} kWh seisonnan aikana."})
-        parts.append("Itsepurkautuvia kennoryhmiä ei havaittu." if not sd["poikkeavat"] else
-                     "Muita nopeammin purkautuvia kennoryhmiä: " +
-                     ", ".join(f"ryhmä {x['nro']}" for x in sd["poikkeavat"][:5]) + ".")
+        if not sd.get("riittava", True):
+            if sd["lfp"] and 20 < sd["soc_keski"] < 85:
+                res["huomiot"].append(
+                    f"LFP-kennon lepojännite muuttuu {fmt(sd['soc_keski'], 0)} %:n varauksessa niin vähän, ettei "
+                    f"itsepurkautumista voi mitata luotettavasti (havaitsemisraja {fmt(sd['havaitsemisraja_pct_vrk'], 1)} "
+                    "%/vrk). Tee LFP-akun itsepurkaustesti heti täyteen latauksen jälkeen, yli 90 %:n varauksessa.")
+            else:
+                res["huomiot"].append(
+                    f"Mittaus ei ollut riittävän tarkka luotettavaan tulokseen (havaitsemisraja "
+                    f"{fmt(sd['havaitsemisraja_pct_vrk'], 1)} %/vrk). Toista testi pidemmällä seisonnalla, "
+                    "esimerkiksi yön yli.")
+        if reliable and not sd["poikkeavat"]:
+            parts.append("Itsepurkautuvia kennoryhmiä ei havaittu.")
+        elif reliable:
+            parts.append("Muita nopeammin purkautuvia kennoryhmiä: " +
+                         ", ".join(f"ryhmä {x['nro']}" for x in sd["poikkeavat"][:5]) + ".")
         if sd["ladattu"]:
             res["huomiot"].append("Autoa ladattiin seisonnan aikana. Itsepurkaustesti on tällöin epäluotettava.")
-        if sd["lfp"]:
-            res["huomiot"].append("LFP-kennon jännite muuttuu varaustilan mukana hyvin vähän. Itsepurkaustesti "
-                                  "havaitsee LFP-akussa vain selvät poikkeamat.")
     elif res["tyyppi"] == "itsepurkaus":
         res["huomiot"].append("Itsepurkaustestin alku- tai loppuarvoja ei saatu.")
     if parts:

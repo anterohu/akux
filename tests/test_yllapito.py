@@ -151,12 +151,12 @@ def test_yllapito():
 
         # esimerkkiautot: lisäys, raportit ja poisto
         _, e = call(base, "/api/esimerkit", "POST", {})
-        assert e["lisatty"] == 5 and e["autoja"] == 3, e
+        assert e["lisatty"] == 9 and e["autoja"] == 3, e
         _, e2 = call(base, "/api/esimerkit", "POST", {})
         assert e2["lisatty"] == 0, "esimerkit lisättiin kahdesti"
         _, lst = call(base, "/api/mittaukset")
         ex_tests = [t for t in lst["mittaukset"] if t["id"] != tid]
-        assert len(ex_tests) == 5
+        assert len(ex_tests) == 9
         for t in ex_tests:
             assert t["tila"] == "valmis" and t["kunto_pct"], t
             _, pdf_e = call(base, f"/api/mittaukset/{t['id']}/raportti.pdf")

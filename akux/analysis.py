@@ -8,6 +8,7 @@ import time
 from . import VERSIO, profiles
 from . import vin as vinmod
 
+TARKKUUSRAJA_PCT = 3.0   # päätuloksen suurin sallittu epävarmuus (kunto, %-yksikköä)
 SOH_LUOKAT = [(90, "Erinomainen"), (85, "Hyvä"), (80, "Tyydyttävä"), (70, "Heikentynyt"), (0, "Takuurajan alittava")]
 ERO_LUOKAT = [(15, "Erinomainen"), (30, "Hyvä"), (50, "Tyydyttävä"), (1e9, "Poikkeava")]
 
@@ -284,16 +285,39 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
     if tyyppi == "itsepurkaus":
         res["itsepurkaus"] = ext.analyze_self_discharge(meta, chem_key)
 
-    # Raportin päätulos: täydessä testissä yhdistetty, ajotesteissä purkumittaus
+    # Raportin päätulos: täydessä testissä yhdistetty, ajotestissä purkumittaus
+    cands = {"taysi": [(res.get("yhdistetty"), "Täysi akkutesti"), (res.get("kapasiteetti"), "Kapasiteettimittaus"),
+                       (res.get("purku"), "Ajotesti")],
+             "ajotesti": [(res.get("purku"), "Ajotesti")],
+             "kapasiteetti": [(res.get("kapasiteetti"), "Kapasiteettimittaus")]}.get(tyyppi, [])
+    # Pika-ajotesti ei anna kuntoprosenttia: lyhyen ajon varaustilan muutos ei riitä tarkkaan tulokseen.
+    # Se tarkistaa, vastaako akunhallinnan oma arvio ajossa mitattua.
+    pk = res.get("purku") or {}
+    if tyyppi == "pika_ajo" and pk.get("valmis") and nfp:
+        diff = pk["taysi_kwh"] - nfp
+        pk["vahvistaa_bms"] = abs(diff) <= max(2 * pk["epavarmuus_kwh"], 0.02 * nfp)
+    # Laatuportti: päätulokseksi kelpaa vain riittävän tarkka ja hyvälaatuinen mittaus
     primary = None
-    if tyyppi == "taysi":
-        primary = (res.get("yhdistetty"), "Täysi akkutesti") if res.get("yhdistetty") else \
-            ((res.get("kapasiteetti"), "Kapasiteettimittaus") if (res.get("kapasiteetti") or {}).get("valmis")
-             else (res.get("purku"), "Ajotesti"))
-    elif tyyppi in ("ajotesti", "pika_ajo"):
-        primary = (res.get("purku"), "Ajotesti" if tyyppi == "ajotesti" else "Pika-ajotesti")
-    elif tyyppi == "kapasiteetti":
-        primary = (res.get("kapasiteetti"), "Kapasiteettimittaus")
+    rejected = []
+    for c in cands:
+        p0 = c[0]
+        if not (p0 and p0.get("valmis")):
+            continue
+        u_pct = p0.get("soh_epavarmuus_pct")
+        if u_pct is None and ref_kwh and p0.get("epavarmuus_kwh"):
+            u_pct = p0["epavarmuus_kwh"] / ref_kwh * 100
+        if p0.get("laatu_luokka") == "Heikko" or (u_pct is not None and u_pct > TARKKUUSRAJA_PCT):
+            p0["hylatty"] = True
+            rejected.append(f"{c[1]} ei täyttänyt raportin tarkkuusvaatimusta (epävarmuus ±{fmt(u_pct)} "
+                            f"%-yksikköä, vaatimus enintään ±{fmt(TARKKUUSRAJA_PCT, 0)}"
+                            + (", mittauksen laatu heikko" if p0.get("laatu_luokka") == "Heikko" else "") + ").")
+            continue
+        primary = c
+        break
+    if rejected:
+        res["huomiot"].extend(rejected)
+        if not primary:
+            res["huomiot"].append("Akun kuntona näytetään Teslan akunhallinnan oma arvio.")
     if primary and primary[0] and primary[0].get("valmis"):
         res["paatulos"] = {**{k: primary[0].get(k) for k in ("taysi_kwh", "epavarmuus_kwh", "soh_pct",
                                                               "soh_epavarmuus_pct", "laatu_luokka")},

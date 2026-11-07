@@ -1028,12 +1028,14 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         E.append(Spacer(1, 3 * mm))
         vals = kuorma.get("ryhmat_mohm") or []
         if any(vals):
+            med_ = kuorma.get("r_mediaani_mohm") or 1
+            devs = [((x / med_ - 1) * 100) if x else None for x in vals]
             E.append(_img(charts.group_bar_chart(
-                vals, "Kennoryhmien sisäinen resistanssi", "mΩ",
-                highlight=[p["nro"] for p in kuorma.get("poikkeavat", [])], ref=kuorma.get("r_mediaani_mohm"),
-                decimals=2), CW))
-            E.append(P("Katkoviiva on kaikkien kennoryhmien mediaani. Korostetut ryhmät poikkeavat mediaanista "
-                       "vähintään 20 %.", "small"))
+                devs, "Kennoryhmien sisäinen resistanssi suhteessa mediaaniin", "Poikkeama (%)",
+                highlight=[p["nro"] for p in kuorma.get("poikkeavat", [])], center=True, decimals=0,
+                min_lim=30.0), CW))
+            E.append(P(f"Nollataso on kaikkien kennoryhmien mediaani ({fmt(med_, 3)} mΩ). Korostetut ryhmät "
+                       "poikkeavat mediaanista vähintään 20 %.", "small"))
             E.append(Spacer(1, 3 * mm))
         rows = [[P("Suure", "label"), P("Arvo", "label"), P("Selite", "label")]]
 
@@ -1090,29 +1092,38 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         E.append(PageBreak())
         E.append(P("Itsepurkautuminen", "h2"))
         E.append(P(f"Kennoryhmien lepojännitteet luettiin seisonnan alussa ja {fmt(itse['tunnit'], 1)} tunnin "
-                   "kuluttua. Kaikkien ryhmien jännite muuttuu seisonnassa yhtä paljon, koska ne ovat sarjassa. "
-                   "Muita nopeammin laskeva jännite viittaa kennoryhmän sisäiseen vuotoon.", "body"))
+                   "kuluttua. Sarjaan kytkettyjen ryhmien varaus muuttuu seisonnassa yhtä paljon, joten muita "
+                   "nopeammin laskeva jännite viittaa kennoryhmän sisäiseen vuotoon. Jännitteen muutos on muunnettu "
+                   "varauksen muutokseksi akkukemian lepojännitekäyrän avulla.", "body"))
         E.append(Spacer(1, 3 * mm))
+        slope_ = itse.get("jyrkkyys_mv_pct") or 1.0
+        lim_p = itse.get("raja_pct_vrk") or (itse["raja_mv_vrk"] / slope_)
+        det_p = itse.get("havaitsemisraja_pct_vrk") or lim_p
         E.append(_img(charts.group_bar_chart(
-            itse["suhteellinen_mv_vrk"], "Jännitteen muutos suhteessa muihin ryhmiin", "mV / vrk",
-            highlight=[p["nro"] for p in itse.get("poikkeavat", [])], center=True, decimals=1), CW))
-        E.append(P(f"Korostetut ryhmät laskevat yli {fmt(itse['raja_mv_vrk'], 1)} mV vuorokaudessa muita "
-                   "nopeammin.", "small"))
+            [(x / slope_) if x is not None else None for x in itse["suhteellinen_mv_vrk"]],
+            "Varauksen muutos suhteessa muihin kennoryhmiin", "%-yks. / vrk",
+            highlight=[p["nro"] for p in itse.get("poikkeavat", [])], center=True, decimals=2,
+            min_lim=2 * max(lim_p, det_p)), CW))
+        E.append(P(f"Korostetut ryhmät purkautuvat muita nopeammin enemmän kuin mittauksen havaitsemisraja "
+                   f"({fmt(det_p, 2)} %-yks./vrk).", "small"))
         E.append(Spacer(1, 3 * mm))
         rows = [[P("Suure", "label"), P("Arvo", "label"), P("Selite", "label")]]
 
         def addi(n, v, p=""):
             rows.append([P(n, "cell"), P(v, "cellb"), P(p, "small")])
         addi("Seisonta-aika", f"{fmt(itse['tunnit'], 1)} h", "")
+        addi("Varaustila", f"{fmt(itse.get('soc_alku'))} % → {fmt(itse.get('soc_loppu'))} %", "Akunhallinta")
         addi("Jännitteen muutos, mediaani", f"{_signed(itse['muutos_mediaani_mv'])} mV", "Kaikkien ryhmien yhteinen muutos")
         addi("Eniten poikkeava ryhmä", f"{itse['heikoin_nro']}",
-             f"{fmt(itse['heikoin_mv_vrk'], 2)} mV/vrk suhteessa muihin")
-        addi("Poikkeavat ryhmät", ", ".join(str(p["nro"]) for p in itse.get("poikkeavat", [])) or "Ei havaittu",
-             f"Raja {fmt(itse['raja_mv_vrk'], 1)} mV/vrk")
+             f"{fmt(itse.get('heikoin_pct_vrk', itse['heikoin_mv_vrk'] / slope_), 2)} %-yks./vrk "
+             f"({fmt(itse['heikoin_mv_vrk'], 2)} mV/vrk) suhteessa muihin")
+        addi("Havaitsemisraja", f"{fmt(det_p, 2)} %-yks./vrk",
+             f"Pienin luotettavasti havaittava poikkeama. Arviointiraja {fmt(lim_p, 1)} %-yks./vrk.")
+        addi("Poikkeavat ryhmät", ", ".join(str(p["nro"]) for p in itse.get("poikkeavat", [])) or "Ei havaittu", "")
         if itse.get("seisonta_w") is not None:
             addi("Auton energiankulutus seisonnassa", f"{fmt(itse['seisonta_w'], 0)} W",
                  f"{fmt(itse['seisonta_kwh'], 2)} kWh, Teslan energialaskurit")
-        addi("Luokka", itse.get("luokka") or "–", "")
+        addi("Luokka", itse.get("luokka") or "Ei arvioitu", "" if itse.get("luokka") else "Mittaus ei ollut riittävän tarkka")
         E.append(KeepTogether(_table(rows, [66 * mm, 40 * mm, CW - 106 * mm])))
 
     # ---------------- Kennoryhmät --------------------------------------
@@ -1330,8 +1341,10 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         meth += [
             ("Itsepurkautuminen", "Kennoryhmien lepojännitteet keskiarvoistetaan seisonnan alussa ja lopussa. "
              "Kunkin ryhmän muutoksesta vähennetään kaikkien ryhmien mediaanimuutos, jolloin auton oma kulutus "
-             "ja varaustilan lasku eivät vaikuta tulokseen. Tulos muunnetaan millivolteiksi vuorokaudessa. "
-             "Poikkeavan raja on 2 mV/vrk, LFP-akuilla 1 mV/vrk."),
+             "ja varaustilan lasku eivät vaikuta tulokseen. Jännitteen muutos muunnetaan varauksen muutokseksi "
+             "vuorokaudessa akkukemian lepojännitekäyrän jyrkkyydellä. Poikkeavaksi merkitään ryhmä, jonka muutos "
+             "ylittää 0,3 %-yksikköä vuorokaudessa ja mittauksen havaitsemisrajan. Havaitsemisraja lasketaan "
+             "jännitelukemien hajonnasta ja näytteiden määrästä, joten mittauskohinaa ei tulkita vuodoksi."),
         ]
     meth += [
         ("Kennoryhmät", "Kennoryhmien jännitteet luetaan akunhallinnasta 0,1 mV:n tarkkuudella. Poikkeavaksi "

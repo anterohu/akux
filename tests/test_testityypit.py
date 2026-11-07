@@ -94,7 +94,8 @@ def test_ajotesti_kahdessa_osassa(tmp):
     assert pu["osat"] == 2
     err = pu["taysi_kwh"] - src.nfp
     print(f"Ajotesti {pu['taysi_kwh']:.2f} kWh, todellinen {src.nfp}, ±{pu['epavarmuus_kwh']:.2f}, "
-          f"laatu {pu['laatu_luokka']}, matka {pu.get('matka_km')}")
+          f"laatu {pu['laatu_luokka']}, matka {pu.get('matka_km')}",
+          [q for q in pu["laatu"] if not q["ok"]])
     assert abs(err) < max(2.0, 1.5 * pu["epavarmuus_kwh"]), err
     assert r["paatulos"]["lahde"] == "Ajotesti"
     assert r["yhteenveto"]["kunto_lahde"] == "Ajotesti"
@@ -116,9 +117,14 @@ def test_pika_ajotesti(tmp):
     t = _done(app, tid)
     pu = t["tulos"]["purku"]
     assert pu["valmis"], pu
-    print(f"Pika-ajotesti {pu['taysi_kwh']:.2f} kWh ±{pu['epavarmuus_kwh']:.2f}, laatu {pu['laatu_luokka']}")
+    print(f"Pika-ajotesti {pu['taysi_kwh']:.2f} kWh ±{pu['epavarmuus_kwh']:.2f}, laatu {pu['laatu_luokka']}",
+          [q for q in pu["laatu"] if not q["ok"]])
     assert abs(pu["taysi_kwh"] - src.nfp) < max(3.0, 1.5 * pu["epavarmuus_kwh"])
     assert pu["laatu_luokka"] != "Hyvä"           # lyhyt ajo ja ohitettu lepo
+    r = t["tulos"]
+    assert "paatulos" not in r                    # pika-ajotesti ei anna kuntoprosenttia
+    assert r["yhteenveto"]["kunto_lahde"] == "Akunhallinnan arvio"
+    assert pu["vahvistaa_bms"] is True
     _report(app, tid)
     app.disconnect()
 
@@ -194,9 +200,10 @@ def test_pikalataustesti(tmp):
 
 def test_itsepurkaustesti_ja_tauko(tmp):
     app = _app(tmp)
-    src = BatterySimulator(soc=0.6, accel=600, weak_cell=None, leak_cell=12, leak_pct_day=0.6)
+    src = BatterySimulator(soc=0.6, accel=20, weak_cell=None, leak_cell=12, leak_pct_day=0.6)
     tid = _start(app, src, "itsepurkaus")
-    _phase(app, "odotus", 60)
+    _phase(app, "odotus", 120)
+    src.set_accel(600)
     app.disconnect()                       # yö: ohjelma suljetaan välillä
     assert app.storage.test(tid)["tila"] == "kesken"
     time.sleep(2)
@@ -204,12 +211,15 @@ def test_itsepurkaustesti_ja_tauko(tmp):
     app2.connect("demo", sim=src)
     assert wait_until(lambda: app2.decoder.state.vin, 20)
     app2.resume_test(tid)
+    _phase(app2, "itse_loppu", 120)
+    src.set_accel(20)
     t = _done(app2, tid, 200)
     sd = t["tulos"]["itsepurkaus"]
     print(f"Itsepurkaus {sd['tunnit']:.1f} h, heikoin {sd['heikoin_nro']} {sd['heikoin_mv_vrk']:.2f} mV/vrk, "
           f"luokka {sd['luokka']}")
     assert sd["heikoin_nro"] == 12
     assert sd["luokka"] in ("Tyydyttävä", "Poikkeava")
+    assert sd["riittava"] and len(sd["poikkeavat"]) == 1, sd["poikkeavat"]
     _report(app2, tid)
     app2.disconnect()
 
@@ -226,7 +236,33 @@ def test_hylkays(tmp):
     app.disconnect()
 
 
-ALL = [test_ajotesti_kahdessa_osassa, test_pika_ajotesti, test_taysi_akkutesti, test_kuormitustesti,
+def test_lataus_tauon_aikana(tmp):
+    app = _app(tmp)
+    src = BatterySimulator(soc=0.9, accel=400, weak_cell=None)
+    tid = _start(app, src, "ajotesti")
+    _phase(app, "ajo", 60)
+    src.set_mode("drive", 18.0)
+    assert wait_until(lambda: (app.decoder.state.soc_avg or 100) < 60, 120)
+    src.set_mode("park")
+    app.disconnect()
+    # Tauon aikana autoa ladataan (ohjelma ei ole yhteydessä)
+    src.set_mode("charge", 11.0)
+    for _ in range(600):
+        src._step(5.0)
+        src.sim_t += 5.0
+    src.set_mode("park")
+    app2 = _app(tmp)
+    app2.connect("demo", sim=src)
+    assert wait_until(lambda: app2.decoder.state.vin and app2.decoder.state.total_charge_kwh, 20)
+    app2.resume_test(tid)
+    assert wait_until(lambda: "jatkotauko" not in app2.recorder.marks, 20)
+    assert "ladattu_ajossa" in app2.recorder.marks
+    assert any("tauon aikana" in n for n in app2.recorder.notes)
+    app2.recorder.cancel()
+    app2.disconnect()
+
+
+ALL = [test_lataus_tauon_aikana, test_ajotesti_kahdessa_osassa, test_pika_ajotesti, test_taysi_akkutesti, test_kuormitustesti,
        test_pikalataustesti, test_itsepurkaustesti_ja_tauko, test_hylkays]
 
 if __name__ == "__main__":

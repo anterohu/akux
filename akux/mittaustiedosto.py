@@ -48,7 +48,7 @@ def file_name(test: dict, vehicle: dict | None) -> str:
     v = vehicle or {}
     who = v.get("rekisteri") or v.get("nimi") or (v.get("vin") or "")[-6:] or "auto"
     day = time.strftime("%Y-%m-%d", time.localtime(test["aloitettu"]))
-    kind = "kapasiteetti" if test["tyyppi"] == "kapasiteetti" else "pikatarkastus"
+    kind = re.sub(r"[^a-z_]", "", str(test.get("tyyppi") or "mittaus")) or "mittaus"
     return f"Akux_{_safe(who)}_{day}_{kind}_{test['id']:05d}"
 
 

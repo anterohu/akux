@@ -335,6 +335,8 @@ function demoControls() {
     <div class="row" style="margin-top:8px">
       <button class="btn sm" data-d="park">Pysäköity</button>
       <button class="btn sm" data-d="drive">Ajo</button>
+      <button class="btn sm" data-d="kiihdytys">Kiihdytykset</button>
+      <button class="btn sm" data-d="pikalataus">Pikalataus</button>
       <button class="btn sm" data-d="charge" data-p="7">Lataus 7 kW</button>
       <button class="btn sm" data-d="charge" data-p="11">Lataus 11 kW</button>
       <span class="spacer"></span>
@@ -350,7 +352,7 @@ function bindDemo(root) {
 function updateDemo() {
   const d = S.yhteys.demo, el = $("#demoState");
   if (!d || !el) return;
-  el.textContent = " · " + ({ park: "pysäköity", drive: "ajossa", charge: "latauksessa", sleep: "lepotilassa" }[d.tila] || d.tila);
+  el.textContent = " · " + ({ park: "pysäköity", drive: "ajossa", kiihdytys: "kiihdytyksiä", pikalataus: "pikalatauksessa", charge: "latauksessa", sleep: "lepotilassa" }[d.tila] || d.tila);
   const acc = $("#demoAcc");
   if (acc && document.activeElement !== acc) acc.value = String(d.nopeutus);
 }
@@ -358,18 +360,64 @@ function updateDemo() {
 // =====================================================================
 // MITTAUS
 // =====================================================================
+const TYYPPI = {
+  pikatarkastus: "Pikatarkastus", kapasiteetti: "Kapasiteettimittaus", taysi: "Täysi akkutesti",
+  ajotesti: "Ajotesti", pika_ajo: "Pika-ajotesti", kuormitus: "Kuormitustesti",
+  pikalataus: "Pikalataustesti", itsepurkaus: "Itsepurkaustesti",
+};
+const tyyppi = t => TYYPPI[t] || t;
+const AJO_TURVA = "Älä käytä ohjelmaa ajon aikana. Aseta tietokone tai puhelin niin, ettei se liiku ajossa.";
 const PHASE_TEXT = {
   keruu: ["Tietoja luetaan", "Ohjelma lukee akunhallinnan tiedot ja kaikkien kennoryhmien jännitteet. Pidä auto paikallaan. Tarkastus kestää yleensä 1–3 minuuttia."],
   lepo_alku: ["Akku lepää ennen latausta", "Pidä auto pysäköitynä ja hereillä, esimerkiksi ilmastointi päällä tai Leiriytymistila käytössä, jotta sovitin saa virtaa. Lepo tasaa kennojännitteet ja antaa tarkan lähtötason. Jos kytket latauksen jo nyt, mittaus siirtyy suoraan lataukseen."],
   odota_lataus: ["Aloita lataus", "Aseta latausrajaksi 100 % Tesla-sovelluksessa tai auton näytöllä. Kytke latauskaapeli ja aloita lataus. Käytä tavallista vaihtovirtalatausta, enintään 11 kW. Pikalatausta ei käytetä, koska suuri virta lisää häviöitä ja lämpenemistä. Ohjelma tunnistaa latauksen alkamisen itse."],
   lataus: ["Lataus käynnissä", "Mittaus jatkuu itsestään, kunnes akunhallinta ilmoittaa akun täydeksi. Älä irrota sovitinta. Tietokone saa jäädä autoon, kunhan se ei mene lepotilaan."],
   lepo_loppu: ["Akku lepää latauksen jälkeen", "Lataus on valmis. Älä käytä autoa lepojakson aikana. Kennojännitteet tasaantuvat, ja lopulliset arvot tallennetaan raporttia varten."],
+  lepo_ajo_alku: ["Akku lepää ennen ajoa", "Pidä auto pysäköitynä ja hereillä. Lepo antaa tarkan lähtövarauksen. Jos lähdet ajamaan ennen lepojakson loppua, mittaus jatkuu, mutta tulos on epätarkempi."],
+  ajo: ["Aja autoa", "Aja tavalliseen tapaan, kunnes tavoite on saavutettu. Ajon voi jakaa useaan kertaan: valitse Jatka myöhemmin, kun pysäköit, ja jatka mittausta seuraavalla ajokerralla. Älä lataa autoa ennen kuin tavoite on saavutettu. " + AJO_TURVA],
+  lepo_ajo_loppu: ["Akku lepää ajon jälkeen", "Pysäköi auto ja pidä se hereillä lepojakson ajan. Lepo antaa tarkan loppuvarauksen. Älä kytke latausta ennen kuin mittaus on valmis."],
+  kuorma_lepo: ["Lepoarvot", "Pidä auto paikallaan. Ohjelma lukee kennoryhmien lepojännitteet ennen kiihdytyksiä."],
+  kuormitus: ["Tee kiihdytykset", "Tee turvallisessa paikassa reippaita kiihdytyksiä, esimerkiksi 30–80 km/h, ja noudata liikennesääntöjä. Ohjelma laskee kiihdytykset itse. Pysäköi auto lopuksi, niin mittaus päättyy. " + AJO_TURVA],
+  odota_pikalataus: ["Aloita pikalataus", "Navigoi pikalaturille auton navigaattorilla, jotta akku esilämmitetään ja teho on vertailukelpoinen. Kytke laturi. Ohjelma tunnistaa latauksen alkamisen itse."],
+  pikalataus: ["Pikalataus käynnissä", "Anna latauksen jatkua vähintään 80 %:iin. Mittaus päättyy, kun lataus loppuu, tai voit lopettaa sen painikkeesta."],
+  lepo_itse_alku: ["Lepo ja lähtöarvot", "Pysäköi auto ja pidä se hereillä lepojakson ajan. Lopuksi ohjelma lukee kaikkien kennoryhmien lähtöjännitteet."],
+  odotus: ["Seisonta", "Auto saa nyt nukkua. Valitse Jatka myöhemmin ja sulje ohjelma. Kun seisonta-aika on kulunut, herätä auto, kytke sovitin ja jatka mittausta Mittaus-sivulta. Älä aja tai lataa autoa seisonnan aikana."],
+  itse_loppu: ["Loppuarvot", "Ohjelma lukee kennoryhmien loppujännitteet. Pidä auto paikallaan."],
   valmis: ["Valmis", "Mittaus on valmis."],
+};
+const TESTIRYHMAT = s => [
+  ["Paikallaan", [
+    ["pikatarkastus", "Akunhallinnan kapasiteettiarvio, kaikkien kennoryhmien jännitteet, lämpötilat ja elinkaaritiedot. Sopii esimerkiksi kauppatilanteeseen.", "1–3 minuuttia"],
+    ["kapasiteetti", `Akun todellinen kapasiteetti mitattuna latauksen aikana. Aloita mahdollisimman tyhjästä akusta, enintään ${s.kapasiteetti_lahto_soc_max} %:n varauksesta.`, "Yleensä 8–14 tuntia"],
+    ["itsepurkaus", "Kennoryhmien jännitteet seisonnan alussa ja lopussa. Paljastaa kennoryhmän, joka purkautuu muita nopeammin. LFP-akussa aloitetaan täydestä akusta.", `Yön yli, vähintään ${s.itsepurkaus_tunnit} tuntia`],
+  ]],
+  ["Ajossa", [
+    ["taysi", "Kapasiteetti mitataan kahdesti: purkamalla ajossa ja lataamalla täyteen. Kaksi riippumatonta mittausta antaa tarkimman tuloksen.", "Ajo täydestä akusta alle 15 %:iin ja lataus, yleensä 1–2 päivää"],
+    ["ajotesti", `Kapasiteetti mitattuna tavallisessa ajossa. Aloita täydestä akusta ja aja enintään ${s.ajo_loppu_soc} %:n varaukseen. Ajon voi jakaa useaan kertaan.`, "Yksi tai useampi ajokerta"],
+    ["pika_ajo", `Tarkistaa, vastaako akunhallinnan kapasiteettiarvio ajossa mitattua. Varaus laskee ${s.pika_ajo_soc} %-yksikköä. Ei anna omaa kuntoprosenttia.`, "Noin 1–2 tunnin ajo"],
+    ["kuormitus", `Kennoryhmien sisäinen resistanssi ${s.kuormitus_tapahtumat} reippaalla kiihdytyksellä. Paljastaa heikon kennoryhmän tai liitoksen.`, "Noin 10 minuuttia"],
+  ]],
+  ["Pikalaturilla", [
+    ["pikalataus", "Latausteho, latauskäyrä ja kennoryhmien tasaisuus suurella latausvirralla. Aloita alle 30 %:n varauksesta.", "30–45 minuuttia"],
+  ]],
+];
+const SKIP = {
+  lepo_alku: ["Lyhennä lepoa", "Lyhennetäänkö lepojakso? Lyhyt lepo heikentää tuloksen tarkkuutta."],
+  lataus: ["Lopeta lataus tähän", "Lopetetaanko lataus tähän? Kapasiteetti lasketaan siihen asti mitatusta osuudesta."],
+  lepo_loppu: ["Valmis nyt", "Lopetetaanko lepojakso ja tehdäänkö raportti nyt?"],
+  keruu: ["Valmis nyt", "Lopetetaanko tietojen keruu nyt?"],
+  lepo_ajo_alku: ["Lyhennä lepoa", "Lyhennetäänkö lepojakso? Lyhyt lepo heikentää tuloksen tarkkuutta."],
+  ajo: ["Lopeta ajo tähän", "Lopetetaanko ajo-osuus tähän? Tulos lasketaan siihen asti ajetusta osuudesta, ja lyhyt ajo heikentää tarkkuutta."],
+  lepo_ajo_loppu: ["Valmis nyt", "Lopetetaanko lepojakso ja tehdäänkö raportti nyt? Lyhyt lepo heikentää tuloksen tarkkuutta."],
+  kuorma_lepo: ["Ohita", "Ohitetaanko lepoarvojen lukeminen?"],
+  kuormitus: ["Valmis nyt", "Lopetetaanko kuormitustesti ja tehdäänkö raportti nyt?"],
+  pikalataus: ["Valmis nyt", "Lopetetaanko pikalataustesti ja tehdäänkö raportti nyt?"],
+  lepo_itse_alku: ["Lyhennä lepoa", "Lyhennetäänkö lepojakso? Lähtöarvot luetaan heti."],
 };
 
 views.mittaus = {
   render() {
-    view.innerHTML = `<div class="head"><div><h1>Mittaus</h1><div class="muted" id="mSub">Pikatarkastus tai kapasiteettimittaus</div></div></div><div id="mBody"></div>`;
+    view.innerHTML = `<div class="head"><div><h1>Mittaus</h1><div class="muted" id="mSub">Valitse auto ja mittaus</div></div></div><div id="mBody"></div>`;
     this.mode = null;
   },
   async update(S) {
@@ -395,7 +443,13 @@ views.mittaus = {
       b.innerHTML = `<div class="card empty"><p>Lisää ensin auto. Ohjelma tunnistaa mallin valmistenumerosta.</p><a class="btn primary" href="#/autot/uusi">Lisää auto</a></div>`;
       return;
     }
+    const { mittaukset } = await api("/api/mittaukset");
+    const open = mittaukset.filter(t => t.tila === "kesken");
     b.innerHTML = `
+      ${open.length ? `<div class="card"><h2>Kesken olevat mittaukset</h2>
+        <p class="small muted">Nämä mittaukset jatkuvat siitä, mihin ne jäivät. Kytke sovitin samaan autoon ja valitse Jatka.</p>
+        <table class="t">${open.map(t => `<tr><td><b>${esc(tyyppi(t.tyyppi))}</b><div class="small muted">${esc(t.ajoneuvo || "")}${t.rekisteri ? " · " + esc(t.rekisteri) : ""} · aloitettu ${date(t.aloitettu)}</div></td>
+          <td class="num" style="white-space:nowrap"><button class="btn sm primary" data-jatka="${t.id}">Jatka</button> <button class="btn sm" data-hylkaa="${t.id}">Hylkää</button></td></tr>`).join("")}</table></div>` : ""}
       <div id="mWarn"></div>
       <div class="card">
         <h2>1. Valitse auto</h2>
@@ -404,14 +458,8 @@ views.mittaus = {
       </div>
       <div class="card">
         <h2>2. Valitse mittaus</h2>
-        <div class="choice">
-          <button data-t="pikatarkastus"><div class="ttl">Pikatarkastus</div>
-            <div class="small muted">Akunhallinnan kapasiteettiarvio, kaikkien kennoryhmien jännitteet, lämpötilat ja elinkaaritiedot. Sopii esimerkiksi kauppatilanteeseen.</div>
-            <div class="dur">Kesto noin 1–3 minuuttia</div></button>
-          <button data-t="kapasiteetti"><div class="ttl">Kapasiteettimittaus</div>
-            <div class="small muted">Akun todellinen kapasiteetti mitattuna latauksen aikana. Aloita mahdollisimman tyhjästä akusta, enintään ${esc(s.kapasiteetti_lahto_soc_max)} %:n varauksesta.</div>
-            <div class="dur">Kesto latauksen pituus ja lepojaksot, yleensä 8–14 tuntia</div></button>
-        </div>
+        ${TESTIRYHMAT(s).map(([g, items]) => `<h3 class="grp">${g}</h3><div class="choice">${items.map(([k, txt, d]) =>
+          `<button data-t="${k}"><div class="ttl">${tyyppi(k)}</div><div class="small muted">${esc(txt)}</div><div class="dur">${esc(d)}</div></button>`).join("")}</div>`).join("")}
       </div>
       <div class="card">
         <h2>3. Tiedot raporttiin</h2>
@@ -432,6 +480,11 @@ views.mittaus = {
         o.viimeisin_kunto_pct ? `edellinen kunto ${n(o.viimeisin_kunto_pct)} %` : "ei aiempia mittauksia"].filter(Boolean).join(" · ");
     };
     $("#mVeh").onchange = hint; hint();
+    $$("[data-jatka]", b).forEach(x => (x.onclick = () => act(() => api(`/api/mittaukset/${x.dataset.jatka}/jatka`, { method: "POST" }), "Mittaus jatkuu").then(poll)));
+    $$("[data-hylkaa]", b).forEach(x => (x.onclick = () => {
+      if (!confirm("Hylätäänkö kesken oleva mittaus? Siitä ei tehdä raporttia.")) return;
+      act(() => api(`/api/mittaukset/${x.dataset.hylkaa}/hylkaa`, { method: "POST" }), "Mittaus hylätty").then(() => { this.mode = null; poll(); });
+    }));
     $$(".choice button").forEach(btn => (btn.onclick = () => {
       $$(".choice button").forEach(x => x.classList.remove("sel"));
       btn.classList.add("sel");
@@ -450,6 +503,8 @@ views.mittaus = {
     if (!S.yhteys.kaynnissa) msg = `<div class="notice warn"><b>Ei yhteyttä autoon.</b> Yhdistä sovittimeen <a href="#/yleiskuva">Yleiskuva</a>-sivulla.</div>`;
     else if (!S.vaylatesti || !S.vaylatesti.kunnossa) msg = `<div class="notice warn">Odotetaan akun tietoja autosta…</div>`;
     else if (this.type === "kapasiteetti" && S.live.soc_ui > 15) msg = `<div class="notice warn">Akun varaus on ${n(S.live.soc_ui)} %. Tarkin tulos saadaan, kun lataus aloitetaan enintään 15 %:n varauksesta. Voit silti aloittaa mittauksen.</div>`;
+    else if ((this.type === "taysi" || this.type === "ajotesti") && S.live.soc_ui != null && S.live.soc_ui < 80) msg = `<div class="notice warn">Akun varaus on ${n(S.live.soc_ui)} %. Tarkin tulos saadaan, kun ajo aloitetaan vähintään 80 %:n varauksesta. Voit silti aloittaa mittauksen.</div>`;
+    else if (this.type === "pikalataus" && S.live.soc_ui != null && S.live.soc_ui > 30) msg = `<div class="notice warn">Akun varaus on ${n(S.live.soc_ui)} %. Latauskäyrä saadaan kattavimmin, kun lataus aloitetaan alle 30 %:n varauksesta.</div>`;
     if (w.innerHTML !== msg) w.innerHTML = msg;
     const ready = S.yhteys.kaynnissa && S.vaylatesti && S.vaylatesti.kunnossa && this.type;
     st.disabled = !ready;
@@ -460,7 +515,7 @@ views.mittaus = {
       <div class="steps" id="aSteps"></div>
       <div class="grid g2">
         <div class="card"><h2 id="aTitle"></h2><p id="aText"></p><div id="aProg"></div>
-          <div class="row" style="margin-top:14px"><button class="btn" id="aSkip"></button><span class="spacer"></span><button class="btn danger" id="aCancel">Keskeytä mittaus</button></div>
+          <div class="row" style="margin-top:14px"><button class="btn" id="aSkip"></button><button class="btn primary" id="aPause" style="display:none">Jatka myöhemmin</button><span class="spacer"></span><button class="btn danger" id="aCancel">Keskeytä mittaus</button></div>
         </div>
         <div class="card"><h2>Tarkistukset</h2><ul class="checks" id="aChecks"></ul>
           <h3>Mittaus</h3><dl class="kv" id="aKv"></dl></div>
@@ -471,11 +526,10 @@ views.mittaus = {
       if (!confirm("Keskeytetäänkö mittaus? Keskeytetystä mittauksesta ei tehdä raporttia.")) return;
       act(() => api("/api/mittaukset/aktiivinen/keskeyta", { method: "POST" }), "Mittaus keskeytetty").then(() => { this.lastId = null; poll(); });
     };
+    $("#aPause").onclick = () => act(() => api("/api/mittaukset/aktiivinen/tauko", { method: "POST" }),
+      "Mittaus tallennettu. Jatka sitä myöhemmin Mittaus-sivulta.").then(() => { this.lastId = null; poll(); });
     $("#aSkip").onclick = () => {
-      const v = S.mittaus.vaihe;
-      const q = { lepo_alku: "Lyhennetäänkö lepojakso? Lyhyt lepo heikentää tuloksen tarkkuutta.",
-        lataus: "Lopetetaanko lataus tähän? Kapasiteetti lasketaan siihen asti mitatusta osuudesta.",
-        lepo_loppu: "Lopetetaanko lepojakso ja tehdäänkö raportti nyt?", keruu: "Lopetetaanko tietojen keruu nyt?" }[v];
+      const q = (SKIP[S.mittaus.vaihe] || [])[1];
       if (q && !confirm(q)) return;
       act(() => api("/api/mittaukset/aktiivinen/ohita", { method: "POST" })).then(poll);
     };
@@ -484,7 +538,7 @@ views.mittaus = {
   updateActive(S) {
     const m = S.mittaus, L = S.live;
     this.lastId = m.test_id;
-    $("#mSub").textContent = (m.tyyppi === "kapasiteetti" ? "Kapasiteettimittaus" : "Pikatarkastus") + ` · kesto ${dur(m.kesto_s)}`;
+    $("#mSub").textContent = tyyppi(m.tyyppi) + ` · kesto ${dur(m.kesto_s)}` + (m.osat > 1 ? ` · osa ${m.osat}` : "");
     const idx = m.vaiheet.findIndex(v => v.id === m.vaihe);
     $("#aSteps").innerHTML = m.vaiheet.map((v, i) => `<div class="s ${i < idx ? "done" : (i === idx ? "now" : "")}">${i + 1}. ${esc(v.nimi)}</div>`).join("");
     const [ttl, txt] = PHASE_TEXT[m.vaihe] || ["", ""];
@@ -508,11 +562,37 @@ views.mittaus = {
       prog = `<div class="row small"><span>Kennoryhmiä luettu ${m.kennot_luettu}/${m.kennot_yht || "–"}</span></div><div class="bar"><i style="width:${p}%"></i></div>`;
     } else if (m.vaihe === "odota_lataus") {
       prog = `<div class="notice">Odotetaan latauksen alkamista. Varaus nyt ${n(L.soc_ui)} %.</div>`;
+    } else if (m.vaihe === "ajo") {
+      const a = m.ajo_alku_soc, z = m.ajo_tavoite_soc, c = m.soc_nyt;
+      const p = (a != null && z != null && c != null && a > z) ? Math.max(0, Math.min(100, (a - c) / (a - z) * 100)) : 0;
+      prog = `<div class="row small"><span>Tavoite: ${esc(m.ajo_tavoite)}</span><span class="spacer"></span><span class="muted">alussa ${n(a)} %</span></div><div class="bar"><i style="width:${p}%"></i></div>
+        <div class="grid g3" style="margin-top:14px">
+          ${miniStat("Varaus nyt", n(c), "%")}
+          ${miniStat("Ajettu", m.ajo_km != null ? n(m.ajo_km, 0) : "–", "km")}
+          ${miniStat("Energiaa akusta", n(m.ajo_kwh, 1), "kWh")}
+        </div>${m.tavoite_saavutettu ? `<div class="notice good" style="margin-top:12px"><b>Tavoite saavutettu.</b> Pysäköi auto, niin mittaus jatkuu lepojaksolla.</div>` : ""}`;
+    } else if (m.tyyppi === "kuormitus" && m.vaihe === "kuormitus") {
+      const p = Math.min(100, m.kuorma_tapahtumat / m.kuorma_tavoite * 100);
+      prog = `<div class="row small"><span>Kiihdytyksiä ${m.kuorma_tapahtumat}/${m.kuorma_tavoite}</span><span class="spacer"></span><span class="muted">suurin teho ${m.teho_max_kw ? n(m.teho_max_kw, 0) + " kW" : "–"}</span></div><div class="bar"><i style="width:${p}%"></i></div>
+        ${m.kuorma_tapahtumat >= m.kuorma_tavoite ? `<div class="notice good" style="margin-top:12px">Kiihdytyksiä on riittävästi. Pysäköi auto, niin mittaus päättyy.</div>` : ""}`;
+    } else if (m.vaihe === "pikalataus") {
+      prog = `<div class="row small"><span>Varaus ${n(m.soc_nyt)} %</span></div><div class="bar"><i style="width:${m.soc_nyt || 0}%"></i></div>
+        <div class="grid g3" style="margin-top:14px">
+          ${miniStat("Teho nyt", m.teho_kw != null ? n(Math.max(0, m.teho_kw), 0) : "–", "kW")}
+          ${miniStat("Huipputeho", m.huipputeho_kw != null ? n(m.huipputeho_kw, 0) : "–", "kW")}
+          ${miniStat("Ladattu", n(m.lataus_kwh, 1), "kWh")}
+        </div>`;
+    } else if (m.vaihe === "odota_pikalataus") {
+      prog = `<div class="notice">Odotetaan pikalatauksen alkamista. Varaus nyt ${n(L.soc_ui)} %.</div>`;
+    } else if (m.vaihe === "odotus") {
+      const p = Math.min(100, m.odotus_s / m.odotus_tavoite_s * 100);
+      prog = `<div class="row small"><span>Seisonta ${dur(m.odotus_s)}</span><span class="spacer"></span><span class="muted">tavoite ${dur(m.odotus_tavoite_s)}</span></div><div class="bar"><i style="width:${p}%"></i></div>`;
     }
     $("#aProg").innerHTML = prog;
-    const skip = { lepo_alku: "Lyhennä lepoa", lataus: "Lopeta lataus tähän", lepo_loppu: "Valmis nyt", keruu: "Valmis nyt" }[m.vaihe];
+    const skip = (SKIP[m.vaihe] || [])[0];
     $("#aSkip").style.display = skip ? "" : "none";
     $("#aSkip").textContent = skip || "";
+    $("#aPause").style.display = m.voi_tauottaa ? "" : "none";
     $("#aChecks").innerHTML = m.tarkistukset.map(c => `<li><span class="ic ${c.ok === true ? "ok" : (c.ok === false ? "no" : "na")}">${c.ok === true ? "✓" : (c.ok === false ? "!" : "·")}</span>
       <div style="flex:1"><div class="row"><span>${esc(c.nimi)}</span><span class="spacer"></span><b>${esc(c.arvo)}</b></div>${c.ohje ? `<div class="small muted">${esc(c.ohje)}</div>` : ""}</div></li>`).join("");
     $("#aKv").innerHTML = `<dt>Varaus</dt><dd>${n(L.soc_ui)} %</dd><dt>Jännite</dt><dd>${n(L.pack_v)} V</dd><dt>Virta</dt><dd>${n(L.pack_i)} A</dd>
@@ -543,7 +623,7 @@ views.autot = {
     const hasEx = ajoneuvot.some(v => v.opitut && v.opitut.esimerkki);
     view.innerHTML = `<div class="head"><div><h1>Autot</h1><div class="muted">Tallennetut autot ja niiden mittaushistoria</div></div>
       <div class="row"><button class="btn" id="vEx">${hasEx ? "Poista esimerkkiautot" : "Lisää esimerkkiautot"}</button><a class="btn primary" href="#/autot/uusi">Lisää auto</a></div></div>
-      ${hasEx ? "" : `<p class="small muted" style="margin:-8px 0 16px">Esimerkkiautoissa on valmiit mittaukset ja raportit (Model 3 LFP, Model Y ja Model S), joten näet heti, miltä kaikki näyttää.</p>`}
+      ${hasEx ? "" : `<p class="small muted" style="margin:-8px 0 16px">Esimerkkiautoissa (Model 3 LFP, Model Y ja Model S) on valmiit raportit kaikista mittaustyypeistä, joten näet heti, miltä kaikki näyttää.</p>`}
       <div class="card" id="vList"></div>`;
     $("#vEx").onclick = () => hasEx
       ? (confirm("Poistetaanko esimerkkiautot ja niiden mittaukset? Omiin autoihisi ei kosketa.") &&
@@ -657,11 +737,11 @@ function testTable(rows, withCar = false) {
   if (!rows.length) return `<div class="empty">Ei mittauksia.</div>`;
   return `<table class="t"><tr><th>Päivämäärä</th>${withCar ? "<th>Auto</th>" : ""}<th>Mittaus</th><th class="num">Kunto</th><th class="num hide-m">Kapasiteetti</th><th class="num hide-m">Jännite-ero</th><th>Tila</th></tr>
     ${rows.map(t => `<tr class="click" data-tid="${t.id}"><td>${date(t.aloitettu)}</td>${withCar ? `<td>${esc(t.ajoneuvo || "–")}<div class="small muted">${esc(t.rekisteri || "")}</div></td>` : ""}
-      <td>${t.tyyppi === "kapasiteetti" ? "Kapasiteettimittaus" : "Pikatarkastus"}</td>
+      <td>${esc(tyyppi(t.tyyppi))}${t.osat > 1 ? `<div class="small muted">${t.osat} osaa</div>` : ""}</td>
       <td class="num">${t.kunto_pct ? `<span class="pill ${pillClass(t.kunto_luokka)}">${n(t.kunto_pct)} %</span>` : "–"}</td>
       <td class="num hide-m">${t.kapasiteetti_kwh ? n(t.kapasiteetti_kwh) + " kWh" : "–"}</td>
       <td class="num hide-m">${t.ero_mv != null ? n(t.ero_mv, 0) + " mV" : "–"}</td>
-      <td>${{ "valmis": '<span class="pill good">Valmis</span>', "käynnissä": '<span class="pill info">Käynnissä</span>' }[t.tila] || `<span class="pill">${esc(t.tila)}</span>`}</td></tr>`).join("")}</table>`;
+      <td>${{ "valmis": '<span class="pill good">Valmis</span>', "käynnissä": '<span class="pill info">Käynnissä</span>', "kesken": '<span class="pill warn">Kesken</span>', "keskeytetty": '<span class="pill">Keskeytetty</span>' }[t.tila] || `<span class="pill">${esc(t.tila)}</span>`}</td></tr>`).join("")}</table>`;
 }
 function bindTestRows() {
   $$("tr[data-tid]").forEach(r => (r.onclick = () => (location.hash = `#/mittaukset/${r.dataset.tid}`)));
@@ -697,13 +777,14 @@ views.mittaukset = {
     const v = t.ajoneuvo || {};
     const done = t.tila === "valmis" && y.teksti;
     const bk = backLink("#/mittaukset", "Mittaukset");
-    view.innerHTML = `${bk.html}<div class="head"><div><h1>${t.tyyppi === "kapasiteetti" ? "Kapasiteettimittaus" : "Pikatarkastus"}</h1>
+    view.innerHTML = `${bk.html}<div class="head"><div><h1>${esc(tyyppi(t.tyyppi))}</h1>
       <div class="muted">${esc(v.nimi || "")} · ${date(t.aloitettu)}</div></div>
       <div class="row">${done ? `<a class="btn primary" href="/api/mittaukset/${id}/raportti.pdf" target="_blank">Avaa raportti (PDF)</a>` : ""}
         <a class="btn" href="/api/mittaukset/${id}/tiedosto.akux">Mittaustiedosto</a>
         <a class="btn" href="/api/mittaukset/${id}/data.csv">Mittausdata (CSV)</a></div></div>
       ${r.virhe ? `<div class="notice bad">${esc(r.virhe)}</div>` : ""}
-      ${!done && !r.virhe ? `<div class="notice warn">Mittaus on tilassa: ${esc(t.tila)}. Raporttia ei voi muodostaa.</div>` : ""}
+      ${!done && !r.virhe ? (t.tila === "kesken" ? `<div class="notice warn"><b>Mittaus on kesken.</b> Jatka sitä <a href="#/mittaus">Mittaus</a>-sivulta, kun sovitin on kytketty samaan autoon.</div>`
+        : `<div class="notice warn">Mittaus on tilassa: ${esc(t.tila)}. Raporttia ei voi muodostaa.</div>`) : ""}
       ${done ? `
       <div class="grid g3">
         ${stat("Akun kunto", n(y.kunto_pct), "%", `${y.kunto_luokka || ""} · ${(y.kunto_lahde || "").toLowerCase()}`)}
@@ -808,6 +889,18 @@ views.asetukset = {
           <label class="f"><span>Lähtövaraus enintään (%)</span><input name="kapasiteetti_lahto_soc_max" inputmode="numeric" value="${esc(s.kapasiteetti_lahto_soc_max)}"></label>
           <label class="f"><span>Akun lämpötila vähintään (°C)</span><input name="lampotila_min" inputmode="numeric" value="${esc(s.lampotila_min)}"></label>
           <label class="f"><span>Akun lämpötila enintään (°C)</span><input name="lampotila_max" inputmode="numeric" value="${esc(s.lampotila_max)}"></label>
+        </div>
+      </div>
+
+      <div class="card"><h2>Ajo-, kuormitus- ja itsepurkaustestit</h2>
+        <p class="small muted">Oletusarvot vastaavat suositeltua mittaustapaa. Lyhyemmät lepojaksot ja ajot heikentävät tarkkuutta.</p>
+        <div class="grid g3">
+          <label class="f"><span>Lepo ennen ajoa ja sen jälkeen (min)</span><input name="ajo_lepo_min" inputmode="numeric" value="${esc(s.ajo_lepo_min)}"></label>
+          <label class="f"><span>Ajotestin loppuvaraus enintään (%)</span><input name="ajo_loppu_soc" inputmode="numeric" value="${esc(s.ajo_loppu_soc)}"></label>
+          <label class="f"><span>Pika-ajotestin varauksen lasku (%-yks.)</span><input name="pika_ajo_soc" inputmode="numeric" value="${esc(s.pika_ajo_soc)}"></label>
+          <label class="f"><span>Kuormitustestin kiihdytyksiä</span><input name="kuormitus_tapahtumat" inputmode="numeric" value="${esc(s.kuormitus_tapahtumat)}"></label>
+          <label class="f"><span>Lepo ennen itsepurkaustestiä (min)</span><input name="itsepurkaus_lepo_min" inputmode="numeric" value="${esc(s.itsepurkaus_lepo_min)}"></label>
+          <label class="f"><span>Itsepurkaustestin seisonta (h)</span><input name="itsepurkaus_tunnit" inputmode="numeric" value="${esc(s.itsepurkaus_tunnit)}"></label>
         </div>
       </div>
 

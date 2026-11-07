@@ -30,6 +30,21 @@ jobs:
       - name: Kaikki automallit
         run: python tests/test_mallit.py
 
+  testityypit:
+    name: Testityypit, autot ja akkukemiat
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pypdf
+      - name: Kaikki testityypit, tauko ja jatko
+        run: python tests/test_testityypit.py
+      - name: Datan luku ja tarkkuus kaikilla autoilla ja kemioilla
+        run: python tests/test_autot_ja_kemiat.py
+
   windows:
     name: Windows-sovellus
     runs-on: windows-latest
@@ -197,7 +212,7 @@ jobs:
   julkaisu:
     name: Julkaisu
     runs-on: ubuntu-latest
-    needs: [testit, windows, android]
+    needs: [testit, testityypit, windows, android]
     permissions:
       contents: write
     steps:

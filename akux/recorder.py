@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import gzip
 import hashlib
+import math
 import threading
 import time
 from pathlib import Path
@@ -94,6 +95,7 @@ class Recorder:
         self.gaps: list[dict] = []
         self.brick_seen_at_start: set = set()
         self.brick_acc: dict = {}
+        self.collect_bricks = False  # kerätäänkö tuoreita kennoryhmäjännitteitä keskiarvoon
         self.quick_started = None
         self.notes: list[str] = []
         self.finishing = False
@@ -153,6 +155,9 @@ class Recorder:
                 return
             t = self.last_hv[0] if self.last_hv else time.time()
             self._event(t, f"{reason}. Mittausta voi jatkaa myöhemmin.")
+            st = self.app.decoder.state
+            self.marks["jatkotauko"] = {"t": t, "lataus_kwh": st.total_charge_kwh, "soc_avg": st.soc_avg,
+                                   "vaihe": self.vaihe}
             self.flush()
             self._close_raw()
             self._persist_state(tila="kesken")
@@ -183,6 +188,7 @@ class Recorder:
             now = self.app.source.now()
             st.update_test(tid, tila="käynnissä")
             self._event(now, f"Mittaus jatkuu (osa {self.osat})")
+            self._check_pause_charging(now)
             if self.vaihe in ("lepo_ajo_alku", "lepo_ajo_loppu", "lepo_alku", "lepo_itse_alku"):
                 self.rest_since = None
             self.t_phase = now
@@ -191,6 +197,23 @@ class Recorder:
             self.app.decoder.add_brick_listener(self._on_brick)
             self._snapshot(now, f"jatko_{self.osat}")
             return tid
+
+    def _check_pause_charging(self, now):
+        """Ladattiinko akkua mittauksen tauon aikana? Teslan latauslaskuri kertoo sen luotettavasti."""
+        st = self.app.decoder.state
+        if st.total_charge_kwh is None and self.marks.get("jatkotauko", {}).get("lataus_kwh") is not None:
+            return                       # laskuri ei vielä luettu: tarkistetaan seuraavasta viestistä
+        tk = self.marks.pop("jatkotauko", None) or {}
+        c0, c1 = tk.get("lataus_kwh"), st.total_charge_kwh
+        if c0 is None or c1 is None or c1 - c0 < 0.3:
+            return
+        txt = f"Akkua ladattiin mittauksen tauon aikana ({c1 - c0:.1f} kWh)".replace(".", ",")
+        self._event(now, txt)
+        if self.tyyppi in (AJO, PIKA_AJO) or (self.tyyppi == TAYSI and tk.get("vaihe") in ("lepo_ajo_alku", "ajo")):
+            self.marks.setdefault("ladattu_ajossa", now)
+            self.notes.append(txt + ". Purkumittauksen tulos on tavallista epävarmempi.")
+        elif self.tyyppi == ITSEPURKAUS:
+            self.notes.append(txt + ". Itsepurkaustestin tulos ei ole luotettava.")
 
     def discard(self, tid: int):
         st = self.app.storage
@@ -275,6 +298,8 @@ class Recorder:
         with self.lock:
             if not self.active or self.finishing:
                 return
+            if "jatkotauko" in self.marks:
+                self._check_pause_charging(t)
             src = self.app.source
             max_gap = src.max_gap if src else 5.0
             if self.last_hv:
@@ -344,8 +369,21 @@ class Recorder:
                 self._snapshot(t, f"seuranta_{self.vaihe}")
 
     def _on_brick(self, t, k, v, i):
-        """Kennoryhmän jännite ja samanhetkinen virta: kennoryhmäkohtainen sisäinen resistanssi."""
-        if not self.active or self.finishing or self.vaihe not in ("ajo", "kuormitus", "pikalataus"):
+        """Juuri luettu kennoryhmän jännite ja samanhetkinen virta.
+
+        Levossa jännitteet keskiarvoistetaan (jokainen viesti kerran). Kuormassa niistä määritetään
+        kennoryhmäkohtainen sisäinen resistanssi.
+        """
+        if not self.active or self.finishing:
+            return
+        if self.collect_bricks:
+            acc = self.brick_acc.setdefault(k, [0.0, 0, 0.0])
+            if len(acc) < 3:
+                acc.append(0.0)
+            acc[0] += v
+            acc[1] += 1
+            acc[2] += v * v
+        if self.vaihe not in ("ajo", "kuormitus", "pikalataus"):
             return
         r = self.bricks_reg.get(k)
         if r is None:
@@ -451,10 +489,7 @@ class Recorder:
 
     def _quick_logic(self, t, i):
         d = self.app.decoder
-        for k, val in d.state.bricks.items():
-            acc = self.brick_acc.setdefault(k, [0.0, 0])
-            acc[0] += val
-            acc[1] += 1
+        self.collect_bricks = True
         elapsed = t - self.quick_started
         st = d.state
         n = st.brick_count or 0
@@ -484,7 +519,9 @@ class Recorder:
         st = self.app.decoder.state
         s = self.app.settings
         a = self.marks.get("ajo_alku") or {}
-        soc, soc0 = st.soc_avg, a.get("soc_avg")
+        # Tavoitteet ilmaistaan auton näytön varauksena, jotta ne vastaavat sitä, mitä kuljettaja näkee
+        soc = st.soc_ui if st.soc_ui is not None else st.soc_avg
+        soc0 = a.get("soc_ui") if a.get("soc_ui") is not None else a.get("soc_avg")
         if soc is None or soc0 is None:
             return False
         if self.tyyppi == PIKA_AJO:
@@ -568,16 +605,14 @@ class Recorder:
         s = self.app.settings
         if self.vaihe == "kuorma_lepo":
             d = self.app.decoder
-            for k, val in d.state.bricks.items():
-                acc = self.brick_acc.setdefault(k, [0.0, 0])
-                acc[0] += val
-                acc[1] += 1
+            self.collect_bricks = True
             n = d.state.brick_count or 0
             ready = n and min((self.brick_acc.get(k, [0, 0])[1] for k in range(1, n + 1)), default=0) >= 5
             if (ready and t - self.quick_started >= 30) or t - self.quick_started >= 180:
                 self.marks["kuorma_lepo"] = self._state_mark(t, {"kennot": [
                     (self.brick_acc[k][0] / self.brick_acc[k][1]) if k in self.brick_acc else None
                     for k in range(1, (n or max(self.brick_acc or {0: 0})) + 1)]})
+                self.collect_bricks = False
                 self._set_phase("kuormitus", t)
             return
         if self.vaihe == "kuormitus":
@@ -620,28 +655,50 @@ class Recorder:
         return [(self.brick_acc[k][0] / self.brick_acc[k][1]) if k in self.brick_acc else None
                 for k in range(1, n + 1)]
 
+    def _noise_bricks(self) -> tuple[list, list]:
+        """Kennoryhmien jännitelukemien keskihajonta (V) ja näytteiden määrä."""
+        n = self.app.decoder.state.brick_count or (max(self.brick_acc) if self.brick_acc else 0)
+        sd, cnt = [], []
+        for k in range(1, n + 1):
+            a = self.brick_acc.get(k)
+            if not a or len(a) < 3 or a[1] < 2:
+                sd.append(None)
+                cnt.append(a[1] if a else 0)
+                continue
+            sd.append(math.sqrt(max(a[2] / a[1] - (a[0] / a[1]) ** 2, 0.0) * a[1] / (a[1] - 1)))
+            cnt.append(a[1])
+        return sd, cnt
+
+    def _brick_mark(self) -> dict:
+        sd, cnt = self._noise_bricks()
+        return {"kennot": self._avg_bricks(), "kennot_sd": sd, "kennot_n": cnt}
+
+    def _min_brick_samples(self) -> int:
+        n = self.app.decoder.state.brick_count or 0
+        return min((self.brick_acc.get(k, [0, 0])[1] for k in range(1, n + 1)), default=0) if n else 0
+
     def _self_discharge_logic(self, t, i):
         s = self.app.settings
         resting = abs(i) < LEPO_VIRTA_A
-        d = self.app.decoder
         if self.vaihe == "lepo_itse_alku":
             if resting:
                 self.rest_since = self.rest_since or t
-                if t - self.rest_since >= max(0, s["itsepurkaus_lepo_min"] * 60 - 60):
-                    for k, val in d.state.bricks.items():
-                        acc = self.brick_acc.setdefault(k, [0.0, 0])
-                        acc[0] += val
-                        acc[1] += 1
-                if t - self.rest_since >= s["itsepurkaus_lepo_min"] * 60 and self.brick_acc:
-                    self.marks["itse_alku"] = self._state_mark(t, {"kennot": self._avg_bricks()})
+                target = s["itsepurkaus_lepo_min"] * 60
+                el = t - self.rest_since
+                self.collect_bricks = el >= max(0, target - 120)
+                if el >= target and (self._min_brick_samples() >= 50 or el >= target + 900) and self.brick_acc:
+                    self.marks["itse_alku"] = self._state_mark(t, self._brick_mark())
                     self.brick_acc = {}
+                    self.collect_bricks = False
                     self.rest_since = None
                     self._set_phase("odotus", t)
             else:
                 self.rest_since = None
+                self.collect_bricks = False
                 self.brick_acc = {}
             return
         if self.vaihe == "odotus":
+            self.collect_bricks = False
             a = self.marks.get("itse_alku") or {}
             if t - a.get("t", t) >= s["itsepurkaus_tunnit"] * 3600 and resting:
                 self.brick_acc = {}
@@ -649,14 +706,13 @@ class Recorder:
                 self._set_phase("itse_loppu", t)
             return
         if self.vaihe == "itse_loppu":
-            for k, val in d.state.bricks.items():
-                acc = self.brick_acc.setdefault(k, [0.0, 0])
-                acc[0] += val
-                acc[1] += 1
-            n = d.state.brick_count or 0
-            ready = n and min((self.brick_acc.get(k, [0, 0])[1] for k in range(1, n + 1)), default=0) >= 10
-            if (ready and t - self.marks["itse_loppu_alku"] >= 60) or t - self.marks["itse_loppu_alku"] >= 300:
-                self.marks["itse_loppu"] = self._state_mark(t, {"kennot": self._avg_bricks()})
+            if not resting:
+                return                     # odotetaan, että akku on taas levossa
+            self.collect_bricks = True
+            el = t - self.marks["itse_loppu_alku"]
+            if (self._min_brick_samples() >= 50 and el >= 60) or el >= 900:
+                self.marks["itse_loppu"] = self._state_mark(t, self._brick_mark())
+                self.collect_bricks = False
                 self._finish(t)
 
     # ------------------------------------------------------------------
@@ -746,11 +802,10 @@ class Recorder:
                 self._finish(t)
             elif self.vaihe == "kuorma_lepo":
                 self._load_logic(t + 999, 0.0)
-            elif self.vaihe == "lepo_itse_alku" and self.brick_acc:
-                self.marks["itse_alku"] = self._state_mark(t, {"kennot": self._avg_bricks()})
+            elif self.vaihe == "lepo_itse_alku":
+                # Lepo lyhennetään: lähtöarvot kerätään heti (vähintään 50 näytettä kennoryhmää kohden)
                 self.notes.append("Lepojakso ennen itsepurkaustestiä lyhennettiin.")
-                self.brick_acc = {}
-                self._set_phase("odotus", t)
+                self.rest_since = t - self.app.settings["itsepurkaus_lepo_min"] * 60
 
     def cancel(self):
         with self.lock:
@@ -890,14 +945,15 @@ class Recorder:
                 out["lepo_tavoite_s"] = s[key] * 60
             if self.vaihe == "ajo":
                 a = self.marks.get("ajo_alku") or {}
-                out["ajo_alku_soc"] = a.get("soc_avg")
-                out["soc_nyt"] = st.soc_avg
+                a_soc = a.get("soc_ui") if a.get("soc_ui") is not None else a.get("soc_avg")
+                out["ajo_alku_soc"] = a_soc
+                out["soc_nyt"] = st.soc_ui if st.soc_ui is not None else st.soc_avg
                 if self.tyyppi == PIKA_AJO:
-                    out["ajo_tavoite"] = f"varaustila laskee {s['pika_ajo_soc']} %-yksikköä"
-                    out["ajo_tavoite_soc"] = (a["soc_avg"] - s["pika_ajo_soc"]) if a.get("soc_avg") is not None else None
+                    out["ajo_tavoite"] = f"varaus laskee {s['pika_ajo_soc']} %-yksikköä"
+                    out["ajo_tavoite_soc"] = (a_soc - s["pika_ajo_soc"]) if a_soc is not None else None
                 else:
                     lim = s["kapasiteetti_lahto_soc_max"] if self.tyyppi == TAYSI else s["ajo_loppu_soc"]
-                    out["ajo_tavoite"] = f"varaustila enintään {lim} %"
+                    out["ajo_tavoite"] = f"varaus enintään {lim} %"
                     out["ajo_tavoite_soc"] = lim
                 if a.get("km") and st.odometer_km:
                     out["ajo_km"] = st.odometer_km - a["km"]
@@ -910,7 +966,7 @@ class Recorder:
             if self.tyyppi == PIKALATAUS:
                 p = (-(st.pack_v or 0) * (st.pack_i or 0) / 1000) if st.pack_v and st.pack_i is not None else None
                 out["teho_kw"] = p
-                out["soc_nyt"] = st.soc_avg
+                out["soc_nyt"] = st.soc_ui if st.soc_ui is not None else st.soc_avg
                 out["huipputeho_kw"] = max((c[2] for c in self.curve), default=None)
                 a = self.marks.get("pikalataus_alku") or {}
                 out["lataus_kwh"] = self.e_in - a.get("e_in", self.e_in) if a else 0.0
@@ -950,13 +1006,21 @@ class Recorder:
                 ok = soc <= lim
                 add("Lähtövaraus", ok, f"{fmt(soc)} %",
                     "" if ok else f"Tarkin tulos saadaan, kun latauksen alussa varaus on enintään {lim} %.")
-        if self.tyyppi in (AJO, TAYSI) and self.vaihe == "lepo_ajo_alku" and st.soc_avg is not None:
-            ok = st.soc_avg >= 80
-            add("Lähtövaraus", ok, f"{fmt(st.soc_avg)} %",
+        if self.tyyppi in (AJO, TAYSI) and self.vaihe == "lepo_ajo_alku" and st.soc_ui is not None:
+            ok = st.soc_ui >= 80
+            add("Lähtövaraus", ok, f"{fmt(st.soc_ui)} %",
                 "" if ok else "Tarkin tulos saadaan, kun ajo aloitetaan vähintään 80 %:n varauksesta.")
-        if self.tyyppi == PIKALATAUS and self.vaihe == "odota_pikalataus" and st.soc_avg is not None:
-            ok = st.soc_avg <= 30
-            add("Lähtövaraus", ok, f"{fmt(st.soc_avg)} %",
+        if self.tyyppi == ITSEPURKAUS and self.vaihe == "lepo_itse_alku" and st.soc_ui is not None:
+            v = self.app.storage.vehicle(self.vehicle_id) or {}
+            if (profiles.get(v.get("malli_id")) or {}).get("kemia") == "LFP" or \
+                    (v.get("opitut") or {}).get("kemia") == "LFP":
+                ok = st.soc_ui >= 90
+                add("Lähtövaraus", ok, f"{fmt(st.soc_ui)} %",
+                    "" if ok else "LFP-akun itsepurkautuminen voidaan mitata luotettavasti vain yli 90 %:n "
+                                  "varauksessa. Lataa akku täyteen ennen testiä.")
+        if self.tyyppi == PIKALATAUS and self.vaihe == "odota_pikalataus" and st.soc_ui is not None:
+            ok = st.soc_ui <= 30
+            add("Lähtövaraus", ok, f"{fmt(st.soc_ui)} %",
                 "" if ok else "Latauskäyrä saadaan kattavimmin, kun lataus aloitetaan alle 30 %:n varauksesta.")
         if st.pack_i is not None:
             add("Akun virta", abs(st.pack_i) < LEPO_VIRTA_A if self.vaihe in (

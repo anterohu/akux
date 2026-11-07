@@ -135,7 +135,7 @@ def trend_chart(points: list[tuple], width_mm=174, height_mm=55) -> bytes:
 
 
 def group_bar_chart(values: list, title: str, ylabel: str, highlight=(), ref=None, center=False,
-                    width_mm=174, height_mm=58, decimals=1) -> bytes:
+                    width_mm=174, height_mm=58, decimals=1, min_lim=1.0) -> bytes:
     """Kennoryhmäkohtainen pylväskaavio (resistanssi, itsepurkautuminen)."""
     vals = [v if v is not None else 0 for v in values]
     hl = set(highlight)
@@ -145,7 +145,7 @@ def group_bar_chart(values: list, title: str, ylabel: str, highlight=(), ref=Non
     if ref is not None:
         ax.axhline(ref, color=INK, linewidth=0.7, zorder=4, linestyle="--")
     if center:
-        lim = max(1.0, max(abs(x) for x in vals) * 1.25)
+        lim = max(min_lim, max(abs(x) for x in vals) * 1.25)
         ax.set_ylim(-lim, lim)
         ax.axhline(0, color=INK, linewidth=0.7, zorder=4)
     else:
