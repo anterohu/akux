@@ -64,5 +64,10 @@ begin
   if Code = 2 then
     Result := 'Akuxissa on mittaus käynnissä. Odota, että mittaus valmistuu, ja käynnistä asennus sitten uudelleen.'
   else
-    Sleep(2500);
+  begin
+    { Sovellusikkuna sulkeutuu ohjelman perässä. Varmistetaan, ettei mikään Akuxin osa jää käyntiin. }
+    Sleep(5000);
+    Exec('taskkill.exe', '/IM Akux.exe /F', '', SW_HIDE, ewWaitUntilTerminated, Code);
+    Sleep(500);
+  end;
 end;

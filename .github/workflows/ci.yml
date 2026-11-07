@@ -126,7 +126,8 @@ jobs:
           Write-Host "Päivitys säilytti $($list.mittaukset.Count) mittausta"
 
           Invoke-RestMethod "$b/api/sulje" -Method Post -ContentType "application/json" -Body '{}' | Out-Null
-          Start-Sleep 4
+          # Palvelin sulkeutuu heti ja sovellusikkuna muutaman sekunnin kuluessa
+          for ($i = 0; $i -lt 20 -and (Get-Process Akux -ErrorAction SilentlyContinue); $i++) { Start-Sleep 1 }
           if (Get-Process Akux -ErrorAction SilentlyContinue) { throw "Akux ei sulkeutunut" }
           Write-Host "Akux sulkeutui hallitusti"
       - name: Ohjelman loki
