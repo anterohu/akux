@@ -1251,7 +1251,8 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     add("Varaustila (näytöllä)", f"{fmt(bms.get('soc_ui'))} %" if bms.get("soc_ui") is not None else "–",
         "Mittauksen lopussa")
     add("Varaustila (kennojen keskiarvo)", f"{fmt(bms.get('soc_avg'))} %" if bms.get("soc_avg") is not None else "–",
-        f"Vaihteluväli {fmt(bms.get('soc_min'))}–{fmt(bms.get('soc_max'))} %")
+        f"Vaihteluväli {fmt(bms.get('soc_min'))}–{fmt(bms.get('soc_max'))} %"
+        if (bms.get("soc_min") is not None and bms.get("soc_max") is not None) else "Kennoryhmien keskiarvo")
     add("Akun lämpötila mittauksessa", f"{fmt(tt.get('min'))}–{fmt(tt.get('max'))} °C" if tt.get("min") is not None
         else "–", "Akunhallinnan lämpötila-anturit")
     if veh.get("akun_massa_kg"):

@@ -794,7 +794,11 @@ class Recorder:
         self.marks["lataus_loppu"] = {
             "t": t, "soc_avg": st.soc_avg, "soc_ui": st.soc_ui, "soc_min": st.soc_min,
             "soc_max": st.soc_max, "ner": st.nominal_remaining_kwh, "nfp": st.nfp_kwh,
-            "taysi": bool(st.full_charge_complete), "t_min": st.temp_min, "t_max": st.temp_max,
+            # Täysi: akunhallinta ilmoitti latauksen valmiiksi, tai (viestissä ei ole valmis-tietoa, kuten
+            # Model S/X:n 10-bittisessä muodossa) lataus loppui itsestään yli 97 %:n varauksessa
+            "taysi": bool(st.full_charge_complete) or bool(
+                (st.soc_avg or 0) >= 97.0 and self.idle_since and t - self.idle_since >= 300),
+            "t_min": st.temp_min, "t_max": st.temp_max,
             "laskurit": st.counters_raw,
             "e_neg": self.ch_e_neg, "e_pos": self.ch_e_pos, "ah_neg": self.ch_ah_neg,
             "ah_pos": self.ch_ah_pos, "i2": self.ch_i2, "kesto_s": self.ch_seconds,

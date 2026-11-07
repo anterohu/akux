@@ -14,7 +14,7 @@ os.environ.setdefault("AKUX_MITTAUSKANSIO", _tf.mkdtemp(prefix="akux-testi-"))
 from akux.app import App  # noqa: E402
 from akux.simulator import BatterySimulator  # noqa: E402
 
-LYHYT = {"lepo_alku_min": 3, "lepo_loppu_min": 3, "ajo_lepo_min": 3, "itsepurkaus_lepo_min": 3,
+LYHYT = {"lepo_alku_min": 10, "lepo_loppu_min": 10, "ajo_lepo_min": 10, "itsepurkaus_lepo_min": 10,
          "itsepurkaus_tunnit": 6, "kuormitus_tapahtumat": 6, "mittaus_tallennus": False}
 
 
@@ -69,7 +69,7 @@ def test_ajotesti_kahdessa_osassa(tmp):
     tid = _start(app, src, "ajotesti")
     _phase(app, "lepo_ajo_alku")
     p = app.recorder.progress()
-    assert p["voi_tauottaa"] and p.get("lepo_tavoite_s") == 180
+    assert p["voi_tauottaa"] and p.get("lepo_tavoite_s") == 600
     _phase(app, "ajo", 60)
     src.set_mode("drive", 18.0)
     assert wait_until(lambda: (app.decoder.state.soc_avg or 100) < 55, 120)
