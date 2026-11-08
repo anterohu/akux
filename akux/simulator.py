@@ -45,7 +45,7 @@ class BatterySimulator(Source):
     def __init__(self, *, soc: float = 0.12, nfp_kwh: float = 75.6, bol_kwh: float = 80.5,
                  cells: int = 96, accel: float = 1.0, temp_c: float = 21.0,
                  weak_cell: int | None = 47, energy_format: str = "uusi", seed: int = 7,
-                 chem: str = "NCA", vin: str | None = None, platform: str = "m3",
+                 chem: str = "NCA", vin: str | None = None, platform: str = "m3", bol_broadcast: bool = True,
                  sx_counter_swap: bool = False, sx_current_sign: int = 1,
                  leak_cell: int | None = None, leak_pct_day: float = 0.0, dc_kw: float = 110.0):
         super().__init__()
@@ -58,6 +58,7 @@ class BatterySimulator(Source):
         self.chem = chem
         self.curve = profiles.chemistry(self.chem)["ocv"]
         self.bol = bol_kwh
+        self.bol_broadcast = bol_broadcast
         self.nfp = nfp_kwh
         self.buffer = round(nfp_kwh * 0.045, 2)
         self.accel = accel
@@ -267,7 +268,8 @@ class BatterySimulator(Source):
         encode(b, 10, 10, max(0.0, ui), 0.1)
         encode(b, 20, 10, max(socs) * 100, 0.1)
         encode(b, 30, 10, soc_avg, 0.1)
-        encode(b, 40, 10, self.bol, 0.1)
+        # Osa ohjelmistoversioista ei täytä alkuperäisen energian kenttää (raaka-arvo 1 = 0,1 kWh)
+        encode(b, 40, 10, self.bol if self.bol_broadcast else 0.1, 0.1)
         out.append((ID_SOC, bytes(b)))
 
         ner = soc_avg / 100 * self.nfp

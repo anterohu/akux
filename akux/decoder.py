@@ -277,9 +277,10 @@ class TeslaDecoder:
         st.soc_ui = pct(10)
         st.soc_max = pct(20)
         st.soc_avg = pct(30)
-        bol_raw = get_bits(d, 40, 10)
-        if bol_raw not in (0, 1023):
-            st.bol_kwh = bol_raw * 0.1
+        # Alkuperäinen energia: kaikki ohjelmistoversiot eivät täytä kenttää (arvo voi olla 0,1 kWh tai muu
+        # mahdoton). Arvo hyväksytään vain Teslojen akkukokojen vaihteluvälillä.
+        bol = get_bits(d, 40, 10) * 0.1
+        st.bol_kwh = bol if 30.0 <= bol <= 102.2 else None
 
     def _energy(self, t, d):
         if len(d) < 8:

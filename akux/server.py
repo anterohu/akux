@@ -169,9 +169,11 @@ class Api:
         src = a.source
         snap = a.decoder.snapshot()
         known = None
+        v = None
         if snap.get("vin"):
             v = a.storage.find_vehicle_by_vin(snap["vin"])
             known = {"id": v["id"], "nimi": v["nimi"]} if v else None
+        snap["viite_kwh"], snap["viite_lahde"] = self._live_reference(snap, v)
         return {
             "nimi": NIMI, "versio": VERSIO, "alusta": platform_name(),
             "yhteys": {
@@ -185,6 +187,29 @@ class Api:
             "mittaus": a.recorder.progress(),
             "vaylatesti": self._bus_verdict(),
         }
+
+    def _live_reference(self, snap, vehicle):
+        """Alkuperäinen kapasiteetti reaaliaikaisen kunnon laskemiseen. Sama järjestys kuin raportissa:
+        akunhallinta, aiempi mittaus tai ilmoitettu arvo, mallitaulukko."""
+        if snap.get("bol_kwh"):
+            return snap["bol_kwh"], "Teslan akunhallinta"
+        key = (snap.get("vin"), (vehicle or {}).get("malli_id"), snap.get("brick_count"), snap.get("platform"))
+        cache = getattr(self, "_ref_cache", None)
+        if cache and cache[0] == key:
+            return cache[1]
+        from .analysis import reference_capacity
+        model = profiles.get((vehicle or {}).get("malli_id"))
+        if not model and snap.get("vin"):
+            info = vinmod.decode(snap["vin"])
+            if info.get("kelvollinen"):
+                model, _ = profiles.identify(info, brick_count=snap.get("brick_count"),
+                                             platform=snap.get("platform"), nfp_kwh=snap.get("nfp_kwh"))
+        kwh, src = reference_capacity(vehicle or {}, None, model)
+        label = ("mallin alkuperäinen kapasiteetti (likiarvo)" if src.startswith("Mallitaulukko") else
+                 "ilmoitettu" if src.startswith("Käyttäjän") else "Teslan akunhallinta, aiempi mittaus")
+        out = (kwh, label if kwh else None)
+        self._ref_cache = (key, out)
+        return out
 
     def _bus_verdict(self):
         d = self.app.decoder

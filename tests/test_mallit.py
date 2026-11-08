@@ -134,8 +134,39 @@ def test_model_s_kaanteinen_virta_ja_laskurit():
         assert r["elinkaari"]["lataus_kwh"] > r["elinkaari"]["purku_kwh"]
 
 
+def test_alkuperainen_energia_puuttuu():
+    """Oikea Model 3 LFP 12/2020: akunhallinta lähettää alkuperäisen energian kentässä 0,1 kWh.
+    Arvo on hylättävä, ja kunto lasketaan mallin alkuperäisestä kapasiteetista sekä näkymässä että raportissa."""
+    import time as _t
+    from akux.app import App
+    from akux.server import Api
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        app = App(tmp)
+        app.storage.save_settings({"mittaus_tallennus": False})
+        api = Api(app)
+        app.connect("demo", auto="m3-lfp", soc=0.5, accel=20, bol_broadcast=False)
+        end = _t.time() + 30
+        while _t.time() < end and not (app.decoder.state.nfp_kwh and app.decoder.state.brick_count):
+            _t.sleep(0.2)
+        live = api.tila({}, {})["live"]
+        assert live["bol_kwh"] is None, live["bol_kwh"]
+        assert live["viite_kwh"] == 55.0 and "mallin" in live["viite_lahde"], (live["viite_kwh"], live["viite_lahde"])
+        soh = live["nfp_kwh"] / live["viite_kwh"] * 100
+        assert 90 < soh < 100, soh
+        vid = app.storage.add_vehicle({"vin": app.decoder.state.vin, "nimi": "LFP"})
+        tid = app.start_test(vehicle_id=vid, tyyppi="pikatarkastus", mittarilukema=None, mittaaja="Testi")
+        end = _t.time() + 120
+        while _t.time() < end and app.recorder.active:
+            _t.sleep(0.2)
+        r = app.storage.test(tid)["tulos"]
+        print("Alkuperäinen energia puuttuu: kunto", round(r["yhteenveto"]["kunto_pct"], 1), r["viite"])
+        assert abs(r["yhteenveto"]["kunto_pct"] - 52.0 / 55.0 * 100) < 0.3
+        assert r["viite"]["kwh"] == 55.0 and r["viite"]["lahde"] != "Auton akunhallinta"
+        app.disconnect()
+
+
 if __name__ == "__main__":
     for f in (test_valmistenumerot_ja_mallipohjat, test_alustan_tunnistus, test_model_s_kapasiteettimittaus,
-              test_model_s_kaanteinen_virta_ja_laskurit):
+              test_model_s_kaanteinen_virta_ja_laskurit, test_alkuperainen_energia_puuttuu):
         f()
         print("OK", f.__name__)

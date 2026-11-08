@@ -172,8 +172,9 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
     vin_info = vinmod.decode(vin_txt) if vin_txt else None
     bol = None
     for s in reversed(snaps):
-        if s["data"].get("bol_kwh"):
-            bol = s["data"]["bol_kwh"]
+        b_ = s["data"].get("bol_kwh")
+        if b_ and 30 <= b_ <= 150:          # vanhemmissa tallenteissa voi olla kelvoton arvo
+            bol = b_
             break
     brick_count = last.get("brick_count")
     model = profiles.get((vehicle or {}).get("malli_id"))

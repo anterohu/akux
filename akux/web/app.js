@@ -271,14 +271,14 @@ views.yleiskuva = {
       $("#cellBox").innerHTML = `<div class="empty small">Ei yhteyttä.</div>`;
       return;
     }
-    const soh = L.nfp_kwh && L.bol_kwh ? L.nfp_kwh / L.bol_kwh * 100 : null;
+    const soh = L.nfp_kwh && L.viite_kwh ? L.nfp_kwh / L.viite_kwh * 100 : null;
     st.innerHTML = [
       stat("Varaustila", L.soc_ui != null ? n(L.soc_ui) : "–", "%", L.soc_avg != null ? `Kennojen keskiarvo ${n(L.soc_avg)} %` : ""),
       stat("Akun jännite", L.pack_v != null ? n(L.pack_v) : "–", "V", L.pack_i != null ? `Virta ${n(L.pack_i)} A` : ""),
       stat("Teho", L.power_kw != null ? n(Math.abs(L.power_kw)) : "–", "kW", L.power_kw == null ? "" : (L.power_kw < -0.3 ? "Lataus" : (L.power_kw > 0.3 ? "Purku" : "Levossa"))),
       stat("Akun lämpötila", L.temp_min != null ? `${n(L.temp_min)}–${n(L.temp_max)}` : "–", "°C", ""),
-      stat("Täyden akun energia", L.nfp_kwh != null ? n(L.nfp_kwh) : "–", "kWh", L.bol_kwh ? `Uutena ${n(L.bol_kwh)} kWh` : "Teslan akunhallinta"),
-      stat("Kunto (akunhallinta)", soh != null ? n(soh) : "–", "%", "Pikatarkastus tallentaa arvon"),
+      stat("Täyden akun energia", L.nfp_kwh != null ? n(L.nfp_kwh) : "–", "kWh", "Teslan akunhallinta"),
+      stat("Akun kunto", soh != null ? n(soh) : "–", "%", L.viite_kwh ? `Uutena ${n(L.viite_kwh)} kWh, ${esc(L.viite_lahde || "")}` : "Alkuperäistä kapasiteettia ei tiedetä"),
       stat("Kennoryhmien ero", L.brick_delta_mv != null ? n(L.brick_delta_mv, 0) : "–", "mV", L.bricks_seen ? `${L.bricks_seen}/${L.brick_count || "–"} ryhmää luettu` : ""),
       stat("Mittarilukema", L.odometer_km != null ? n(L.odometer_km, 0) : "–", "km", L.vin || ""),
     ].join("");
