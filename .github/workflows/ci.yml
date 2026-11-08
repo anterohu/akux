@@ -178,7 +178,9 @@ jobs:
           Invoke-RestMethod "$b/api/asetukset" -Method Post -ContentType "application/json" -Body '{"yritys_nimi":"CI Testi Oy"}' | Out-Null
           Invoke-RestMethod "$b/api/yhdista" -Method Post -ContentType "application/json" -Body '{"tyyppi":"demo","soc":60,"nopeutus":60}' | Out-Null
           for ($i = 0; $i -lt 30; $i++) { $t = Invoke-RestMethod "$b/api/tila"; if ($t.vaylatesti.kunnossa -and $t.live.vin) { break }; Start-Sleep 1 }
-          $v = Invoke-RestMethod "$b/api/ajoneuvot" -Method Post -ContentType "application/json" -Body (@{vin=$t.live.vin; rekisteri="CI-1"} | ConvertTo-Json)
+          # Edellisen version auto on jo tallennettu, jos päivitystesti tehtiin
+          $v = (Invoke-RestMethod "$b/api/ajoneuvot").ajoneuvot | Where-Object { $_.vin -eq $t.live.vin } | Select-Object -First 1
+          if (-not $v) { $v = Invoke-RestMethod "$b/api/ajoneuvot" -Method Post -ContentType "application/json" -Body (@{vin=$t.live.vin; rekisteri="CI-1"} | ConvertTo-Json) }
           $m = Invoke-RestMethod "$b/api/mittaukset" -Method Post -ContentType "application/json" -Body (@{ajoneuvo_id=$v.id; tyyppi="pikatarkastus"} | ConvertTo-Json)
           for ($i = 0; $i -lt 90; $i++) { $t = Invoke-RestMethod "$b/api/tila"; if (-not $t.mittaus) { break }; Start-Sleep 2 }
           $res = Invoke-RestMethod "$b/api/mittaukset/$($m.id)"
