@@ -168,5 +168,61 @@ def test_rajattu_liitanta_ja_kartoitus():
         print("OK rajattu liitäntä ja kartoitus")
 
 
+class ElmClone(FakeSerial):
+    """Tavallinen ELM327-kopio: ei STN-komentoja."""
+    def write(self, data):
+        if b"STI" in data:
+            self.cmd += data.replace(b"STI\r", b"")
+            with self.lock:
+                self.buf += b"?\r\r>"
+            return
+        super().write(data)
+
+
+def test_elm327_hylataan():
+    fake = types.ModuleType("serial")
+    fake.Serial = ElmClone
+    sys.modules["serial"] = fake
+    from akux.sources import ObdLinkSource
+    src = ObdLinkSource("COM7")
+    src.start(lambda *a: None)
+    end = time.time() + 10
+    while time.time() < end and src.status != "Sovitinta ei tueta":
+        time.sleep(0.1)
+    st, err = src.status, src.error
+    src.stop()
+    assert st == "Sovitinta ei tueta", st
+    assert "ei ole OBDLink" in err and "MX+" in err, err
+    print("OK ELM327 hylätään:", err)
+
+
+def test_bluetooth_portit():
+    from akux import sources
+    P = types.SimpleNamespace
+    ports = [
+        P(device="COM3", description="USB Serial Port", hwid="USB VID:PID=0403:6015 SER=OBDLINKEX", vid=0x0403,
+          manufacturer="FTDI"),
+        P(device="COM5", description="Standard Serial over Bluetooth link (COM5)",
+          hwid="BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0002\\7&2A0B1C3D&0&00043E9A1B2C_C00000000",
+          vid=None, manufacturer="Microsoft"),
+        P(device="COM6", description="Standard Serial over Bluetooth link (COM6)",
+          hwid="BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0000\\7&2A0B1C3D&0&000000000000_00000000",
+          vid=None, manufacturer="Microsoft"),
+    ]
+    lp = types.ModuleType("serial.tools.list_ports")
+    lp.comports = lambda: ports
+    tools = types.ModuleType("serial.tools")
+    tools.list_ports = lp
+    sys.modules["serial.tools"] = tools
+    sys.modules["serial.tools.list_ports"] = lp
+    out = {p["laite"]: p for p in sources.list_ports()}
+    assert out["COM5"]["todennakoinen"] and out["COM5"]["kuvaus"] == "Bluetooth", out["COM5"]
+    assert not out["COM6"]["todennakoinen"] and "saapuva" in out["COM6"]["kuvaus"], out["COM6"]
+    assert out["COM3"]["todennakoinen"]
+    print("OK Bluetooth-portit")
+
+
 if __name__ == "__main__":
     test_rajattu_liitanta_ja_kartoitus()
+    test_elm327_hylataan()
+    test_bluetooth_portit()

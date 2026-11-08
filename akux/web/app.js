@@ -192,7 +192,7 @@ views.yleiskuva = {
       c.innerHTML = `
         <h2>Yhdistä</h2>
         ${ports.pyserial ? "" : `<div class="notice warn">Sovittimen yhteysosa puuttuu ohjelmasta. Asenna ohjelma uudelleen.</div>`}
-        ${ports.pyserial && !ports.portit.length ? `<div class="notice warn"><b>Sovitinta ei löytynyt.</b> Tarkista, että OBDLink on kytketty USB-kaapelilla. ${ports.windows ? "Windows asentaa sovittimen ajurin yleensä itse ensimmäisellä kytkentäkerralla, kun tietokone on verkossa. Odota hetki ja paina Päivitä portit. Jos sovitin ei vieläkään näy, asenna FTDI:n VCP-ajuri osoitteesta <b>ftdichip.com/drivers/vcp-drivers</b>." : ""}</div>` : ""}
+        ${ports.pyserial && !ports.portit.length ? `<div class="notice warn"><b>Sovitinta ei löytynyt.</b> Tarkista, että OBDLink on kytketty USB-kaapelilla. Bluetooth-mallit (MX+, LX) näkyvät listassa, kun sovitin on ensin paritettu ${ANDROID ? "puhelimen" : "Windowsin"} Bluetooth-asetuksista. ${ports.windows ? "Windows asentaa sovittimen ajurin yleensä itse ensimmäisellä kytkentäkerralla, kun tietokone on verkossa. Odota hetki ja paina Päivitä portit. Jos sovitin ei vieläkään näy, asenna FTDI:n VCP-ajuri osoitteesta <b>ftdichip.com/drivers/vcp-drivers</b>." : ""}</div>` : ""}
         <div class="grid g2">
           <div>
             <label class="f"><span>${ANDROID ? "OBDLink-sovitin" : "OBDLink-sovittimen portti"}</span>

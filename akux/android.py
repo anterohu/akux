@@ -71,7 +71,14 @@ def list_ports():
         devs = list(_bridge.listDevices())
     except Exception:  # noqa: BLE001
         return []
-    return [{"laite": str(d), "kuvaus": "USB-sovitin", "todennakoinen": True} for d in devs]
+    out = []
+    for d in map(str, devs):
+        if d.startswith("Bluetooth: "):
+            out.append({"laite": d, "kuvaus": "Bluetooth", "todennakoinen": "OBDLINK" in d.upper()})
+        else:
+            out.append({"laite": d, "kuvaus": "USB-sovitin", "todennakoinen": True})
+    out.sort(key=lambda x: not x["todennakoinen"])
+    return out
 
 
 def _run(port):

@@ -1,6 +1,7 @@
 """Tietolähteet: OBDLink-sovitin (STN-piiri) ja esittelytilan simulaattori."""
 from __future__ import annotations
 
+import re
 import threading
 import time
 from typing import Callable
@@ -12,6 +13,10 @@ FrameCallback = Callable[[float, int, bytes], None]
 # Android-sovellus korvaa sarjaportin omalla USB-toteutuksellaan (ks. android.py)
 SERIAL_FACTORY = None
 PORT_LISTER = None
+
+
+class UnsupportedAdapter(Exception):
+    """Sovitin vastaa, mutta se ei ole OBDLink (STN-piiri)."""
 
 
 class AdapterUnavailable(Exception):
@@ -75,6 +80,15 @@ def list_ports() -> list[dict]:
     out = []
     for p in lp.comports():
         desc = p.description or ""
+        hwid = (p.hwid or "").upper()
+        if "BTHENUM" in hwid:
+            # Windows luo paritetulle Bluetooth-laitteelle kaksi porttia. Lähtevän portin tunnisteessa on
+            # laitteen osoite, saapuvan portin tunnisteessa nollat; vain lähtevä toimii.
+            m = re.search(r"&([0-9A-F]{12})_", hwid)
+            outgoing = bool(m and m.group(1) != "0" * 12)
+            out.append({"laite": p.device, "todennakoinen": outgoing,
+                        "kuvaus": "Bluetooth" + ("" if outgoing else " (saapuva portti, ei käytössä)")})
+            continue
         likely = (p.vid == 0x0403) or "OBDLink" in desc or "FTDI" in (p.manufacturer or "") \
             or "ScanTool" in (p.manufacturer or "")
         out.append({"laite": p.device, "kuvaus": desc, "todennakoinen": likely})
@@ -83,7 +97,7 @@ def list_ports() -> list[dict]:
 
 
 class ObdLinkSource(Source):
-    """OBDLink EX / SX / MX (STN11xx/STN21xx) USB- tai sarjaliitännällä.
+    """OBDLink EX / SX (USB) tai MX+ / LX (Bluetooth), STN11xx/STN21xx-piiri.
 
     Sovitin asetetaan kuuntelemaan 11-bittistä CAN-väylää (500 kbit/s)
     ilman automaattista muotoilua. Sovitin ei lähetä autolle mitään.
@@ -148,6 +162,12 @@ class ObdLinkSource(Source):
             self._cmd(c)
         ident = self._cmd("STI")
         self.stn = "STN" in ident or "OBDLink" in ident
+        if not self.stn:
+            # Teslan väylällä kulkee tuhansia viestejä sekunnissa. Ilman OBDLinkin suodatusta tavallinen
+            # ELM327-sovitin ei pysy perässä, ja mittaus olisi epäluotettava.
+            raise UnsupportedAdapter(
+                f"Sovitin ({self._cmd('ATI') or 'tuntematon'}) ei ole OBDLink. Akux toimii OBDLink-sovittimilla: "
+                "EX ja SX (USB) sekä MX+ ja LX (Bluetooth).")
         self.info = {"sovitin": ident or self._cmd("ATI"), "portti": self.port, "nopeus": self.baud,
                      "suodatus": self.stn}
         self._apply_filters(True)
@@ -228,6 +248,15 @@ class ObdLinkSource(Source):
                         self.status = "Väylä hiljaa – onko auto hereillä?"
                         last_frame = now
                         self._start_monitor()
+            except UnsupportedAdapter as e:
+                self.error = str(e)
+                self.status = "Sovitinta ei tueta"
+                try:
+                    self.ser.close()
+                except Exception:  # noqa: BLE001
+                    pass
+                self._stop.wait(3600)
+                continue
             except AdapterUnavailable as e:
                 self.error = str(e)
                 self.status = "Odotetaan sovitinta"
