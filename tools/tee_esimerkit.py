@@ -50,7 +50,7 @@ def main():
         wait(lambda: app.decoder.state.vin and app.decoder.state.nfp_kwh and app.decoder.state.brick_count, 60)
         vid = app.storage.add_vehicle({"vin": app.decoder.state.vin, "nimi": nimi, "rekisteri": reg,
                                        "kayttoonotto": kayttoon, "omistaja": "Esimerkkiasiakas",
-                                       "lisatiedot": "Esimerkkiauto. Mittaukset on tehty Akuxin esittelytilassa."})
+                                       "lisatiedot": "Esimerkkiauto. Mittaukset on tehty AKUXin esittelytilassa."})
         app.storage.learn(vid, {"esimerkki": True})
         tids = []
 

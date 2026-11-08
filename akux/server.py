@@ -36,6 +36,12 @@ def platform_name() -> str:
     return "mac" if sys.platform == "darwin" else "linux"
 
 
+def _backups(d):
+    """Automaattiset varmuuskopiot vanhimmasta uusimpaan (myös vanhalla nimellä tehdyt)."""
+    found = {p.resolve(): p for pat in ("AKUX-varmuuskopio_*.zip", "Akux-varmuuskopio_*.zip") for p in d.glob(pat)}
+    return sorted(found.values(), key=lambda p: p.stat().st_mtime)
+
+
 class ApiError(Exception):
     def __init__(self, msg, code=400):
         super().__init__(msg)
@@ -148,7 +154,7 @@ class Api:
     def testi_ilmoitus(self, q, body):
         if body.get("osoite") is not None:
             self.app.storage.save_settings({"ilmoitus_osoite": body["osoite"].strip()})
-        ok, msg = self.app.notifier.send("valmis", "Akux – testi-ilmoitus",
+        ok, msg = self.app.notifier.send("valmis", "AKUX – testi-ilmoitus",
                                          "Ilmoitukset toimivat. Saat tällaisen ilmoituksen, kun mittaus etenee.",
                                          force=True, wait=True)
         if not ok:
@@ -584,6 +590,8 @@ class Api:
             v = st.vehicle(r["ajoneuvo_id"]) or {}
             if (v.get("nimi") or "").startswith("Esimerkki: "):
                 st.update_vehicle(r["ajoneuvo_id"], {"nimi": v["nimi"][len("Esimerkki: "):]})
+            if "Akux" in (v.get("lisatiedot") or ""):
+                st.update_vehicle(r["ajoneuvo_id"], {"lisatiedot": v["lisatiedot"].replace("Akux", "AKUX")})
             t = st.test(r["id"])
             meta = (t.get("tulos") or {}).get("meta")
             if meta:
@@ -699,8 +707,8 @@ def make_handler(api: Api):
                     pass
                 else:
                     html = ("<!doctype html><meta charset='utf-8'><meta name='viewport' content='width=device-width'>"
-                            "<title>Akux</title><body style='font-family:system-ui;padding:24px;max-width:480px'>"
-                            "<h2>Akux</h2><p>Avaa ohjelma puhelimella osoitteesta, jonka ohjelma näyttää "
+                            "<title>AKUX</title><body style='font-family:system-ui;padding:24px;max-width:480px'>"
+                            "<h2>AKUX</h2><p>Avaa ohjelma puhelimella osoitteesta, jonka ohjelma näyttää "
                             "tietokoneen ikkunassa ja Asetukset-sivulla, tai syötä suojakoodi.</p>"
                             "<form><input name='avain' inputmode='numeric' placeholder='Suojakoodi' "
                             "style='font-size:18px;padding:8px;width:100%'><button style='margin-top:10px;font-size:16px;"
@@ -800,10 +808,10 @@ def make_handler(api: Api):
                            {"Content-Disposition": f'attachment; filename="{p.name}"'})
                 return True
             if path == "/api/ohjeet.pdf":
-                p = st.dir / "Akux-kayttoohje.pdf"
+                p = st.dir / "AKUX-kayttoohje.pdf"
                 docs.build_pdf(p)
                 self._send(200, p.read_bytes(), "application/pdf",
-                           {"Content-Disposition": 'inline; filename="Akux-kayttoohje.pdf"'})
+                           {"Content-Disposition": 'inline; filename="AKUX-kayttoohje.pdf"'})
                 return True
             if path.startswith("/api/"):
                 return False
@@ -840,14 +848,14 @@ def _auto_backup(app, keep=5, every_days=7):
     """Automaattinen varmuuskopio kerran viikossa, viisi uusinta säilytetään."""
     try:
         d = app.storage.dir / "varmuuskopiot"
-        old = sorted(d.glob("Akux-varmuuskopio_*.zip")) if d.exists() else []
+        old = _backups(d) if d.exists() else []
         if not app.storage.tests() and not app.storage.vehicles():
             return
         if old and time.time() - old[-1].stat().st_mtime < every_days * 86400:
             return
         time.sleep(20)
         maintenance.backup(app.storage)
-        old = sorted(d.glob("Akux-varmuuskopio_*.zip"))
+        old = _backups(d)
         for p in old[:-keep]:
             p.unlink(missing_ok=True)
     except Exception:  # noqa: BLE001

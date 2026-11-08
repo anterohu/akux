@@ -29,7 +29,7 @@ IDLE_EXIT_S = 90
 def _running(port: int) -> bool:
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/tila", timeout=1.5) as r:
-            return json.load(r).get("nimi") == "Akux"
+            return str(json.load(r).get("nimi", "")).upper() == "AKUX"
     except Exception:  # noqa: BLE001
         return False
 
@@ -67,11 +67,11 @@ def open_window(url: str):
     webbrowser.open(url)
 
 
-LATAUS_HTML = """<!doctype html><html lang="fi"><head><meta charset="utf-8"><title>Akux</title>
+LATAUS_HTML = """<!doctype html><html lang="fi"><head><meta charset="utf-8"><title>AKUX</title>
 <style>html,body{height:100%;margin:0;font-family:Segoe UI,system-ui,sans-serif;background:#F5F6F8;color:#1B2430}
 body{display:flex;align-items:center;justify-content:center}div{text-align:center}b{font-size:20px}
 p{color:#6B7480;font-size:13px}@media(prefers-color-scheme:dark){html,body{background:#12171E;color:#E6E9EE}}</style>
-</head><body><div><b>Akux</b><p>Käynnistetään…</p></div></body></html>"""
+</head><body><div><b>AKUX</b><p>Käynnistetään…</p></div></body></html>"""
 
 
 def _webview():
@@ -162,7 +162,7 @@ def run_window(wv, url: str | None, test: bool = False, on_start=None, watch: bo
     """Avaa sovellusikkunan ja odottaa sen sulkemista. url=None näyttää latausnäkymän,
     kunnes on_start(window) lataa käyttöliittymän."""
     api = IkkunaApi(f"http://127.0.0.1:{PORT}")
-    win = wv.create_window("Akux", url=url, html=None if url else LATAUS_HTML, js_api=api,
+    win = wv.create_window("AKUX", url=url, html=None if url else LATAUS_HTML, js_api=api,
                            width=1320, height=880, min_size=(380, 560), background_color="#F5F6F8",
                            text_select=True)
     api._window = win
@@ -246,7 +246,7 @@ def _log_to_file():
 
 
 def _spawn(args: list[str], low_priority: bool = False):
-    """Käynnistää Akuxin erillisen prosessin (palvelin tai esilataus) ilman konsoli-ikkunaa."""
+    """Käynnistää AKUXin erillisen prosessin (palvelin tai esilataus) ilman konsoli-ikkunaa."""
     base = [sys.executable] + ([] if getattr(sys, "frozen", False) else ["-m", "akux.launcher"])
     kw = {"close_fds": True}
     if sys.platform.startswith("win"):

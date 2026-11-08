@@ -13,7 +13,7 @@ import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 
 /**
- * Akux toimii etualapalveluna, jotta mittaus jatkuu myös näytön ollessa
+ * AKUX toimii etualapalveluna, jotta mittaus jatkuu myös näytön ollessa
  * sammuksissa tai sovelluksen ollessa taustalla. Pitkä kapasiteettimittaus
  * kestää kymmenkunta tuntia.
  */
@@ -33,8 +33,8 @@ class AkuxService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Akux käynnissä", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Näkyy, kun Akux on käynnissä ja voi mitata"
+            NotificationChannel(CHANNEL, "AKUX käynnissä", NotificationManager.IMPORTANCE_LOW).apply {
+                description = "Näkyy, kun AKUX on käynnissä ja voi mitata"
             }
         )
         val open = PendingIntent.getActivity(
@@ -42,7 +42,7 @@ class AkuxService : Service() {
             PendingIntent.FLAG_IMMUTABLE
         )
         val n: Notification = Notification.Builder(this, CHANNEL)
-            .setContentTitle("Akux on käynnissä")
+            .setContentTitle("AKUX on käynnissä")
             .setContentText("Mittaus jatkuu, vaikka näyttö sammuu.")
             .setSmallIcon(R.drawable.ic_stat_akux)
             .setContentIntent(open)

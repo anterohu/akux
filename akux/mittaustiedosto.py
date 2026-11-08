@@ -3,7 +3,7 @@
 Jokainen mittaus tallennetaan omaksi tiedostokseen, joka sisältää kaiken: auton
 tiedot, mittausnäytteet, kennoryhmien jännitteet, tapahtumat, tuloksen,
 muuttamattoman raakadatan ja PDF-raportin. Tiedoston voi säilyttää missä
-kansiossa tahansa, ja sen voi avata missä tahansa Akux-versiossa.
+kansiossa tahansa, ja sen voi avata missä tahansa AKUX-versiossa.
 
 Tiedosto on zip-paketti, jonka sisältö on kuvattu tiedostossa mittaus.json.
 """
@@ -49,7 +49,7 @@ def file_name(test: dict, vehicle: dict | None) -> str:
     who = v.get("rekisteri") or v.get("nimi") or (v.get("vin") or "")[-6:] or "auto"
     day = time.strftime("%Y-%m-%d", time.localtime(test["aloitettu"]))
     kind = re.sub(r"[^a-z_]", "", str(test.get("tyyppi") or "mittaus")) or "mittaus"
-    return f"Akux_{_safe(who)}_{day}_{kind}_{test['id']:05d}"
+    return f"AKUX_{_safe(who)}_{day}_{kind}_{test['id']:05d}"
 
 
 def export(storage, tid: int, with_report: bool = True) -> tuple[str, bytes]:
@@ -119,11 +119,11 @@ def inspect(data: bytes) -> dict:
         z = zipfile.ZipFile(io.BytesIO(data))
         m = json.loads(z.read("mittaus.json"))
     except (zipfile.BadZipFile, KeyError, json.JSONDecodeError):
-        raise ValueError("Tiedosto ei ole Akuxin mittaustiedosto.")
+        raise ValueError("Tiedosto ei ole AKUXin mittaustiedosto.")
     if m.get("muoto") != MUOTO:
-        raise ValueError("Tiedosto ei ole Akuxin mittaustiedosto.")
+        raise ValueError("Tiedosto ei ole AKUXin mittaustiedosto.")
     if m.get("muoto_versio", 1) > MUOTO_VERSIO:
-        raise ValueError("Mittaustiedosto on tehty uudemmalla Akux-versiolla. Päivitä Akux ja avaa tiedosto uudelleen.")
+        raise ValueError("Mittaustiedosto on tehty uudemmalla AKUX-versiolla. Päivitä AKUX ja avaa tiedosto uudelleen.")
     for path, digest in (m.get("tiedostot") or {}).items():
         if hashlib.sha256(z.read(path)).hexdigest() != digest:
             raise ValueError("Mittaustiedosto on vioittunut tai sitä on muutettu.")

@@ -27,7 +27,7 @@ def backup(storage) -> Path:
     out_dir = storage.dir / "varmuuskopiot"
     out_dir.mkdir(exist_ok=True)
     stamp = time.strftime("%Y-%m-%d_%H%M")
-    out = out_dir / f"Akux-varmuuskopio_{stamp}.zip"
+    out = out_dir / f"AKUX-varmuuskopio_{stamp}.zip"
     with tempfile.TemporaryDirectory() as tmp:
         db_copy = Path(tmp) / "akux.db"
         with storage.lock:
@@ -56,10 +56,10 @@ def inspect_backup(data: bytes) -> dict:
     try:
         z = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile:
-        raise ValueError("Tiedosto ei ole Akuxin varmuuskopio.")
+        raise ValueError("Tiedosto ei ole AKUXin varmuuskopio.")
     names = set(z.namelist())
     if "AKUX-VARMUUSKOPIO.json" not in names or "akux.db" not in names:
-        raise ValueError("Tiedosto ei ole Akuxin varmuuskopio.")
+        raise ValueError("Tiedosto ei ole AKUXin varmuuskopio.")
     meta = json.loads(z.read("AKUX-VARMUUSKOPIO.json"))
     with tempfile.TemporaryDirectory() as tmp:
         p = Path(tmp) / "akux.db"

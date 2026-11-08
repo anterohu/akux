@@ -401,7 +401,7 @@ BRAND_GREEN = colors.HexColor("#6CC193")
 
 
 def draw_logo(c, x, y, h, wordmark=True, ink=None, watermark=False):
-    """Akux-merkki (sama kuin ohjelman kuvake) ja nimi. (x, y) = vasen alakulma, h = merkin korkeus.
+    """AKUX-merkki (sama kuin ohjelman kuvake) ja nimi. (x, y) = vasen alakulma, h = merkin korkeus.
     watermark=True piirtää saman merkin hyvin vaaleana taustakuviona."""
     c.saveState()
     base = colors.HexColor("#F0F2F5") if watermark else ACCENT
@@ -431,7 +431,7 @@ def draw_logo(c, x, y, h, wordmark=True, ink=None, watermark=False):
 
 
 def draw_watermark(c, style):
-    """Vino, läpikuultava Akux-vesileima sivun päälle. style: iso, toisto, rivit tai ei."""
+    """Vino, läpikuultava AKUX-vesileima sivun päälle. style: iso, toisto, rivit tai ei."""
     if style not in ("iso", "toisto", "rivit"):
         return
     c.saveState()
@@ -506,13 +506,13 @@ class ReportDoc(BaseDocTemplate):
 
     def _decorate(self, c, doc):
         ctx = self.ctx
-        # Himmeä Akux-vesileima sivun taustalle (piirretään ennen sisältöä)
+        # Himmeä AKUX-vesileima sivun taustalle (piirretään ennen sisältöä)
         c.saveState()
         y = H - 14 * mm
         logo = ctx.get("logo")
         x0 = M
         if not ctx["company"] and not (logo and Path(logo).exists()):
-            # Ilman yrityksen tietoja otsikkona on Akux-logo
+            # Ilman yrityksen tietoja otsikkona on AKUX-logo
             draw_logo(c, M, y - 7.2 * mm, 8.5 * mm)
             x0 = None
         elif logo and Path(logo).exists():
@@ -579,7 +579,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     company_line = "  ·  ".join(x for x in (s.get("yritys_osoite"), s.get("yritys_puhelin"),
                                             s.get("yritys_sahkoposti"), s.get("yritys_www")) if x)
     report_no = f"{time.strftime('%Y', time.localtime(test['aloitettu']))}-{tid:05d}"
-    title = "Akux-testi"
+    title = "AKUX-testi"
     from .recorder import TYYPIT
     test_kind = TYYPIT.get(tyyppi, "Akun tarkastus")
     ctx = {
@@ -836,7 +836,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     # Tietojen alkuperä ja vastuu
     E.append(Spacer(1, 6 * mm))
     origin = ("Kaikki raportin mittausarvot on luettu auton omasta akunhallintajärjestelmästä (BMS) "
-              "diagnostiikkaliitännän kautta. Akux ei käytä omia antureitaan eikä muuta luettuja arvoja, vaan "
+              "diagnostiikkaliitännän kautta. AKUX ei käytä omia antureitaan eikä muuta luettuja arvoja, vaan "
               "tallentaa ne muuttamattomina. ")
     if is_cap:
         origin += ("Kapasiteettimittauksen tulos perustuu akunhallinnan jännite- ja virtamittauksiin, ja se on "
