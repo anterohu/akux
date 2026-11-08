@@ -1,4 +1,5 @@
 """Reunatapaukset: vanha energiaviesti, lataustauko, datakatko, ohitukset ja keskeytys."""
+import faulthandler
 import os
 import sys
 import tempfile as _tf
@@ -182,5 +183,9 @@ def test_keskeytynyt_ohjelma():
 if __name__ == "__main__":
     for f in (test_vanha_muoto_tauko_ja_katko, test_datakatko_latauksen_aikana, test_lataus_heti_ja_ohitukset, test_liian_pieni_lataus_ja_keskeytys,
               test_lfp_akku, test_keskeytynyt_ohjelma):
+        # Jos testi jumittuu, kaikkien säikeiden pinot tulostetaan ja ajo päättyy virheeseen
+        faulthandler.dump_traceback_later(600, exit=True)
+        t0 = time.time()
         f()
-        print("OK", f.__name__)
+        faulthandler.cancel_dump_traceback_later()
+        print("OK", f.__name__, f"{time.time() - t0:.0f} s", flush=True)
