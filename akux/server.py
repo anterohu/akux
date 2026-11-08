@@ -205,7 +205,9 @@ class Api:
                 model, _ = profiles.identify(info, brick_count=snap.get("brick_count"),
                                              platform=snap.get("platform"), nfp_kwh=snap.get("nfp_kwh"))
         kwh, src = reference_capacity(vehicle or {}, None, model)
-        out = (kwh, {"Mallitaulukko": "mallin alkuperäinen kapasiteetti"}.get(src, src) if kwh else None)
+        label = ("mallin alkuperäinen kapasiteetti (likiarvo)" if src.startswith("Mallitaulukko") else
+                 "ilmoitettu" if src.startswith("Käyttäjän") else "Teslan akunhallinta, aiempi mittaus")
+        out = (kwh, label if kwh else None)
         self._ref_cache = (key, out)
         return out
 
