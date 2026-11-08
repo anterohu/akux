@@ -156,6 +156,8 @@ class TeslaDecoder:
         self._brick_seen_mux: set[int] = set()
         self._hv_listeners = []
         self._brick_listeners = []
+        # Kuuntelijat kutsutaan vasta lukon vapauduttua, jotta lukitusjärjestys ei voi lukita ohjelmaa
+        self._pending: list = []
         self._sx_reset()
 
     def _sx_reset(self):
@@ -192,7 +194,7 @@ class TeslaDecoder:
         self.state.bricks[k] = v
         if self._brick_listeners and self.state.pack_i is not None:
             for fn in list(self._brick_listeners):
-                fn(t, k, v, self.state.pack_i)
+                self._pending.append((fn, (t, k, v, self.state.pack_i)))
 
     def reset(self):
         with self.lock:
@@ -250,6 +252,12 @@ class TeslaDecoder:
             except Exception:
                 # Viallinen tai lyhyt kehys ohitetaan
                 pass
+            pending, self._pending = self._pending, []
+        for fn, args in pending:
+            try:
+                fn(*args)
+            except Exception:
+                pass
 
     # ------------------------------------------------------------------
     def _hv(self, t, d):
@@ -262,7 +270,7 @@ class TeslaDecoder:
         self.state.pack_v = v
         self.state.pack_i = i
         for fn in list(self._hv_listeners):
-            fn(t, v, i)
+            self._pending.append((fn, (t, v, i)))
 
     def _soc(self, t, d):
         if len(d) < 7:
@@ -471,7 +479,7 @@ class TeslaDecoder:
         st.pack_v = v
         st.pack_i = i
         for fn in list(self._hv_listeners):
-            fn(t, v, i)
+            self._pending.append((fn, (t, v, i)))
 
     def _sx_soc(self, t, d):
         if len(d) < 3:
