@@ -116,5 +116,25 @@ def test_android_silta():
         print("OK android-silta")
 
 
+def test_android_bluetooth_lista():
+    """Puhelimen paritetuista Bluetooth-laitteista näytetään vain OBDLink-sovittimet."""
+    from akux import android
+
+    class B:
+        def listDevices(self):
+            return ["FT231X USB UART 0403:6015", "Bluetooth: OBDLink MX+ 00:04:3E:9A:1B:2C",
+                    "Bluetooth: Galaxy Buds 11:22:33:44:55:66", "Bluetooth: Tesla Model 3 AA:BB:CC:DD:EE:FF"]
+    old = android._bridge
+    android._bridge = B()
+    try:
+        ports = android.list_ports()
+    finally:
+        android._bridge = old
+    names = [p["laite"] for p in ports]
+    assert names == ["FT231X USB UART 0403:6015", "Bluetooth: OBDLink MX+ 00:04:3E:9A:1B:2C"], names
+    print("OK Android Bluetooth-lista")
+
+
 if __name__ == "__main__":
     test_android_silta()
+    test_android_bluetooth_lista()

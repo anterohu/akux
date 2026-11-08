@@ -39,8 +39,8 @@ OHJE = [
                 "Teslan väylän liikenteen perässä, joten Akux ei hyväksy niitä.",
                 "<b>Bluetooth:</b> kytke sovitin autoon ja herätä auto. Paina MX+:n painiketta ja muodosta pari "
                 "Windowsin tai puhelimen Bluetooth-asetuksista. Sen jälkeen sovitin näkyy Akuxin sovitinlistassa "
-                "merkinnällä Bluetooth. Windowsissa paritetulle laitteelle syntyy kaksi COM-porttia, ja Akux valitsee "
-                "niistä toimivan.",
+                "merkinnällä Bluetooth. Listalla näkyvät vain OBDLink-sovittimet, eivät muut paritetut laitteet, "
+                "kuten kuulokkeet tai auto.",
                 "OBDLink CX käyttää Bluetooth Low Energy -yhteyttä, jota Akux ei vielä tue.",
             ]),
             ("ul", [

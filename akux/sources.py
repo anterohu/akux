@@ -70,6 +70,26 @@ class Source:
 
 
 # ----------------------------------------------------------------------
+BT_NAME_LOOKUP = None   # testit voivat korvata nimen haun
+
+
+def bt_device_name(mac: str) -> str | None:
+    """Paritetun Bluetooth-laitteen nimi Windowsin rekisteristä. None, jos nimeä ei saada."""
+    if BT_NAME_LOOKUP:
+        return BT_NAME_LOOKUP(mac)
+    try:
+        import winreg
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                             rf"SYSTEM\CurrentControlSet\Services\BTHPORT\Parameters\Devices\{mac.lower()}")
+        raw, _ = winreg.QueryValueEx(key, "Name")
+        winreg.CloseKey(key)
+        if isinstance(raw, bytes):
+            raw = raw.split(b"\x00", 1)[0].decode("utf-8", "ignore")
+        return str(raw).strip() or None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def list_ports() -> list[dict]:
     if PORT_LISTER:
         return PORT_LISTER()
@@ -83,11 +103,16 @@ def list_ports() -> list[dict]:
         hwid = (p.hwid or "").upper()
         if "BTHENUM" in hwid:
             # Windows luo paritetulle Bluetooth-laitteelle kaksi porttia. Lähtevän portin tunnisteessa on
-            # laitteen osoite, saapuvan portin tunnisteessa nollat; vain lähtevä toimii.
+            # laitteen osoite, saapuvan portin tunnisteessa nollat; vain lähtevä toimii. Listalle otetaan
+            # vain OBDLink-sovittimet; laitteen nimi luetaan Windowsin Bluetooth-rekisteristä.
             m = re.search(r"&([0-9A-F]{12})_", hwid)
-            outgoing = bool(m and m.group(1) != "0" * 12)
-            out.append({"laite": p.device, "todennakoinen": outgoing,
-                        "kuvaus": "Bluetooth" + ("" if outgoing else " (saapuva portti, ei käytössä)")})
+            if not (m and m.group(1) != "0" * 12):
+                continue
+            name = bt_device_name(m.group(1))
+            if name is not None and "OBDLINK" not in name.upper():
+                continue
+            out.append({"laite": p.device, "todennakoinen": True,
+                        "kuvaus": f"Bluetooth: {name}" if name else "Bluetooth"})
             continue
         likely = (p.vid == 0x0403) or "OBDLink" in desc or "FTDI" in (p.manufacturer or "") \
             or "ScanTool" in (p.manufacturer or "")
