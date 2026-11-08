@@ -18,7 +18,8 @@ jobs:
       - name: Kokonaisuus
         run: python tests/test_kokonaisuus.py
       - name: Reunatapaukset
-        run: python tests/test_reunatapaukset.py
+        timeout-minutes: 30
+        run: python -u tests/test_reunatapaukset.py
       - name: Sovitin
         run: python tests/test_obdlink.py
       - name: Ylläpito

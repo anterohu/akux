@@ -60,11 +60,15 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Ilmoitukset (Android 13+) ja Bluetooth-yhteys OBDLink MX+ -sovittimeen (Android 12+)
+        val needed = mutableListOf<String>()
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
-        }
+        ) needed += Manifest.permission.POST_NOTIFICATIONS
+        if (Build.VERSION.SDK_INT >= 31 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
+        ) needed += Manifest.permission.BLUETOOTH_CONNECT
+        if (needed.isNotEmpty()) requestPermissions(needed.toTypedArray(), 1)
         ContextCompat.startForegroundService(this, Intent(this, AkuxService::class.java))
         ContextCompat.registerReceiver(
             this, stoppedReceiver, IntentFilter(AkuxService.ACTION_STOPPED), ContextCompat.RECEIVER_NOT_EXPORTED

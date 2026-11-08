@@ -17,7 +17,7 @@ OHJE = [
             ]),
             ("ol", [
                 "Avaa <b>Asetukset</b> ja täytä yrityksen tiedot, mittaajan nimi ja logo. Tiedot näkyvät jokaisessa raportissa.",
-                "Kytke OBDLink-sovitin välikaapelilla auton diagnostiikkaliittimeen ja USB-kaapelilla tietokoneeseen.",
+                "Kytke OBDLink-sovitin välikaapelilla auton diagnostiikkaliittimeen ja USB-kaapelilla tietokoneeseen. Bluetooth-mallit (MX+, LX) paritetaan ensin Windowsin Bluetooth-asetuksista.",
                 "Herätä auto ja paina <b>Yleiskuva</b>-sivulla <b>Yhdistä autoon</b>.",
                 "Lisää auto. Ohjelma lukee valmistenumeron autosta ja tunnistaa mallin.",
                 "Tee autolle pikatarkastus. Sen jälkeen voit tehdä kapasiteettimittauksen.",
@@ -33,6 +33,16 @@ OHJE = [
         "osat": [
             ("p", "Akun tiedot luetaan auton diagnostiikkaliittimestä OBDLink-sovittimella ja mallille sopivalla "
                   "välikaapelilla. Auton sivulla <b>Kytkentä autoon</b> kertoo juuri sen auton liittimen."),
+            ("ul", [
+                "<b>Tuetut sovittimet:</b> OBDLink EX ja SX (USB) sekä OBDLink MX+ ja LX (Bluetooth). Akux käyttää "
+                "OBDLinkin suodatusta, jolla vain akun tiedot välitetään. Tavalliset ELM327-sovittimet eivät pysy "
+                "Teslan väylän liikenteen perässä, joten Akux ei hyväksy niitä.",
+                "<b>Bluetooth:</b> kytke sovitin autoon ja herätä auto. Paina MX+:n painiketta ja muodosta pari "
+                "Windowsin tai puhelimen Bluetooth-asetuksista. Sen jälkeen sovitin näkyy Akuxin sovitinlistassa "
+                "merkinnällä Bluetooth. Windowsissa paritetulle laitteelle syntyy kaksi COM-porttia, ja Akux valitsee "
+                "niistä toimivan.",
+                "OBDLink CX käyttää Bluetooth Low Energy -yhteyttä, jota Akux ei vielä tue.",
+            ]),
             ("ul", [
                 "<b>Model 3 ja Model Y (2019–2024):</b> liitin on keskikonsolin takapäässä takamatkustajien puolella "
                 "paneelin takana. Vuosien 2019–2020 autoissa se on 20-pinninen ja 2021 alkaen 26-pinninen. "
@@ -224,13 +234,13 @@ OHJE = [
             ("p", "Android-sovelluksella koko mittauksen voi tehdä pelkällä puhelimella tai tabletilla. Sovelluksessa "
                   "on samat toiminnot, mittaukset ja raportit kuin tietokoneohjelmassa."),
             ("ol", [
-                "Kytke OBDLink EX välikaapelilla auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen.",
-                "Kun Android kysyy, saako Akux käyttää sovitinta, valitse <b>Salli</b>. Voit valita, että Akux avautuu aina, kun sovitin kytketään.",
+                "<b>USB:</b> kytke OBDLink EX välikaapelilla auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen. Kun Android kysyy, saako Akux käyttää sovitinta, valitse <b>Salli</b>.",
+                "<b>Bluetooth:</b> kytke OBDLink MX+ tai LX autoon ja muodosta pari puhelimen Bluetooth-asetuksista. Salli Akuxille lähellä olevien laitteiden käyttö, kun sovellus kysyy.",
                 "Paina <b>Yleiskuva</b>-sivulla <b>Yhdistä autoon</b> ja jatka kuten tietokoneella.",
             ]),
             ("ul", [
                 "Akux toimii taustalla, ja ilmoitusalueella näkyy merkintä <b>Akux on käynnissä</b>. Mittaus jatkuu, vaikka näyttö sammuu tai vaihdat toiseen sovellukseen.",
-                "Kapasiteettimittaus kestää 8–14 tuntia, joten puhelimen on oltava laturissa. Koska EX käyttää puhelimen USB-C-portin, tarvitaan OTG-sovitin, jossa on latausportti (USB-C-hubi, jossa lataus läpi eli PD). Kytke hubiin EX ja laturi.",
+                "Kapasiteettimittaus kestää 8–14 tuntia, joten puhelimen on oltava laturissa. Bluetooth-sovittimella puhelimen voi pitää suoraan laturissa. Koska EX käyttää puhelimen USB-C-portin, tarvitaan sen kanssa OTG-sovitin, jossa on latausportti (USB-C-hubi, jossa lataus läpi eli PD).",
                 "Raportit ja varmuuskopiot tallentuvat avattaessa puhelimen <b>Lataukset/Akux</b>-kansioon, josta ne voi jakaa sähköpostilla tai viestillä.",
                 "Sovellus päivitetään asentamalla uusi versio vanhan päälle. Tiedot säilyvät.",
             ]),
