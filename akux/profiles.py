@@ -149,7 +149,7 @@ def connection_guide(malli_koodi: str | None, vuosimalli: int | None = None,
                 "varmistettu": False}
     if mk == "C":
         return {"liitin": "Cybertruck",
-                "ohje": "Cybertruckin akkuviestejä ei ole julkisesti selvitetty. Akux tunnistaa auton, mutta mittaus on "
+                "ohje": "Cybertruckin akkuviestejä ei ole julkisesti selvitetty. AKUX tunnistaa auton, mutta mittaus on "
                         "kokeellinen ja voi jäädä vajaaksi. Kartoita väylä ennen mittausta.",
                 "varmistettu": False}
     return {"liitin": "Diagnostiikkaliitin",

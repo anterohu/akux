@@ -1,4 +1,4 @@
-"""Akux – sähköauton ajoakun kunnon ja kapasiteetin mittaus."""
+"""AKUX – sähköauton ajoakun kunnon ja kapasiteetin mittaus."""
 
-NIMI = "Akux"
-VERSIO = "1.5.1"
+NIMI = "AKUX"
+VERSIO = "1.5.2"

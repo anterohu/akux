@@ -56,6 +56,7 @@ OLETUSASETUKSET = {
     "itsepurkaus_tunnit": 8,
     "vesileima": "toisto",
     "tekninen_liite": True,
+    "logo_koko": "normaali",
 }
 
 SCHEMA = """

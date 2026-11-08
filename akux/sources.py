@@ -191,7 +191,7 @@ class ObdLinkSource(Source):
             # Teslan väylällä kulkee tuhansia viestejä sekunnissa. Ilman OBDLinkin suodatusta tavallinen
             # ELM327-sovitin ei pysy perässä, ja mittaus olisi epäluotettava.
             raise UnsupportedAdapter(
-                f"Sovitin ({self._cmd('ATI') or 'tuntematon'}) ei ole OBDLink. Akux toimii OBDLink-sovittimilla: "
+                f"Sovitin ({self._cmd('ATI') or 'tuntematon'}) ei ole OBDLink. AKUX toimii OBDLink-sovittimilla: "
                 "EX ja SX (USB) sekä MX+ ja LX (Bluetooth).")
         self.info = {"sovitin": ident or self._cmd("ATI"), "portti": self.port, "nopeus": self.baud,
                      "suodatus": self.stn}

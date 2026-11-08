@@ -400,38 +400,101 @@ def _dur(s):
 BRAND_GREEN = colors.HexColor("#6CC193")
 
 
-def draw_logo(c, x, y, h, wordmark=True, ink=None, watermark=False):
-    """Akux-merkki (sama kuin ohjelman kuvake) ja nimi. (x, y) = vasen alakulma, h = merkin korkeus.
-    watermark=True piirtää saman merkin hyvin vaaleana taustakuviona."""
+def draw_mark(c, cx, cy, r, dots=True, ring=True):
+    """AKUX-merkki: valkoinen ympyrä, tummansininen reunus, pisteviivarengas ja A-kirjain."""
+    k = r / 50.0                                  # merkki on piirretty 100 × 100 -ruudukkoon
     c.saveState()
-    base = colors.HexColor("#F0F2F5") if watermark else ACCENT
-    green = colors.HexColor("#EAF1EC") if watermark else BRAND_GREEN
-    if watermark:
-        ink = colors.HexColor("#F0F2F5")
-    c.setFillColor(base)
-    c.roundRect(x, y, h, h, h * 0.22, stroke=0, fill=1)
-    bw, bh = h * 0.62, h * 0.36
-    bx, by = x + h * 0.15, y + (h - bh) / 2
-    c.setStrokeColor(colors.white)
-    c.setLineWidth(max(0.6, h * 0.065))
-    c.roundRect(bx, by, bw, bh, h * 0.06, stroke=1, fill=0)
-    c.setFillColor(colors.white)
-    c.roundRect(bx + bw + h * 0.035, y + h * 0.43, h * 0.07, h * 0.14, h * 0.02, stroke=0, fill=1)
-    c.setFillColor(green)
-    pad = h * 0.07
-    c.roundRect(bx + pad, by + pad, bw * 0.5, bh - 2 * pad, h * 0.03, stroke=0, fill=1)
+    if ring:
+        c.setFillColor(colors.white)
+        c.setStrokeColor(ACCENT)
+        c.setLineWidth(6 * k)
+        c.circle(cx, cy, r - 3.5 * k, stroke=1, fill=1)
+    if dots and r >= 3 * mm:
+        c.setStrokeColor(colors.Color(ACCENT.red, ACCENT.green, ACCENT.blue, alpha=0.38))
+        c.setLineWidth(1.8 * k)
+        c.setDash(2 * k, 4 * k)
+        c.circle(cx, cy, 37 * k, stroke=1, fill=0)
+        c.setDash()
+
+    def pt(x, y):                                 # merkin koordinaatit (y alaspäin) sivulle
+        return cx + (x - 50) * k, cy - (y - 50) * k
+    c.setStrokeColor(ACCENT)
+    c.setLineWidth(9 * k)
+    c.setLineJoin(1)
+    c.setLineCap(1)
+    pth = c.beginPath()
+    pth.moveTo(*pt(33, 71))
+    pth.lineTo(*pt(50, 28))
+    pth.lineTo(*pt(67, 71))
+    c.drawPath(pth, stroke=1, fill=0)
+    c.setStrokeColor(BRAND_GREEN)
+    c.setLineWidth(7.5 * k)
+    c.line(*pt(40.5, 57), *pt(59.5, 57))
+    c.restoreState()
+
+
+def draw_logo(c, x, y, h, wordmark=True, ink=None, watermark=False):
+    """AKUX-merkki (sama kuin ohjelman kuvake) ja nimi. (x, y) = vasen alakulma, h = merkin korkeus."""
+    c.saveState()
+    draw_mark(c, x + h / 2, y + h / 2, h / 2, dots=h >= 6 * mm)
     w = h
     if wordmark:
         c.setFillColor(ink or INK)
-        c.setFont("Inter-SemiBold", h * 0.78)
-        c.drawString(x + h * 1.28, y + h * 0.2, NIMI)
-        w = h * 1.28 + pdfmetrics.stringWidth(NIMI, "Inter-SemiBold", h * 0.78)
+        size = h * 0.72
+        c.setFont("Inter-SemiBold", size)
+        c.drawString(x + h * 1.3, y + h * 0.24, NIMI, charSpace=size * 0.06)
+        w = h * 1.3 + pdfmetrics.stringWidth(NIMI, "Inter-SemiBold", size) + size * 0.06 * (len(NIMI) - 1)
     c.restoreState()
     return w
 
 
+def _arc_text(c, text, cx, cy, r, font, size, top=True, spacing=0.0):
+    """Kaareva teksti: top=True yläkaarelle myötäpäivään, muuten alakaarelle vasemmalta oikealle."""
+    import math
+    widths = [pdfmetrics.stringWidth(ch, font, size) + spacing for ch in text]
+    total = sum(widths) - spacing
+    ang = math.pi / 2 + total / r / 2 if top else 3 * math.pi / 2 - total / r / 2
+    c.setFont(font, size)
+    for ch, w in zip(text, widths):
+        half = (w - spacing) / 2 / r
+        a = ang - half if top else ang + half
+        c.saveState()
+        c.translate(cx + r * math.cos(a), cy + r * math.sin(a))
+        c.rotate(math.degrees(a) - 90 if top else math.degrees(a) + 90)
+        c.drawCentredString(0, 0, ch)
+        c.restoreState()
+        ang = ang - w / r if top else ang + w / r
+    return total
+
+
+def draw_seal(c, cx, cy, r, bottom_text):
+    """AKUX-leima: kehällä AKUX-TESTI ja alhaalla mittauksen tiedot, keskellä merkki."""
+    k = r / 100.0                                 # leima on suunniteltu 200 × 200 -ruudukkoon
+    c.saveState()
+    c.setFillColor(colors.white)
+    c.setStrokeColor(ACCENT)
+    c.setLineWidth(4 * k)
+    c.circle(cx, cy, 96 * k, stroke=1, fill=1)
+    c.setStrokeColor(colors.Color(ACCENT.red, ACCENT.green, ACCENT.blue, alpha=0.55))
+    c.setLineWidth(1.3 * k)
+    c.circle(cx, cy, 88 * k, stroke=1, fill=0)
+    c.circle(cx, cy, 62 * k, stroke=1, fill=0)
+    c.setFillColor(ACCENT)
+    # Tekstit keskitetään renkaiden väliin (säde 62–88): isojen kirjainten korkeus on noin 0,72 × koko
+    top_size, bot_size = 17 * k, 14 * k
+    _arc_text(c, "AKUX-TESTI", cx, cy, 75 * k - 0.36 * top_size, "Inter-Bold", top_size, top=True,
+              spacing=4 * k)
+    _arc_text(c, bottom_text.upper(), cx, cy, 75 * k + 0.36 * bot_size, "Inter-SemiBold", bot_size, top=False,
+              spacing=3 * k)
+    c.setFillColor(BRAND_GREEN)
+    c.circle(cx - 75 * k, cy, 2.6 * k, stroke=0, fill=1)
+    c.circle(cx + 75 * k, cy, 2.6 * k, stroke=0, fill=1)
+    c.restoreState()
+    draw_mark(c, cx, cy, 50 * k, ring=False)
+
+
 def draw_watermark(c, style):
-    """Vino, läpikuultava Akux-vesileima sivun päälle. style: iso, toisto, rivit tai ei."""
+    """Vino, läpikuultava AKUX-vesileima sivun päälle. style: iso, toisto, rivit tai ei."""
     if style not in ("iso", "toisto", "rivit"):
         return
     c.saveState()
@@ -493,7 +556,10 @@ class ReportDoc(BaseDocTemplate):
             c.restoreState()
         c.saveState()
         y = 22 * mm
-        half = CW / 2 - 5 * mm
+        # Allekirjoitusten väliin AKUX-leima, keskitettynä allekirjoitusalueen korkeuteen
+        seal_r = 13 * mm
+        half = (CW - 2 * seal_r - 10 * mm) / 2
+        draw_seal(c, W / 2, y + 6.5 * mm, seal_r, self.ctx["measured"])
         c.setStrokeColor(MUTED)
         c.setLineWidth(0.6)
         c.line(M, y, M + half, y)
@@ -506,13 +572,13 @@ class ReportDoc(BaseDocTemplate):
 
     def _decorate(self, c, doc):
         ctx = self.ctx
-        # Himmeä Akux-vesileima sivun taustalle (piirretään ennen sisältöä)
+        # Himmeä AKUX-vesileima sivun taustalle (piirretään ennen sisältöä)
         c.saveState()
         y = H - 14 * mm
         logo = ctx.get("logo")
         x0 = M
         if not ctx["company"] and not (logo and Path(logo).exists()):
-            # Ilman yrityksen tietoja otsikkona on Akux-logo
+            # Ilman yrityksen tietoja otsikkona on AKUX-logo
             draw_logo(c, M, y - 7.2 * mm, 8.5 * mm)
             x0 = None
         elif logo and Path(logo).exists():
@@ -520,9 +586,13 @@ class ReportDoc(BaseDocTemplate):
                 from reportlab.lib.utils import ImageReader
                 ir = ImageReader(logo)
                 iw, ih = ir.getSize()
-                hgt = 9 * mm
-                wid = min(40 * mm, hgt * iw / ih)
-                c.drawImage(ir, M, y - 6.5 * mm, width=wid, height=wid * ih / iw, mask="auto")
+                # Logon koko asetuksista; logo asetetaan otsikkoviivan yläpuolelle
+                hgt, maxw = {"pieni": (9 * mm, 40 * mm), "suuri": (14 * mm, 70 * mm)}.get(
+                    ctx.get("logo_koko"), (11 * mm, 55 * mm))
+                wid = min(maxw, hgt * iw / ih)
+                h_img = wid * ih / iw
+                base = H - 19.5 * mm
+                c.drawImage(ir, M, base + (hgt - h_img) / 2, width=wid, height=h_img, mask="auto")
                 x0 = M + wid + 4 * mm
             except Exception:  # noqa: BLE001
                 pass
@@ -579,12 +649,14 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     company_line = "  ·  ".join(x for x in (s.get("yritys_osoite"), s.get("yritys_puhelin"),
                                             s.get("yritys_sahkoposti"), s.get("yritys_www")) if x)
     report_no = f"{time.strftime('%Y', time.localtime(test['aloitettu']))}-{tid:05d}"
-    title = "Akux-testi"
+    title = "AKUX-testi"
     from .recorder import TYYPIT
     test_kind = TYYPIT.get(tyyppi, "Akun tarkastus")
     ctx = {
         "company": s.get("yritys_nimi"), "company_line": company_line, "logo": s.get("logo"),
         "title": f"{title}  ·  {test_kind}", "report_no": report_no, "vesileima": s.get("vesileima") or "toisto", "date": _date(test.get("paattynyt") or test["aloitettu"], False),
+        "measured": _date(test["aloitettu"], False),
+        "logo_koko": s.get("logo_koko") or "normaali",
         "footer": s.get("raportin_alatunniste") or (
             f"{VERSIO}  ·  Tiedot: auton akunhallinta  ·  Raakadatan tarkiste {(test.get('tarkiste') or '')[:16]}…"),
     }
@@ -836,7 +908,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     # Tietojen alkuperä ja vastuu
     E.append(Spacer(1, 6 * mm))
     origin = ("Kaikki raportin mittausarvot on luettu auton omasta akunhallintajärjestelmästä (BMS) "
-              "diagnostiikkaliitännän kautta. Akux ei käytä omia antureitaan eikä muuta luettuja arvoja, vaan "
+              "diagnostiikkaliitännän kautta. AKUX ei käytä omia antureitaan eikä muuta luettuja arvoja, vaan "
               "tallentaa ne muuttamattomina. ")
     if is_cap:
         origin += ("Kapasiteettimittauksen tulos perustuu akunhallinnan jännite- ja virtamittauksiin, ja se on "

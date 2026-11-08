@@ -85,12 +85,12 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "Asennus epäonnistui ($($p.ExitCode))" }
           $exe = Join-Path $env:LOCALAPPDATA "Programs\Akux\Akux.exe"
           if (-not (Test-Path $exe)) { throw "Akux.exe puuttuu asennuksen jälkeen" }
-          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) "Akux.lnk"))) { throw "Työpöydän pikakuvake puuttuu" }
-          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Programs')) "Akux.lnk"))) { throw "Käynnistä-valikon pikakuvake puuttuu" }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) "AKUX.lnk"))) { throw "Työpöydän pikakuvake puuttuu" }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Programs')) "AKUX.lnk"))) { throw "Käynnistä-valikon pikakuvake puuttuu" }
 
           function Odota-Akux {
             for ($i = 0; $i -lt 60; $i++) {
-              try { $r = Invoke-RestMethod "http://127.0.0.1:8765/api/tila" -TimeoutSec 2; if ($r.nimi -eq "Akux") { return $r } } catch {}
+              try { $r = Invoke-RestMethod "http://127.0.0.1:8765/api/tila" -TimeoutSec 2; if ($r.nimi -eq "AKUX") { return $r } } catch {}
               Start-Sleep 2
             }
             Get-Content (Join-Path $env:APPDATA "Akux\loki.txt") -ErrorAction SilentlyContinue
@@ -244,7 +244,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VERSIO }}
-          name: Akux ${{ env.VERSIO }}
+          name: AKUX ${{ env.VERSIO }}
           make_latest: true
           body: |
             **Windows:** lataa Akux-asennus-${{ env.VERSIO }}.exe ja avaa se. Jos Windows näyttää ilmoituksen *Windows suojasi tietokonettasi*, valitse Lisätietoja → Suorita silti.

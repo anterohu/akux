@@ -5,13 +5,13 @@ OHJE = [
     {
         "id": "aloitus", "otsikko": "Aloitus",
         "osat": [
-            ("p", "Akux lukee Teslan ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta ja kokoaa tiedot "
+            ("p", "AKUX lukee Teslan ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta ja kokoaa tiedot "
                   "raportiksi, jonka voi antaa ostajalle, asiakkaalle tai pitää itsellä. Kaikki mittausarvot ovat "
-                  "auton akunhallinnan luovuttamia. Akux ei käytä omia antureitaan eikä muuta arvoja."),
+                  "auton akunhallinnan luovuttamia. AKUX ei käytä omia antureitaan eikä muuta arvoja."),
             ("ul", [
                 "<b>Model 3 ja Model Y</b>, kaikki vuosimallit ja akkutyypit (NCA, NMC ja LFP).",
                 "<b>Model S ja Model X</b>: vuodesta 2021 valmistetut samalla tavalla kuin Model 3. Vuosien 2012–2021 "
-                "Model S ja 2015–2021 Model X käyttävät omaa viestirakennettaan, jonka Akux tunnistaa itse. Niiden "
+                "Model S ja 2015–2021 Model X käyttävät omaa viestirakennettaan, jonka AKUX tunnistaa itse. Niiden "
                 "akunhallinta ei ilmoita akun alkuperäistä kapasiteettia, joten se kannattaa syöttää auton tietoihin.",
                 "<b>Cybertruck</b>: auto tunnistetaan, mutta mittaus on kokeellinen.",
             ]),
@@ -34,14 +34,14 @@ OHJE = [
             ("p", "Akun tiedot luetaan auton diagnostiikkaliittimestä OBDLink-sovittimella ja mallille sopivalla "
                   "välikaapelilla. Auton sivulla <b>Kytkentä autoon</b> kertoo juuri sen auton liittimen."),
             ("ul", [
-                "<b>Tuetut sovittimet:</b> OBDLink EX ja SX (USB) sekä OBDLink MX+ ja LX (Bluetooth). Akux käyttää "
+                "<b>Tuetut sovittimet:</b> OBDLink EX ja SX (USB) sekä OBDLink MX+ ja LX (Bluetooth). AKUX käyttää "
                 "OBDLinkin suodatusta, jolla vain akun tiedot välitetään. Tavalliset ELM327-sovittimet eivät pysy "
-                "Teslan väylän liikenteen perässä, joten Akux ei hyväksy niitä.",
+                "Teslan väylän liikenteen perässä, joten AKUX ei hyväksy niitä.",
                 "<b>Bluetooth:</b> kytke sovitin autoon ja herätä auto. Paina MX+:n painiketta ja muodosta pari "
-                "Windowsin tai puhelimen Bluetooth-asetuksista. Sen jälkeen sovitin näkyy Akuxin sovitinlistassa "
+                "Windowsin tai puhelimen Bluetooth-asetuksista. Sen jälkeen sovitin näkyy AKUXin sovitinlistassa "
                 "merkinnällä Bluetooth. Listalla näkyvät vain OBDLink-sovittimet, eivät muut paritetut laitteet, "
                 "kuten kuulokkeet tai auto.",
-                "OBDLink CX käyttää Bluetooth Low Energy -yhteyttä, jota Akux ei vielä tue.",
+                "OBDLink CX käyttää Bluetooth Low Energy -yhteyttä, jota AKUX ei vielä tue.",
             ]),
             ("ul", [
                 "<b>Model 3 ja Model Y (2019–2024):</b> liitin on keskikonsolin takapäässä takamatkustajien puolella "
@@ -125,7 +125,7 @@ OHJE = [
     {
         "id": "testit", "otsikko": "Mittaustyypit",
         "osat": [
-            ("p", "Akuxissa on kahdeksan mittausta. Ne on ryhmitelty sen mukaan, missä mittaus tehdään. "
+            ("p", "AKUXissa on kahdeksan mittausta. Ne on ryhmitelty sen mukaan, missä mittaus tehdään. "
                   "Akun kunto prosentteina saadaan kapasiteettimittauksesta, ajotestistä ja täydestä akkutestistä. "
                   "Muut mittaukset kertovat akusta asioita, joita kapasiteetti ei kerro."),
             ("ul", [
@@ -201,7 +201,7 @@ OHJE = [
                 "<b>Vertailu ajomäärään</b> kertoo, onko kapasiteetin alenema keskimääräinen, pienempi vai suurempi kuin samalla ajomäärällä yleensä.",
             ]),
             ("p", "Raportissa kerrotaan tietojen alkuperä: tiedot luetaan auton omasta akunhallintajärjestelmästä, "
-                  "eikä Akux muuta niitä. Pikatarkastuksen kunto ja kapasiteetti ovat Teslan akunhallinnan ilmoittamia. "
+                  "eikä AKUX muuta niitä. Pikatarkastuksen kunto ja kapasiteetti ovat Teslan akunhallinnan ilmoittamia. "
                   "Kapasiteettimittauksessa ja ajotesteissä tulos perustuu auton omiin jännite- ja virtamittauksiin, "
                   "varaustilaan ja energialaskureihin. "
                   "Raportti kuvaa akun tilaa mittaushetkellä, eikä se ole valmistajan lausunto."),
@@ -229,17 +229,17 @@ OHJE = [
         ],
     },
     {
-        "id": "android", "otsikko": "Akux Android-puhelimessa",
+        "id": "android", "otsikko": "AKUX Android-puhelimessa",
         "osat": [
             ("p", "Android-sovelluksella koko mittauksen voi tehdä pelkällä puhelimella tai tabletilla. Sovelluksessa "
                   "on samat toiminnot, mittaukset ja raportit kuin tietokoneohjelmassa."),
             ("ol", [
-                "<b>USB:</b> kytke OBDLink EX välikaapelilla auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen. Kun Android kysyy, saako Akux käyttää sovitinta, valitse <b>Salli</b>.",
-                "<b>Bluetooth:</b> kytke OBDLink MX+ tai LX autoon ja muodosta pari puhelimen Bluetooth-asetuksista. Salli Akuxille lähellä olevien laitteiden käyttö, kun sovellus kysyy.",
+                "<b>USB:</b> kytke OBDLink EX välikaapelilla auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen. Kun Android kysyy, saako AKUX käyttää sovitinta, valitse <b>Salli</b>.",
+                "<b>Bluetooth:</b> kytke OBDLink MX+ tai LX autoon ja muodosta pari puhelimen Bluetooth-asetuksista. Salli AKUXille lähellä olevien laitteiden käyttö, kun sovellus kysyy.",
                 "Paina <b>Yleiskuva</b>-sivulla <b>Yhdistä autoon</b> ja jatka kuten tietokoneella.",
             ]),
             ("ul", [
-                "Akux toimii taustalla, ja ilmoitusalueella näkyy merkintä <b>Akux on käynnissä</b>. Mittaus jatkuu, vaikka näyttö sammuu tai vaihdat toiseen sovellukseen.",
+                "AKUX toimii taustalla, ja ilmoitusalueella näkyy merkintä <b>AKUX on käynnissä</b>. Mittaus jatkuu, vaikka näyttö sammuu tai vaihdat toiseen sovellukseen.",
                 "Kapasiteettimittaus kestää 8–14 tuntia, joten puhelimen on oltava laturissa. Bluetooth-sovittimella puhelimen voi pitää suoraan laturissa. Koska EX käyttää puhelimen USB-C-portin, tarvitaan sen kanssa OTG-sovitin, jossa on latausportti (USB-C-hubi, jossa lataus läpi eli PD).",
                 "Raportit ja varmuuskopiot tallentuvat avattaessa puhelimen <b>Lataukset/Akux</b>-kansioon, josta ne voi jakaa sähköpostilla tai viestillä.",
                 "Sovellus päivitetään asentamalla uusi versio vanhan päälle. Tiedot säilyvät.",
@@ -271,7 +271,7 @@ OHJE = [
             ("p", "<b>Mittaustiedostot:</b> jokainen valmis mittaus tallennetaan automaattisesti mittaustiedostona "
                   "(.akux) ja PDF-raporttina. Windowsissa oletuskansio on Tiedostot/Akux/Mittaukset, Androidissa "
                   "Lataukset/Akux. Kansion voi vaihtaa asetuksista. Mittaustiedosto sisältää kaikki mittauksen tiedot "
-                  "ja raakadatan, ja sen voi avata missä tahansa Akux-versiossa ja millä tahansa laitteella kohdasta "
+                  "ja raakadatan, ja sen voi avata missä tahansa AKUX-versiossa ja millä tahansa laitteella kohdasta "
                   "<b>Mittaukset → Avaa mittaustiedosto</b>."),
             ("p", "<b>Varmuuskopio:</b> ohjelma tekee varmuuskopion automaattisesti kerran viikossa ja säilyttää "
                   "viisi uusinta. Voit tehdä varmuuskopion myös itse ja tallentaa sen esimerkiksi muistitikulle. "

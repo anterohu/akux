@@ -16,7 +16,7 @@
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="Akux"
+        android:label="AKUX"
         android:networkSecurityConfig="@xml/network_security"
         android:supportsRtl="false"
         android:theme="@style/Theme.Akux">

@@ -77,7 +77,7 @@ class MainActivity : ComponentActivity() {
         val root = FrameLayout(this)
         web = WebView(this)
         splash = TextView(this).apply {
-            text = "Akux käynnistyy…"
+            text = "AKUX käynnistyy…"
             textSize = 18f
             setTextColor(Color.parseColor("#1B2430"))
             setBackgroundColor(Color.parseColor("#F3F4F6"))
@@ -150,7 +150,7 @@ class MainActivity : ComponentActivity() {
                 }
                 Thread.sleep(400)
             }
-            runOnUiThread { splash.text = "Akux ei käynnistynyt. Sulje sovellus ja avaa se uudelleen." }
+            runOnUiThread { splash.text = "AKUX ei käynnistynyt. Sulje sovellus ja avaa se uudelleen." }
         }
     }
 

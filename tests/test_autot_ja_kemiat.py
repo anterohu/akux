@@ -178,7 +178,7 @@ def run_types(car, tmp):
     true_soh = src.nfp / src.bol * 100
     assert abs(r["yhteenveto"]["kunto_pct"] - true_soh) < 0.2, (r["yhteenveto"]["kunto_pct"], true_soh)
     assert r["kennot"]["lkm"] == src.n
-    _pdf_check(app, tid, ["Akux-testi", "Pikatarkastus", src.vin, "ABC-123"])
+    _pdf_check(app, tid, ["AKUX-testi", "Pikatarkastus", src.vin, "ABC-123"])
     print(f"   pikatarkastus: kunto {r['yhteenveto']['kunto_pct']:.1f} %, todellinen {true_soh:.1f} %")
     app.disconnect()
 

@@ -67,14 +67,14 @@ class UsbBridge(private val context: Context) {
         val dev = try {
             adapter.bondedDevices.firstOrNull { it.address == address }
         } catch (_: SecurityException) {
-            throw IOException("Salli Akuxille lähellä olevien laitteiden käyttö puhelimen asetuksista (Sovellukset > Akux > Luvat).")
+            throw IOException("Salli AKUXille lähellä olevien laitteiden käyttö puhelimen asetuksista (Sovellukset > AKUX > Luvat).")
         } ?: throw IOException("Sovitinta ei löydy. Muodosta pari OBDLinkin kanssa puhelimen Bluetooth-asetuksista.")
         val spp = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
         val sock = try {
             adapter.cancelDiscovery()
             dev.createRfcommSocketToServiceRecord(spp).also { it.connect() }
         } catch (e: SecurityException) {
-            throw IOException("Salli Akuxille lähellä olevien laitteiden käyttö puhelimen asetuksista (Sovellukset > Akux > Luvat).")
+            throw IOException("Salli AKUXille lähellä olevien laitteiden käyttö puhelimen asetuksista (Sovellukset > AKUX > Luvat).")
         } catch (e: IOException) {
             throw IOException("Bluetooth-yhteys sovittimeen ei onnistunut. Tarkista, että sovitin on kytketty autoon ja lähellä.")
         }
@@ -113,7 +113,7 @@ class UsbBridge(private val context: Context) {
                 val intent = Intent("fi.akux.app.USB_LUPA").setPackage(context.packageName)
                 val pi = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_MUTABLE)
                 usb.requestPermission(driver.device, pi)
-                throw IOException("Salli Akuxille pääsy sovittimeen puhelimen kysymässä ikkunassa.")
+                throw IOException("Salli AKUXille pääsy sovittimeen puhelimen kysymässä ikkunassa.")
             }
             val conn = usb.openDevice(driver.device)
                 ?: throw IOException("Sovittimen avaaminen epäonnistui.")
