@@ -51,7 +51,8 @@ p { margin: 0 0 10px; }
 }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px; color: var(--accent); padding: 2px 8px; }
 .brand span { color: var(--ink); }
-.brand-fill { fill: var(--good); }
+.brand-line { stroke: #6CC193; }
+.brand span { letter-spacing: .06em; }
 nav { display: flex; flex-direction: column; gap: 2px; }
 nav a {
   text-decoration: none; color: var(--ink); padding: 8px 10px; border-radius: 7px; font-weight: 500;

@@ -860,6 +860,7 @@ views.asetukset = {
         </div>
         <div class="row"><label class="btn sm" style="cursor:pointer">Valitse logo<input type="file" id="sLogo" accept="image/png,image/jpeg" hidden></label>
           <span class="small muted">${s.logo ? "Logo on käytössä raporteissa." : "Logoa ei ole valittu. Käytä PNG- tai JPEG-kuvaa."}</span>
+          ${s.logo ? `<label class="f" style="margin:0 0 0 12px"><span>Logon koko raportissa</span><select name="logo_koko">${[["pieni", "Pieni"], ["normaali", "Normaali"], ["suuri", "Suuri"]].map(([k, t]) => `<option value="${k}" ${(s.logo_koko || "normaali") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>` : ""}
           ${s.logo ? `<button class="btn sm" id="sLogoDel" type="button">Poista logo</button>` : ""}</div>
       </div>
 
