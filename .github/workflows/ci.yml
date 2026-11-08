@@ -79,30 +79,30 @@ jobs:
       - name: Rakenna asennusohjelma
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q "/DVersio=$env:VERSIO" installer\akux.iss
-          if (-not (Test-Path "dist\Akux-asennus-$env:VERSIO.exe")) { throw "Asennusohjelma puuttuu" }
+          if (-not (Test-Path "dist\AKVERI-asennus-$env:VERSIO.exe")) { throw "Asennusohjelma puuttuu" }
       - name: Asenna, käynnistä ja testaa
         shell: pwsh
         run: |
-          $setup = "dist\Akux-asennus-$env:VERSIO.exe"
+          $setup = "dist\AKVERI-asennus-$env:VERSIO.exe"
           $p = Start-Process $setup -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/TASKS=desktopicon" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Asennus epäonnistui ($($p.ExitCode))" }
           $exe = Join-Path $env:LOCALAPPDATA "Programs\Akux\Akux.exe"
           if (-not (Test-Path $exe)) { throw "Akux.exe puuttuu asennuksen jälkeen" }
-          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) "AKUX.lnk"))) { throw "Työpöydän pikakuvake puuttuu" }
-          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Programs')) "AKUX.lnk"))) { throw "Käynnistä-valikon pikakuvake puuttuu" }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) "AKVERI.lnk"))) { throw "Työpöydän pikakuvake puuttuu" }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Programs')) "AKVERI.lnk"))) { throw "Käynnistä-valikon pikakuvake puuttuu" }
 
           function Odota-Akux {
             for ($i = 0; $i -lt 60; $i++) {
-              try { $r = Invoke-RestMethod "http://127.0.0.1:8765/api/tila" -TimeoutSec 2; if ($r.nimi -eq "AKUX") { return $r } } catch {}
+              try { $r = Invoke-RestMethod "http://127.0.0.1:8765/api/tila" -TimeoutSec 2; if ($r.nimi -eq "AKVERI") { return $r } } catch {}
               Start-Sleep 2
             }
             Get-Content (Join-Path $env:APPDATA "Akux\loki.txt") -ErrorAction SilentlyContinue
-            throw "Akux ei käynnistynyt"
+            throw "AKVERI ei käynnistynyt"
           }
           $b = "http://127.0.0.1:8765"
           Start-Process $exe
           $r = Odota-Akux
-          Write-Host "Akux $($r.versio) käynnissä"
+          Write-Host "AKVERI $($r.versio) käynnissä"
           if ($r.versio -ne $env:VERSIO) { throw "Väärä versio $($r.versio)" }
 
           # Toinen käynnistys avaa vain uuden sovellusikkunan. Ikkunatesti varmistaa, että
@@ -136,7 +136,11 @@ jobs:
           if (($saved | Measure-Object).Count -ne 2) { throw "Mittauskansiossa on ylimääräisiä tiedostoja" }
           Copy-Item ($saved | Where-Object { $_.Extension -eq ".pdf" } | Select-Object -First 1).FullName raportti.pdf
 
-          # Päivitys käynnissä olevan ohjelman päälle: ohjelma suljetaan, tiedot säilyvät
+          # Päivitys käynnissä olevan ohjelman päälle: ohjelma suljetaan, tiedot säilyvät.
+          # Aiemman nimen pikakuvakkeet jäljitellään, jotta nähdään, että päivitys poistaa ne.
+          foreach ($d in ([Environment]::GetFolderPath('Desktop')), ([Environment]::GetFolderPath('Programs'))) {
+            Copy-Item (Join-Path $d "AKVERI.lnk") (Join-Path $d "AKUX.lnk")
+          }
           $p = Start-Process $setup -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Päivitysasennus epäonnistui ($($p.ExitCode))" }
           Start-Process $exe
@@ -149,6 +153,8 @@ jobs:
           if ($as.yritys_nimi -ne "CI Testi Oy") { throw "Asetukset hävisivät päivityksessä" }
           $pdf = Invoke-WebRequest "$b/api/mittaukset/$($m.id)/raportti.pdf" -UseBasicParsing
           if ($pdf.StatusCode -ne 200 -or $pdf.RawContentLength -lt 20000) { throw "Vanhan mittauksen raportti ei avaudu päivityksen jälkeen" }
+          $lnk = Get-ChildItem ([Environment]::GetFolderPath('Desktop')), ([Environment]::GetFolderPath('Programs')) -Filter "*.lnk" | Where-Object { $_.Name -like "AKUX*" }
+          if ($lnk) { throw "Vanha pikakuvake jäi: $($lnk.FullName)" }
           Write-Host "Päivitys säilytti $($list.mittaukset.Count) mittausta, autot, asetukset ja raportit"
 
           Invoke-RestMethod "$b/api/sulje" -Method Post -ContentType "application/json" -Body '{}' | Out-Null
@@ -158,8 +164,8 @@ jobs:
           for ($i = 0; $i -lt 60 -and (Get-Process Akux -ErrorAction SilentlyContinue); $i++) { Start-Sleep 1 }
           Get-CimInstance Win32_Process -Filter "Name='Akux.exe'" | ForEach-Object { Write-Host "Käynnissä: $($_.ProcessId) $($_.CommandLine)" }
           $left = Get-CimInstance Win32_Process -Filter "Name='Akux.exe'" | Where-Object { $_.CommandLine -notlike "*--esilataus*" }
-          if ($left) { throw "Akux ei sulkeutunut" }
-          Write-Host "Akux sulkeutui $i sekunnissa"
+          if ($left) { throw "AKVERI ei sulkeutunut" }
+          Write-Host "AKVERI sulkeutui $i sekunnissa"
       - name: Ohjelman loki
         if: failure()
         shell: pwsh
@@ -167,7 +173,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Akux-windows
-          path: dist/Akux-asennus-*.exe
+          path: dist/AKVERI-asennus-*.exe
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -212,11 +218,11 @@ jobs:
         run: |
           V=$(python3 -c "import re;print(re.search(r'VERSIO = \"([^\"]+)\"', open('akux/__init__.py').read()).group(1))")
           echo "VERSIO=$V" >> $GITHUB_ENV
-          cp android/app/build/outputs/apk/release/app-release.apk "Akux-$V.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk "AKVERI-$V.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: Akux-android
-          path: Akux-*.apk
+          path: AKVERI-*.apk
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -247,17 +253,17 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VERSIO }}
-          name: AKUX ${{ env.VERSIO }}
+          name: AKVERI ${{ env.VERSIO }}
           make_latest: true
           body: |
-            **Windows:** lataa Akux-asennus-${{ env.VERSIO }}.exe ja avaa se. Jos Windows näyttää ilmoituksen *Windows suojasi tietokonettasi*, valitse Lisätietoja → Suorita silti.
+            **Windows:** lataa AKVERI-asennus-${{ env.VERSIO }}.exe ja avaa se. Jos Windows näyttää ilmoituksen *Windows suojasi tietokonettasi*, valitse Lisätietoja → Suorita silti.
 
-            **Android:** lataa Akux-${{ env.VERSIO }}.apk puhelimeen ja avaa se. Android 10 tai uudempi.
+            **Android:** lataa AKVERI-${{ env.VERSIO }}.apk puhelimeen ja avaa se. Android 10 tai uudempi.
 
             Päivitys asennetaan samalla tavalla vanhan version päälle. Autot, mittaukset, raportit ja asetukset säilyvät.
 
             Ennen julkaisua on ajettu kaikki testit, Windows-asennus ja päivitys oikealla Windows-koneella sekä Android-sovelluksen kokonaistesti emulaattorissa.
           files: |
-            Akux-*.apk
-            Akux-asennus-*.exe
+            AKVERI-*.apk
+            AKVERI-asennus-*.exe
           overwrite_files: true

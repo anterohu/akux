@@ -36,7 +36,7 @@ class FakeBridge:
         if self.asked_at is None:
             self.asked_at = time.time()
         if time.time() - self.asked_at < 2.5:
-            raise IOError("java.io.IOException: Salli AKUXille pääsy sovittimeen puhelimen kysymässä ikkunassa.")
+            raise IOError("java.io.IOException: Salli AKVERIlle pääsy sovittimeen puhelimen kysymässä ikkunassa.")
         self.dev = FakeSerial(name, baud)
 
     def write(self, data):

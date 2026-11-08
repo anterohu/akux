@@ -51,7 +51,7 @@ def test_mittaustiedosto():
         akux_files = [f for f in files if f.endswith(".akux")]
         pdf_files = [f for f in files if f.endswith(".pdf")]
         assert len(akux_files) == 1 and len(pdf_files) == 1
-        assert akux_files[0].startswith("AKUX_ABC-123_") and "pikatarkastus" in akux_files[0]
+        assert akux_files[0].startswith("AKVERI_ABC-123_") and "pikatarkastus" in akux_files[0]
         data = (Path(folder) / akux_files[0]).read_bytes()
         original = a.storage.test(tid)
 
@@ -101,7 +101,7 @@ def test_mittaustiedosto():
             mittaustiedosto.import_file(b.storage, buf.getvalue())
             raise AssertionError("uudemman muodon tiedosto hyväksyttiin")
         except ValueError as e:
-            assert "Päivitä AKUX" in str(e)
+            assert "Päivitä AKVERI" in str(e)
 
         # Väärä tiedosto
         try:

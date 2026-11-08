@@ -1,4 +1,4 @@
-"""AKUX-merkin kuvakkeet: Windowsin akux.ico ja Androidin käynnistyskuvakkeet.
+"""AKVERI-merkin kuvakkeet: Windowsin akux.ico ja Androidin käynnistyskuvakkeet.
 
 Merkki: valkoinen ympyrä, tummansininen reunus, pisteviivarengas sekä A-kirjain vihreällä poikkiviivalla.
 Ajo: python tools/tee_kuvakkeet.py   (vaatii Playwrightin ja Pillow'n)

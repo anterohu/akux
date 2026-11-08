@@ -1,6 +1,6 @@
-# AKUX 1.5
+# AKVERI 1.6
 
-AKUX lukee Teslan ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta OBDLink-sovittimella ja tekee tuloksista selkeän ja yksityiskohtaisen PDF-raportin ostajalle, asiakkaalle tai omaan käyttöön. Kaikki mittausarvot ovat auton akunhallinnan luovuttamia.
+AKVERI lukee Teslan ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta OBDLink-sovittimella ja tekee tuloksista selkeän ja yksityiskohtaisen PDF-raportin ostajalle, asiakkaalle tai omaan käyttöön. Kaikki mittausarvot ovat auton akunhallinnan luovuttamia.
 
 Tuetut autot: Model 3 ja Model Y (kaikki vuosimallit ja akkutyypit), Model S ja Model X (2012 alkaen; vuosien 2012–2021 vanhempi viestirakenne tunnistetaan automaattisesti) sekä Cybertruck kokeellisesti. Model S/X- ja Cybertruck-tukea ei ole vielä varmistettu oikealla autolla.
 
@@ -8,15 +8,15 @@ Tuetut autot: Model 3 ja Model Y (kaikki vuosimallit ja akkutyypit), Model S ja 
 
 Valmiit ohjelmat ovat GitHubin **Releases**-sivulla: https://github.com/anterohu/akux/releases/latest
 
-**Windows:** lataa `Akux-asennus-x.y.z.exe` ja aja se. AKUX avautuu omaan sovellusikkunaansa, eikä selainta tarvita. Asennus lisää pikakuvakkeen työpöydälle ja Käynnistä-valikkoon. Jos Windows näyttää ilmoituksen *Windows suojasi tietokonettasi*, valitse **Lisätietoja → Suorita silti**. Ilmoitus tulee vain asennusohjelmasta kerran jokaista uutta versiota kohden, ei itse ohjelmasta.
+**Windows:** lataa `AKVERI-asennus-x.y.z.exe` ja aja se. AKVERI avautuu omaan sovellusikkunaansa, eikä selainta tarvita. Asennus lisää pikakuvakkeen työpöydälle ja Käynnistä-valikkoon. Jos Windows näyttää ilmoituksen *Windows suojasi tietokonettasi*, valitse **Lisätietoja → Suorita silti**. Ilmoitus tulee vain asennusohjelmasta kerran jokaista uutta versiota kohden, ei itse ohjelmasta.
 
-**Tuetut sovittimet:** OBDLink EX ja SX (USB) sekä OBDLink MX+ ja LX (Bluetooth). Bluetooth-sovitin paritetaan ensin Windowsin tai puhelimen Bluetooth-asetuksista, minkä jälkeen se näkyy AKUXin sovitinlistassa. Tavalliset ELM327-sovittimet eivät pysy Teslan väylän perässä, joten AKUX ei hyväksy niitä. OBDLink CX (Bluetooth Low Energy) ei ole vielä tuettu.
+**Tuetut sovittimet:** OBDLink EX ja SX (USB) sekä OBDLink MX+ ja LX (Bluetooth). Bluetooth-sovitin paritetaan ensin Windowsin tai puhelimen Bluetooth-asetuksista, minkä jälkeen se näkyy AKVERIin sovitinlistassa. Tavalliset ELM327-sovittimet eivät pysy Teslan väylän perässä, joten AKVERI ei hyväksy niitä. OBDLink CX (Bluetooth Low Energy) ei ole vielä tuettu.
 
-**Android (10 tai uudempi):** lataa `Akux-x.y.z.apk` puhelimeen ja avaa se. Android kysyy kerran luvan asentaa sovelluksia tästä lähteestä. Kytke OBDLink EX välikaapelilla auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen ja salli AKUXille pääsy sovittimeen. Diagnostiikkaliitin on keskikonsolin takapäässä: vuosien 2019–2020 autoissa 20-pinninen ja 2021 alkaen 26-pinninen. Jalkatilan OBD-liitäntä ei välitä akun tietoja. Kapasiteettimittaukseen (8–14 h) tarvitaan OTG-sovitin, jossa on PD-latausportti, jotta puhelin latautuu mittauksen ajan.
+**Android (10 tai uudempi):** lataa `AKVERI-x.y.z.apk` puhelimeen ja avaa se. Android kysyy kerran luvan asentaa sovelluksia tästä lähteestä. Kytke OBDLink EX välikaapelilla auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen ja salli AKVERIille pääsy sovittimeen. Diagnostiikkaliitin on keskikonsolin takapäässä: vuosien 2019–2020 autoissa 20-pinninen ja 2021 alkaen 26-pinninen. Jalkatilan OBD-liitäntä ei välitä akun tietoja. Kapasiteettimittaukseen (8–14 h) tarvitaan OTG-sovitin, jossa on PD-latausportti, jotta puhelin latautuu mittauksen ajan.
 
 **Päivitys:** lataa uusi versio samasta paikasta ja asenna se vanhan päälle. Autot, mittaukset, raportit ja asetukset säilyvät. Mitään tiedostoja ei tarvitse poistaa, siirtää eikä nimetä uudelleen.
 
-**Vaihtoehto Windowsissa, rakennus omalla koneella:** lataa Releases-sivulta lähdekoodi (zip), pura se ja aja `Asenna.bat`. Tällöin AKUX rakennetaan omalla koneellasi, eikä SmartScreen kysy mitään. Molemmat tavat asentavat ohjelman samaan paikkaan ja käyttävät samoja tietoja.
+**Vaihtoehto Windowsissa, rakennus omalla koneella:** lataa Releases-sivulta lähdekoodi (zip), pura se ja aja `Asenna.bat`. Tällöin AKVERI rakennetaan omalla koneellasi, eikä SmartScreen kysy mitään. Molemmat tavat asentavat ohjelman samaan paikkaan ja käyttävät samoja tietoja.
 
 ## Mittaustiedostot
 
@@ -25,7 +25,7 @@ Jokainen valmis mittaus tallennetaan automaattisesti mittaustiedostona (`.akux`)
 - Windows: `Tiedostot\Akux\Mittaukset` (kansion voi vaihtaa asetuksista, esimerkiksi OneDriveen)
 - Android: `Lataukset/Akux`
 
-Mittaustiedosto sisältää kaiken: auton tiedot, mittausnäytteet, kennoryhmien jännitteet, tapahtumat, tuloksen, muuttamattoman raakadatan ja raportin. Sen voi avata missä tahansa AKUX-versiossa ja millä tahansa laitteella kohdasta **Mittaukset → Avaa mittaustiedosto**. Ohjelma tarkistaa avattaessa, ettei tiedostoa ole muutettu.
+Mittaustiedosto sisältää kaiken: auton tiedot, mittausnäytteet, kennoryhmien jännitteet, tapahtumat, tuloksen, muuttamattoman raakadatan ja raportin. Sen voi avata missä tahansa AKVERI-versiossa ja millä tahansa laitteella kohdasta **Mittaukset → Avaa mittaustiedosto**. Ohjelma tarkistaa avattaessa, ettei tiedostoa ole muutettu.
 
 ## Mitä ohjelmassa on
 
@@ -107,4 +107,4 @@ Android hyväksyy päivityksen vain, jos se on allekirjoitettu samalla avaimella
 - OBD-liitännän kolmannen osapuolen CAN-väylä: Tesla, huoltodokumentti CD-20-17-001.
 - Fontti Inter, SIL Open Font License 1.1 (`akux/data/fonts/LISENSSI-Inter.txt`).
 
-Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä. AKUX ei ole Teslan tekemä eikä hyväksymä.
+Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä. AKVERI ei ole Teslan tekemä eikä hyväksymä.

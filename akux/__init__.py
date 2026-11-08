@@ -1,4 +1,4 @@
-"""AKUX – sähköauton ajoakun kunnon ja kapasiteetin mittaus."""
+"""AKVERI – sähköauton ajoakun kunnon ja kapasiteetin mittaus."""
 
-NIMI = "AKUX"
-VERSIO = "1.5.3"
+NIMI = "AKVERI"
+VERSIO = "1.6.0"

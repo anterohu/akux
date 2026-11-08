@@ -401,7 +401,7 @@ BRAND_GREEN = colors.HexColor("#6CC193")
 
 
 def draw_mark(c, cx, cy, r, dots=True, ring=True):
-    """AKUX-merkki: valkoinen ympyrä, tummansininen reunus, pisteviivarengas ja A-kirjain."""
+    """AKVERI-merkki: valkoinen ympyrä, tummansininen reunus, pisteviivarengas ja A-kirjain."""
     k = r / 50.0                                  # merkki on piirretty 100 × 100 -ruudukkoon
     c.saveState()
     if ring:
@@ -434,7 +434,7 @@ def draw_mark(c, cx, cy, r, dots=True, ring=True):
 
 
 def draw_logo(c, x, y, h, wordmark=True, ink=None, watermark=False):
-    """AKUX-merkki (sama kuin ohjelman kuvake) ja nimi. (x, y) = vasen alakulma, h = merkin korkeus."""
+    """AKVERI-merkki (sama kuin ohjelman kuvake) ja nimi. (x, y) = vasen alakulma, h = merkin korkeus."""
     c.saveState()
     draw_mark(c, x + h / 2, y + h / 2, h / 2, dots=h >= 6 * mm)
     w = h
@@ -468,7 +468,7 @@ def _arc_text(c, text, cx, cy, r, font, size, top=True, spacing=0.0):
 
 
 def draw_seal(c, cx, cy, r, bottom_text):
-    """AKUX-leima: kehällä AKUX-TESTI ja alhaalla mittauksen tiedot, keskellä merkki."""
+    """AKVERI-leima: kehällä AKVERI-TESTI ja alhaalla mittauksen tiedot, keskellä merkki."""
     k = r / 100.0                                 # leima on suunniteltu 200 × 200 -ruudukkoon
     c.saveState()
     c.setFillColor(colors.white)
@@ -482,7 +482,7 @@ def draw_seal(c, cx, cy, r, bottom_text):
     c.setFillColor(ACCENT)
     # Tekstit keskitetään renkaiden väliin (säde 62–88): isojen kirjainten korkeus on noin 0,72 × koko
     top_size, bot_size = 17 * k, 14 * k
-    _arc_text(c, "AKUX-TESTI", cx, cy, 75 * k - 0.36 * top_size, "Inter-Bold", top_size, top=True,
+    _arc_text(c, "AKVERI-TESTI", cx, cy, 75 * k - 0.36 * top_size, "Inter-Bold", top_size, top=True,
               spacing=4 * k)
     _arc_text(c, bottom_text.upper(), cx, cy, 75 * k + 0.36 * bot_size, "Inter-SemiBold", bot_size, top=False,
               spacing=3 * k)
@@ -494,7 +494,7 @@ def draw_seal(c, cx, cy, r, bottom_text):
 
 
 def draw_watermark(c, style):
-    """Vino, läpikuultava AKUX-vesileima sivun päälle. style: iso, toisto, rivit tai ei."""
+    """Vino, läpikuultava AKVERI-vesileima sivun päälle. style: iso, toisto, rivit tai ei."""
     if style not in ("iso", "toisto", "rivit"):
         return
     c.saveState()
@@ -556,7 +556,7 @@ class ReportDoc(BaseDocTemplate):
             c.restoreState()
         c.saveState()
         y = 22 * mm
-        # Allekirjoitusten väliin AKUX-leima, keskitettynä allekirjoitusalueen korkeuteen
+        # Allekirjoitusten väliin AKVERI-leima, keskitettynä allekirjoitusalueen korkeuteen
         seal_r = 13 * mm
         half = (CW - 2 * seal_r - 10 * mm) / 2
         draw_seal(c, W / 2, y + 6.5 * mm, seal_r, self.ctx["measured"])
@@ -572,13 +572,13 @@ class ReportDoc(BaseDocTemplate):
 
     def _decorate(self, c, doc):
         ctx = self.ctx
-        # Himmeä AKUX-vesileima sivun taustalle (piirretään ennen sisältöä)
+        # Himmeä AKVERI-vesileima sivun taustalle (piirretään ennen sisältöä)
         c.saveState()
         y = H - 14 * mm
         logo = ctx.get("logo")
         x0 = M
         if not ctx["company"] and not (logo and Path(logo).exists()):
-            # Ilman yrityksen tietoja otsikkona on AKUX-logo
+            # Ilman yrityksen tietoja otsikkona on AKVERI-logo
             draw_logo(c, M, y - 7.2 * mm, 8.5 * mm)
             x0 = None
         elif logo and Path(logo).exists():
@@ -649,7 +649,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     company_line = "  ·  ".join(x for x in (s.get("yritys_osoite"), s.get("yritys_puhelin"),
                                             s.get("yritys_sahkoposti"), s.get("yritys_www")) if x)
     report_no = f"{time.strftime('%Y', time.localtime(test['aloitettu']))}-{tid:05d}"
-    title = "AKUX-testi"
+    title = "AKVERI-testi"
     from .recorder import TYYPIT
     test_kind = TYYPIT.get(tyyppi, "Akun tarkastus")
     ctx = {
@@ -670,7 +670,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     else:
         ctx["qr_label"] = "Raportin tunnistetiedot"
     ctx["qr"] = ctx.get("qr") or "\n".join(x for x in (
-        f"AKUX-TESTI {report_no}",
+        f"AKVERI-TESTI {report_no}",
         test_kind,
         f"VIN {(r.get('ajoneuvo') or {}).get('vin') or '-'}",
         f"Rekisteri {vehicle.get('rekisteri')}" if vehicle.get("rekisteri") else None,
@@ -908,7 +908,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     # Tietojen alkuperä ja vastuu
     E.append(Spacer(1, 6 * mm))
     origin = ("Kaikki raportin mittausarvot on luettu auton omasta akunhallintajärjestelmästä (BMS) "
-              "diagnostiikkaliitännän kautta. AKUX ei käytä omia antureitaan eikä muuta luettuja arvoja, vaan "
+              "diagnostiikkaliitännän kautta. AKVERI ei käytä omia antureitaan eikä muuta luettuja arvoja, vaan "
               "tallentaa ne muuttamattomina. ")
     if is_cap:
         origin += ("Kapasiteettimittauksen tulos perustuu akunhallinnan jännite- ja virtamittauksiin, ja se on "

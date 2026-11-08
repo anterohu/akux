@@ -38,7 +38,7 @@ def platform_name() -> str:
 
 def _backups(d):
     """Automaattiset varmuuskopiot vanhimmasta uusimpaan (myös vanhalla nimellä tehdyt)."""
-    found = {p.resolve(): p for pat in ("AKUX-varmuuskopio_*.zip", "Akux-varmuuskopio_*.zip") for p in d.glob(pat)}
+    found = {p.resolve(): p for pat in ("AKVERI-varmuuskopio_*.zip", "AKUX-varmuuskopio_*.zip", "Akux-varmuuskopio_*.zip") for p in d.glob(pat)}
     return sorted(found.values(), key=lambda p: p.stat().st_mtime)
 
 
@@ -154,7 +154,7 @@ class Api:
     def testi_ilmoitus(self, q, body):
         if body.get("osoite") is not None:
             self.app.storage.save_settings({"ilmoitus_osoite": body["osoite"].strip()})
-        ok, msg = self.app.notifier.send("valmis", "AKUX – testi-ilmoitus",
+        ok, msg = self.app.notifier.send("valmis", "AKVERI – testi-ilmoitus",
                                          "Ilmoitukset toimivat. Saat tällaisen ilmoituksen, kun mittaus etenee.",
                                          force=True, wait=True)
         if not ok:
@@ -590,8 +590,8 @@ class Api:
             v = st.vehicle(r["ajoneuvo_id"]) or {}
             if (v.get("nimi") or "").startswith("Esimerkki: "):
                 st.update_vehicle(r["ajoneuvo_id"], {"nimi": v["nimi"][len("Esimerkki: "):]})
-            if "Akux" in (v.get("lisatiedot") or ""):
-                st.update_vehicle(r["ajoneuvo_id"], {"lisatiedot": v["lisatiedot"].replace("Akux", "AKUX")})
+            if "Akux" in (v.get("lisatiedot") or "") or "AKUX" in (v.get("lisatiedot") or ""):
+                st.update_vehicle(r["ajoneuvo_id"], {"lisatiedot": v["lisatiedot"].replace("AKUX", "AKVERI").replace("Akux", "AKVERI")})
             t = st.test(r["id"])
             meta = (t.get("tulos") or {}).get("meta")
             if meta:
@@ -707,8 +707,8 @@ def make_handler(api: Api):
                     pass
                 else:
                     html = ("<!doctype html><meta charset='utf-8'><meta name='viewport' content='width=device-width'>"
-                            "<title>AKUX</title><body style='font-family:system-ui;padding:24px;max-width:480px'>"
-                            "<h2>AKUX</h2><p>Avaa ohjelma puhelimella osoitteesta, jonka ohjelma näyttää "
+                            "<title>AKVERI</title><body style='font-family:system-ui;padding:24px;max-width:480px'>"
+                            "<h2>AKVERI</h2><p>Avaa ohjelma puhelimella osoitteesta, jonka ohjelma näyttää "
                             "tietokoneen ikkunassa ja Asetukset-sivulla, tai syötä suojakoodi.</p>"
                             "<form><input name='avain' inputmode='numeric' placeholder='Suojakoodi' "
                             "style='font-size:18px;padding:8px;width:100%'><button style='margin-top:10px;font-size:16px;"
@@ -808,10 +808,10 @@ def make_handler(api: Api):
                            {"Content-Disposition": f'attachment; filename="{p.name}"'})
                 return True
             if path == "/api/ohjeet.pdf":
-                p = st.dir / "AKUX-kayttoohje.pdf"
+                p = st.dir / "AKVERI-kayttoohje.pdf"
                 docs.build_pdf(p)
                 self._send(200, p.read_bytes(), "application/pdf",
-                           {"Content-Disposition": 'inline; filename="AKUX-kayttoohje.pdf"'})
+                           {"Content-Disposition": 'inline; filename="AKVERI-kayttoohje.pdf"'})
                 return True
             if path.startswith("/api/"):
                 return False
