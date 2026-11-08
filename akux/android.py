@@ -74,7 +74,9 @@ def list_ports():
     out = []
     for d in map(str, devs):
         if d.startswith("Bluetooth: "):
-            out.append({"laite": d, "kuvaus": "Bluetooth", "todennakoinen": "OBDLINK" in d.upper()})
+            if "OBDLINK" not in d.upper():
+                continue          # muut paritetut Bluetooth-laitteet (kuulokkeet, auto, kello) eivät näy
+            out.append({"laite": d, "kuvaus": "Bluetooth", "todennakoinen": True})
         else:
             out.append({"laite": d, "kuvaus": "USB-sovitin", "todennakoinen": True})
     out.sort(key=lambda x: not x["todennakoinen"])

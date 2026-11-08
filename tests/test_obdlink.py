@@ -208,7 +208,11 @@ def test_bluetooth_portit():
         P(device="COM6", description="Standard Serial over Bluetooth link (COM6)",
           hwid="BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0000\\7&2A0B1C3D&0&000000000000_00000000",
           vid=None, manufacturer="Microsoft"),
+        P(device="COM8", description="Standard Serial over Bluetooth link (COM8)",
+          hwid="BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0002\\7&11AA22BB&0&A0B1C2D3E4F5_C00000000",
+          vid=None, manufacturer="Microsoft"),
     ]
+    sources.BT_NAME_LOOKUP = lambda mac: {"00043E9A1B2C": "OBDLink MX+ 12345", "A0B1C2D3E4F5": "Puhelin"}.get(mac)
     lp = types.ModuleType("serial.tools.list_ports")
     lp.comports = lambda: ports
     tools = types.ModuleType("serial.tools")
@@ -216,8 +220,10 @@ def test_bluetooth_portit():
     sys.modules["serial.tools"] = tools
     sys.modules["serial.tools.list_ports"] = lp
     out = {p["laite"]: p for p in sources.list_ports()}
-    assert out["COM5"]["todennakoinen"] and out["COM5"]["kuvaus"] == "Bluetooth", out["COM5"]
-    assert not out["COM6"]["todennakoinen"] and "saapuva" in out["COM6"]["kuvaus"], out["COM6"]
+    assert out["COM5"]["todennakoinen"] and out["COM5"]["kuvaus"] == "Bluetooth: OBDLink MX+ 12345", out["COM5"]
+    assert "COM6" not in out, "saapuva Bluetooth-portti ei saa näkyä"
+    assert "COM8" not in out, "muu Bluetooth-laite kuin OBDLink ei saa näkyä"
+    sources.BT_NAME_LOOKUP = None
     assert out["COM3"]["todennakoinen"]
     print("OK Bluetooth-portit")
 
