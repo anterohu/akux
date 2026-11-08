@@ -548,7 +548,7 @@ class Api:
         s = self.app.settings
         s["datakansio"] = str(self.app.storage.dir)
         s["puhelin"] = self.phone_info()
-        s["mittaus_kansio_oletus"] = "Lataukset/Akux" if platform_name() == "android" else str(mittaustiedosto.default_folder())
+        s["mittaus_kansio_oletus"] = "Lataukset/AKVERI" if platform_name() == "android" else str(mittaustiedosto.default_folder())
         s.pop("puhelin_avain", None)
         return s
 
@@ -584,7 +584,7 @@ class Api:
             return {"ok": True, "lisatty": 0, "autoja": len(ex)}
         folder = Path(__file__).parent / "data" / "esimerkit"
         n = 0
-        for f in sorted(folder.glob("*.akux")):
+        for f in sorted([*folder.glob("*.akveri"), *folder.glob("*.akux")]):
             r = mittaustiedosto.import_file(st, f.read_bytes(), merkitse=False)
             st.learn(r["ajoneuvo_id"], {"esimerkki": True})
             v = st.vehicle(r["ajoneuvo_id"]) or {}
@@ -743,7 +743,7 @@ def make_handler(api: Api):
 
         def _files(self, path) -> bool:
             st = api.app.storage
-            m3 = re.fullmatch(r"/api/mittaukset/(\d+)/tiedosto\.akux", path)
+            m3 = re.fullmatch(r"/api/mittaukset/(\d+)/tiedosto\.(?:akveri|akux)", path)
             if m3:
                 try:
                     name, data = mittaustiedosto.export(st, int(m3.group(1)))

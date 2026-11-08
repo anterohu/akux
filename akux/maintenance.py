@@ -56,10 +56,10 @@ def inspect_backup(data: bytes) -> dict:
     try:
         z = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile:
-        raise ValueError("Tiedosto ei ole AKVERIin varmuuskopio.")
+        raise ValueError("Tiedosto ei ole AKVERIn varmuuskopio.")
     names = set(z.namelist())
     if "AKUX-VARMUUSKOPIO.json" not in names or "akux.db" not in names:
-        raise ValueError("Tiedosto ei ole AKVERIin varmuuskopio.")
+        raise ValueError("Tiedosto ei ole AKVERIn varmuuskopio.")
     meta = json.loads(z.read("AKUX-VARMUUSKOPIO.json"))
     with tempfile.TemporaryDirectory() as tmp:
         p = Path(tmp) / "akux.db"

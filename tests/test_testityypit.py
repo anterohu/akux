@@ -262,7 +262,64 @@ def test_lataus_tauon_aikana(tmp):
     app2.disconnect()
 
 
-ALL = [test_lataus_tauon_aikana, test_ajotesti_kahdessa_osassa, test_pika_ajotesti, test_taysi_akkutesti, test_kuormitustesti,
+def _offline(src, minutes, step=5.0):
+    """Simuloitu auto jatkaa toimintaansa, kun ohjelma ei ole yhteydessä."""
+    for _ in range(int(minutes * 60 / step)):
+        src._step(step)
+        src.sim_t += step
+
+
+def test_kapasiteetti_katkot_latauksessa(tmp):
+    """Ohjelma suljetaan kesken latauksen ja kone sammuu kesken latauksen: mittaus jatkuu ja tulos pitää."""
+    app = _app(tmp)
+    src = BatterySimulator(soc=0.12, accel=300, weak_cell=None)
+    tid = _start(app, src, "kapasiteetti")
+    src.set_mode("charge", 11.0)
+    _phase(app, "lataus", 60)
+    assert app.recorder.progress()["voi_tauottaa"]
+    assert wait_until(lambda: (app.decoder.state.soc_avg or 0) > 40, 120)
+    # 1) Ohjelma suljetaan tavallisesti latauksen aikana; auto latautuu 20 min ilman yhteyttä
+    app.disconnect()
+    assert app.storage.test(tid)["tila"] == "kesken"
+    _offline(src, 20)
+    app2 = _app(tmp)
+    app2.connect("demo", sim=src)
+    assert wait_until(lambda: app2.decoder.state.vin and app2.decoder.state.nominal_remaining_kwh, 20)
+    app2.resume_test(tid)
+    assert app2.recorder.vaihe == "lataus" and app2.recorder.osat == 2
+    soc_resume = app2.decoder.state.soc_avg
+    assert wait_until(lambda: (app2.decoder.state.soc_avg or 0) > soc_resume + 15, 120)
+    # 2) Tietokone sammuu yllättäen (akku loppuu): tila on tallentunut vain viimeisimpään tallennukseen asti
+    rec = app2.recorder
+    with rec.lock:
+        rec.flush()
+        app2.decoder.remove_hv_listener(rec._on_hv)
+        app2.decoder.remove_brick_listener(rec._on_brick)
+        rec._close_raw()
+        rec.test_id = None
+    app2.source.stop()
+    assert app2.storage.test(tid)["tila"] == "käynnissä"
+    _offline(src, 15)
+    app3 = _app(tmp)                       # käynnistys merkitsee mittauksen jatkettavaksi
+    assert app3.storage.test(tid)["tila"] == "kesken"
+    app3.connect("demo", sim=src)
+    assert wait_until(lambda: app3.decoder.state.vin and app3.decoder.state.nominal_remaining_kwh, 20)
+    app3.resume_test(tid)
+    assert app3.recorder.vaihe == "lataus" and app3.recorder.osat == 3
+    _phase(app3, "lepo_loppu", 400)
+    src.set_mode("park")
+    t = _done(app3, tid, 300)
+    cap = t["tulos"]["kapasiteetti"]
+    print(f"Kapasiteetti kahden katkon jälkeen {cap['taysi_kwh']:.2f} ±{cap['epavarmuus_kwh']:.2f}, "
+          f"katkot {cap['katkot_kwh']:.2f} kWh, todellinen {src.nfp}")
+    assert cap["valmis"]
+    assert cap["katkot_kwh"] > 4.0, cap["katkot_kwh"]
+    assert abs(cap["taysi_kwh"] - src.nfp) < max(1.5, 1.5 * cap["epavarmuus_kwh"])
+    _report(app3, tid)
+    app3.disconnect()
+
+
+ALL = [test_kapasiteetti_katkot_latauksessa, test_lataus_tauon_aikana, test_ajotesti_kahdessa_osassa, test_pika_ajotesti, test_taysi_akkutesti, test_kuormitustesti,
        test_pikalataustesti, test_itsepurkaustesti_ja_tauko, test_hylkays]
 
 if __name__ == "__main__":

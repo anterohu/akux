@@ -175,6 +175,16 @@ def test_keskeytynyt_ohjelma():
         app, src, vid = setup(tmp, soc=0.1, accel=60)
         tid = app.start_test(vehicle_id=vid, tyyppi="kapasiteetti")
         time.sleep(1)
+        app.recorder.flush()
+        src.stop()
+        app2 = App(tmp)
+        # Kapasiteettimittausta voi jatkaa (versiosta 1.7 alkaen myös latauksen aikana)
+        assert app2.storage.test(tid)["tila"] == "kesken"
+        app2.recorder.discard(tid)
+    with tempfile.TemporaryDirectory() as tmp:
+        app, src, vid = setup(tmp, soc=0.8, accel=4)
+        tid = app.start_test(vehicle_id=vid, tyyppi="kuormitus")
+        time.sleep(1)
         src.stop()
         app2 = App(tmp)
         assert app2.storage.test(tid)["tila"] == "keskeytynyt"

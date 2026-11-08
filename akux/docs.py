@@ -38,7 +38,7 @@ OHJE = [
                 "OBDLinkin suodatusta, jolla vain akun tiedot välitetään. Tavalliset ELM327-sovittimet eivät pysy "
                 "Teslan väylän liikenteen perässä, joten AKVERI ei hyväksy niitä.",
                 "<b>Bluetooth:</b> kytke sovitin autoon ja herätä auto. Paina MX+:n painiketta ja muodosta pari "
-                "Windowsin tai puhelimen Bluetooth-asetuksista. Sen jälkeen sovitin näkyy AKVERIin sovitinlistassa "
+                "Windowsin tai puhelimen Bluetooth-asetuksista. Sen jälkeen sovitin näkyy AKVERIn sovitinlistassa "
                 "merkinnällä Bluetooth. Listalla näkyvät vain OBDLink-sovittimet, eivät muut paritetut laitteet, "
                 "kuten kuulokkeet tai auto.",
                 "OBDLink CX käyttää Bluetooth Low Energy -yhteyttä, jota AKVERI ei vielä tue.",
@@ -125,7 +125,7 @@ OHJE = [
     {
         "id": "testit", "otsikko": "Mittaustyypit",
         "osat": [
-            ("p", "AKVERIissa on kahdeksan mittausta. Ne on ryhmitelty sen mukaan, missä mittaus tehdään. "
+            ("p", "AKVERIssa on kahdeksan mittausta. Ne on ryhmitelty sen mukaan, missä mittaus tehdään. "
                   "Akun kunto prosentteina saadaan kapasiteettimittauksesta, ajotestistä ja täydestä akkutestistä. "
                   "Muut mittaukset kertovat akusta asioita, joita kapasiteetti ei kerro."),
             ("ul", [
@@ -235,13 +235,13 @@ OHJE = [
                   "on samat toiminnot, mittaukset ja raportit kuin tietokoneohjelmassa."),
             ("ol", [
                 "<b>USB:</b> kytke OBDLink EX välikaapelilla auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen. Kun Android kysyy, saako AKVERI käyttää sovitinta, valitse <b>Salli</b>.",
-                "<b>Bluetooth:</b> kytke OBDLink MX+ tai LX autoon ja muodosta pari puhelimen Bluetooth-asetuksista. Salli AKVERIille lähellä olevien laitteiden käyttö, kun sovellus kysyy.",
+                "<b>Bluetooth:</b> kytke OBDLink MX+ tai LX autoon ja muodosta pari puhelimen Bluetooth-asetuksista. Salli AKVERIlle lähellä olevien laitteiden käyttö, kun sovellus kysyy.",
                 "Paina <b>Yleiskuva</b>-sivulla <b>Yhdistä autoon</b> ja jatka kuten tietokoneella.",
             ]),
             ("ul", [
                 "AKVERI toimii taustalla, ja ilmoitusalueella näkyy merkintä <b>AKVERI on käynnissä</b>. Mittaus jatkuu, vaikka näyttö sammuu tai vaihdat toiseen sovellukseen.",
                 "Kapasiteettimittaus kestää 8–14 tuntia, joten puhelimen on oltava laturissa. Bluetooth-sovittimella puhelimen voi pitää suoraan laturissa. Koska EX käyttää puhelimen USB-C-portin, tarvitaan sen kanssa OTG-sovitin, jossa on latausportti (USB-C-hubi, jossa lataus läpi eli PD).",
-                "Raportit ja varmuuskopiot tallentuvat avattaessa puhelimen <b>Lataukset/Akux</b>-kansioon, josta ne voi jakaa sähköpostilla tai viestillä.",
+                "Raportit ja varmuuskopiot tallentuvat avattaessa puhelimen <b>Lataukset/AKVERI</b>-kansioon, josta ne voi jakaa sähköpostilla tai viestillä.",
                 "Sovellus päivitetään asentamalla uusi versio vanhan päälle. Tiedot säilyvät.",
             ]),
             ("note", "Kaikki USB-C-sovittimet eivät välitä dataa ja latausvirtaa yhtä aikaa. Valitse OTG-tuettu sovitin, jossa on PD-latausportti. Jos EX ei näy, kokeile toista sovitinta tai kaapelia. Lyhyeen pikatarkastukseen riittää tavallinen OTG-sovitin."),
@@ -269,10 +269,10 @@ OHJE = [
                   "<b>Ylläpito</b>-sivulta. Windowsissa ladataan ja ajetaan AKVERI-asennus-x.y.z.exe, Androidissa "
                   "asennetaan AKVERI-x.y.z.apk vanhan päälle. Autot, mittaukset, raportit ja asetukset säilyvät."),
             ("p", "<b>Mittaustiedostot:</b> jokainen valmis mittaus tallennetaan automaattisesti mittaustiedostona "
-                  "(.akux) ja PDF-raporttina. Windowsissa oletuskansio on Tiedostot/Akux/Mittaukset, Androidissa "
-                  "Lataukset/Akux. Kansion voi vaihtaa asetuksista. Mittaustiedosto sisältää kaikki mittauksen tiedot "
-                  "ja raakadatan, ja sen voi avata missä tahansa AKVERI-versiossa ja millä tahansa laitteella kohdasta "
-                  "<b>Mittaukset → Avaa mittaustiedosto</b>."),
+                  "(.akveri) ja PDF-raporttina. Windowsissa oletuskansio on Tiedostot/AKVERI/Mittaukset, Androidissa "
+                  "Lataukset/AKVERI. Kansion voi vaihtaa asetuksista. Mittaustiedosto sisältää kaikki mittauksen tiedot "
+                  "ja raakadatan, ja sen voi avata millä tahansa laitteella, jolle AKVERI on asennettu, kohdasta "
+                  "<b>Mittaukset → Avaa mittaustiedosto</b>. Myös aiempien versioiden .akux-tiedostot avautuvat."),
             ("p", "<b>Varmuuskopio:</b> ohjelma tekee varmuuskopion automaattisesti kerran viikossa ja säilyttää "
                   "viisi uusinta. Voit tehdä varmuuskopion myös itse ja tallentaa sen esimerkiksi muistitikulle. "
                   "Palautuksessa nykyiset tiedot siirretään ensin talteen, joten mitään ei menetetä."),

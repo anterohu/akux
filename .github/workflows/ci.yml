@@ -18,6 +18,11 @@ jobs:
       - name: Lukitus
         run: python tests/test_lukitus.py
         timeout-minutes: 2
+      - name: Nimenvaihto ja kansioiden siirto
+        run: python tests/test_nimenvaihto.py
+      - name: Ikkunavahti
+        run: python tests/test_ikkunavahti.py
+        timeout-minutes: 2
       - name: Kokonaisuus
         run: python tests/test_kokonaisuus.py
       - name: Reunatapaukset
@@ -67,41 +72,93 @@ jobs:
         run: |
           V=$(python -c "import re;print(re.search(r'VERSIO = \"([^\"]+)\"', open('akux/__init__.py').read()).group(1))")
           echo "VERSIO=$V" >> $GITHUB_ENV
-      - name: Rakenna Akux.exe
+      - name: Rakenna AKVERI.exe
         run: |
-          python -m PyInstaller --noconfirm --clean --log-level WARN --windowed --name Akux `
+          python -m PyInstaller --noconfirm --clean --log-level WARN --windowed --name AKVERI `
             --icon akux.ico `
             --add-data "akux\web;akux\web" --add-data "akux\data;akux\data" `
             --hidden-import serial.tools.list_ports --collect-submodules akux --exclude-module tkinter `
             --collect-all webview --hidden-import clr --hidden-import clr_loader --collect-submodules reportlab.graphics `
             --distpath dist --workpath build Akux.pyw
-          if (-not (Test-Path dist\Akux\Akux.exe)) { throw "Akux.exe puuttuu" }
+          if (-not (Test-Path dist\AKVERI\AKVERI.exe)) { throw "AKVERI.exe puuttuu" }
       - name: Rakenna asennusohjelma
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q "/DVersio=$env:VERSIO" installer\akux.iss
           if (-not (Test-Path "dist\AKVERI-asennus-$env:VERSIO.exe")) { throw "Asennusohjelma puuttuu" }
+      - name: Asenna edellinen julkaistu versio
+        # Päivitystesti aidosta lähtötilanteesta: edellinen versio asennetaan ja sillä tehdään mittaus.
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = gh release view --repo ${{ github.repository }} --json tagName -q .tagName
+          if ($tag -eq "v$env:VERSIO") { Write-Host "Edellinen versio on sama kuin tämä, päivitystestiä ei tehdä"; exit 0 }
+          gh release download $tag --repo ${{ github.repository }} --pattern "*asennus*.exe" --dir edellinen
+          $old = Get-ChildItem edellinen\*.exe | Select-Object -First 1
+          Write-Host "Asennetaan $($old.Name)"
+          $p = Start-Process $old.FullName -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/TASKS=desktopicon" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Edellisen version asennus epäonnistui" }
+          $exe = Join-Path $env:LOCALAPPDATA "Programs\Akux\Akux.exe"
+          Start-Process $exe
+          $b = "http://127.0.0.1:8765"
+          for ($i = 0; $i -lt 60; $i++) { try { $r = Invoke-RestMethod "$b/api/tila" -TimeoutSec 2; break } catch { Start-Sleep 2 } }
+          Write-Host "Edellinen versio $($r.versio) käynnissä"
+          Invoke-RestMethod "$b/api/asetukset" -Method Post -ContentType "application/json" -Body '{"yritys_nimi":"CI Testi Oy"}' | Out-Null
+          Invoke-RestMethod "$b/api/yhdista" -Method Post -ContentType "application/json" -Body '{"tyyppi":"demo","soc":60,"nopeutus":60}' | Out-Null
+          for ($i = 0; $i -lt 30; $i++) { $t = Invoke-RestMethod "$b/api/tila"; if ($t.vaylatesti.kunnossa -and $t.live.vin) { break }; Start-Sleep 1 }
+          $v = Invoke-RestMethod "$b/api/ajoneuvot" -Method Post -ContentType "application/json" -Body (@{vin=$t.live.vin; rekisteri="CI-1"} | ConvertTo-Json)
+          $m = Invoke-RestMethod "$b/api/mittaukset" -Method Post -ContentType "application/json" -Body (@{ajoneuvo_id=$v.id; tyyppi="pikatarkastus"} | ConvertTo-Json)
+          for ($i = 0; $i -lt 90; $i++) { $t = Invoke-RestMethod "$b/api/tila"; if (-not $t.mittaus) { break }; Start-Sleep 2 }
+          if ((Invoke-RestMethod "$b/api/mittaukset/$($m.id)").tila -ne "valmis") { throw "Edellisen version mittaus ei valmistunut" }
+          $old_files = Get-ChildItem (Join-Path ([Environment]::GetFolderPath('MyDocuments')) "Akux\Mittaukset")
+          $old_files | ForEach-Object { Write-Host "Edellisen version tiedosto: $($_.Name)" }
+          if (-not $old_files) { throw "Edellinen versio ei tallentanut mittaustiedostoja" }
+          if (-not (Test-Path (Join-Path $env:APPDATA "Akux\akux.db"))) { throw "Edellisen version tietokanta puuttuu" }
+          "$($m.id)" | Set-Content edellinen\mittaus.txt
+          # Ohjelma jätetään käyntiin: asennuksen pitää sulkea se itse
       - name: Asenna, käynnistä ja testaa
         shell: pwsh
         run: |
           $setup = "dist\AKVERI-asennus-$env:VERSIO.exe"
           $p = Start-Process $setup -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/TASKS=desktopicon" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Asennus epäonnistui ($($p.ExitCode))" }
-          $exe = Join-Path $env:LOCALAPPDATA "Programs\Akux\Akux.exe"
-          if (-not (Test-Path $exe)) { throw "Akux.exe puuttuu asennuksen jälkeen" }
+          $exe = Join-Path $env:LOCALAPPDATA "Programs\AKVERI\AKVERI.exe"
+          if (-not (Test-Path $exe)) { throw "AKVERI.exe puuttuu asennuksen jälkeen" }
+          if (Test-Path (Join-Path $env:LOCALAPPDATA "Programs\Akux")) { throw "Vanha ohjelmakansio Programs\Akux jäi" }
           if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) "AKVERI.lnk"))) { throw "Työpöydän pikakuvake puuttuu" }
           if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Programs')) "AKVERI.lnk"))) { throw "Käynnistä-valikon pikakuvake puuttuu" }
+          $vanhat = Get-ChildItem ([Environment]::GetFolderPath('Desktop')), ([Environment]::GetFolderPath('Programs')) -Filter "*.lnk" | Where-Object { $_.Name -like "Akux*" -or $_.Name -like "AKUX*" }
+          if ($vanhat) { throw "Vanha pikakuvake jäi: $($vanhat.FullName)" }
+          $sh = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path ([Environment]::GetFolderPath('Desktop')) "AKVERI.lnk"))
+          if ($sh.TargetPath -notlike "*\Programs\AKVERI\AKVERI.exe") { throw "Pikakuvake osoittaa väärään ohjelmaan: $($sh.TargetPath)" }
 
           function Odota-Akux {
             for ($i = 0; $i -lt 60; $i++) {
-              try { $r = Invoke-RestMethod "http://127.0.0.1:8765/api/tila" -TimeoutSec 2; if ($r.nimi -eq "AKVERI") { return $r } } catch {}
+              try { $r = Invoke-RestMethod "http://127.0.0.1:8765/api/tila" -TimeoutSec 2; if ($r.nimi -eq "AKVERI" -and $r.versio -eq $env:VERSIO) { return $r } } catch {}
               Start-Sleep 2
             }
-            Get-Content (Join-Path $env:APPDATA "Akux\loki.txt") -ErrorAction SilentlyContinue
+            Get-Content (Join-Path $env:APPDATA "AKVERI\loki.txt") -ErrorAction SilentlyContinue
             throw "AKVERI ei käynnistynyt"
           }
           $b = "http://127.0.0.1:8765"
           Start-Process $exe
           $r = Odota-Akux
+          $docs = [Environment]::GetFolderPath('MyDocuments')
+          if (Test-Path edellinen\mittaus.txt) {
+            # Edellisen version tiedot siirtyivät AKVERI-kansioihin
+            $oid = (Get-Content edellinen\mittaus.txt).Trim()
+            if (Test-Path (Join-Path $env:APPDATA "Akux")) { throw "Vanha tietokansio %APPDATA%\Akux jäi siirtämättä" }
+            if (-not (Test-Path (Join-Path $env:APPDATA "AKVERI\akux.db"))) { throw "Tietokanta puuttuu kansiosta %APPDATA%\AKVERI" }
+            if (Test-Path (Join-Path $docs "Akux")) { throw "Vanha mittauskansio Tiedostot\Akux jäi siirtämättä" }
+            if (-not (Get-ChildItem (Join-Path $docs "AKVERI\Mittaukset") -Filter "*.akux")) { throw "Vanhat mittaustiedostot puuttuvat uudesta kansiosta" }
+            if (-not ((Invoke-RestMethod "$b/api/ajoneuvot").ajoneuvot | Where-Object { $_.rekisteri -eq "CI-1" })) { throw "Autot hävisivät siirrossa" }
+            if ((Invoke-RestMethod "$b/api/asetukset").yritys_nimi -ne "CI Testi Oy") { throw "Asetukset hävisivät siirrossa" }
+            $tk = Invoke-RestMethod "$b/api/mittaukset/$oid/tarkista"
+            if (-not $tk.ok) { throw "Vanhan mittauksen raakadata ei löydy siirron jälkeen: $($tk.viesti)" }
+            $pdf = Invoke-WebRequest "$b/api/mittaukset/$oid/raportti.pdf" -UseBasicParsing
+            if ($pdf.StatusCode -ne 200 -or $pdf.RawContentLength -lt 20000) { throw "Vanhan mittauksen raportti ei avaudu siirron jälkeen" }
+            Write-Host "Edellisen version tiedot siirtyivät: tietokanta, mittaustiedostot, autot, asetukset ja raakadata"
+          }
           Write-Host "AKVERI $($r.versio) käynnissä"
           if ($r.versio -ne $env:VERSIO) { throw "Väärä versio $($r.versio)" }
 
@@ -109,7 +166,7 @@ jobs:
           # Windowsin WebView2-ikkuna aukeaa ja käyttöliittymä latautuu siihen.
           $w = Start-Process $exe -ArgumentList "--ikkunatesti" -PassThru
           $done = $w.WaitForExit(150000)
-          Get-Content (Join-Path $env:APPDATA "Akux\loki.txt") -Tail 15 -ErrorAction SilentlyContinue
+          Get-Content (Join-Path $env:APPDATA "AKVERI\loki.txt") -Tail 15 -ErrorAction SilentlyContinue
           if (-not $done) { $w.Kill(); throw "Ikkunatesti ei päättynyt" }
           if ($w.ExitCode -ne 0) { throw "Sovellusikkuna ei avautunut oikein (koodi $($w.ExitCode))" }
           Write-Host "Sovellusikkuna avautui ja käyttöliittymä latautui"
@@ -127,12 +184,12 @@ jobs:
           $res = Invoke-RestMethod "$b/api/mittaukset/$($m.id)"
           if ($res.tila -ne "valmis") { throw "Mittaus ei valmistunut: $($res.tila)" }
           Write-Host "Pikatarkastus valmis, kunto $($res.tulos.yhteenveto.kunto_pct) %"
-          $folder = Join-Path ([Environment]::GetFolderPath('MyDocuments')) "Akux\Mittaukset"
-          $saved = Get-ChildItem $folder -ErrorAction SilentlyContinue
+          $folder = Join-Path $docs "AKVERI\Mittaukset"
+          $saved = Get-ChildItem $folder -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*_$('{0:D5}' -f [int]$m.id).*" }
           $saved | ForEach-Object { Write-Host "Tallennettu: $($_.Name)" }
-          if (-not ($saved | Where-Object { $_.Extension -eq ".akux" })) { throw "Mittaustiedostoa ei tallennettu" }
+          if (-not ($saved | Where-Object { $_.Extension -eq ".akveri" })) { throw "Mittaustiedostoa ei tallennettu" }
           if (-not ($saved | Where-Object { $_.Extension -eq ".pdf" })) { throw "Raporttia ei tallennettu" }
-          if ($saved | Where-Object { $_.Name -like "*Laaduntarkistus*" }) { throw "Laaduntarkistus tallensi tiedostoja mittauskansioon" }
+          if (Get-ChildItem $folder | Where-Object { $_.Name -like "*Laaduntarkistus*" }) { throw "Laaduntarkistus tallensi tiedostoja mittauskansioon" }
           if (($saved | Measure-Object).Count -ne 2) { throw "Mittauskansiossa on ylimääräisiä tiedostoja" }
           Copy-Item ($saved | Where-Object { $_.Extension -eq ".pdf" } | Select-Object -First 1).FullName raportti.pdf
 
@@ -161,15 +218,17 @@ jobs:
           # Palvelin sulkeutuu heti ja sovellusikkuna muutaman sekunnin kuluessa
           # Palvelin ja ikkuna sulkeutuvat heti. Matalan prioriteetin esilatausprosessi voi kylmäkäynnistyksessä
           # olla vielä hetken käynnissä, joten odotetaan enintään minuutti ja näytetään jäljellä olevat prosessit.
-          for ($i = 0; $i -lt 60 -and (Get-Process Akux -ErrorAction SilentlyContinue); $i++) { Start-Sleep 1 }
-          Get-CimInstance Win32_Process -Filter "Name='Akux.exe'" | ForEach-Object { Write-Host "Käynnissä: $($_.ProcessId) $($_.CommandLine)" }
-          $left = Get-CimInstance Win32_Process -Filter "Name='Akux.exe'" | Where-Object { $_.CommandLine -notlike "*--esilataus*" }
+          for ($i = 0; $i -lt 60 -and (Get-Process AKVERI -ErrorAction SilentlyContinue); $i++) { Start-Sleep 1 }
+          Get-CimInstance Win32_Process -Filter "Name='AKVERI.exe'" | ForEach-Object { Write-Host "Käynnissä: $($_.ProcessId) $($_.CommandLine)" }
+          $left = Get-CimInstance Win32_Process -Filter "Name='AKVERI.exe'" | Where-Object { $_.CommandLine -notlike "*--esilataus*" }
           if ($left) { throw "AKVERI ei sulkeutunut" }
           Write-Host "AKVERI sulkeutui $i sekunnissa"
       - name: Ohjelman loki
         if: failure()
         shell: pwsh
-        run: Get-Content (Join-Path $env:APPDATA "Akux\loki.txt") -Tail 120 -ErrorAction SilentlyContinue
+        run: |
+          Get-Content (Join-Path $env:APPDATA "AKVERI\loki.txt") -Tail 120 -ErrorAction SilentlyContinue
+          Get-Content (Join-Path $env:APPDATA "Akux\loki.txt") -Tail 40 -ErrorAction SilentlyContinue
       - uses: actions/upload-artifact@v4
         with:
           name: Akux-windows

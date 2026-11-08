@@ -1,4 +1,4 @@
-"""Tekee ohjelman mukana tulevat esimerkkimittaukset (akux/data/esimerkit/*.akux).
+"""Tekee ohjelman mukana tulevat esimerkkimittaukset (akux/data/esimerkit/*.akveri).
 
 Mittaukset tehdään esittelytilan simulaattorilla. Aja uudelleen, jos mittaustiedoston
 muoto tai analyysi muuttuu:  python tools/tee_esimerkit.py
@@ -40,7 +40,7 @@ def wait(cond, timeout):
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
-    for f in OUT.glob("*.akux"):
+    for f in OUT.glob("*.ak*"):
         f.unlink()
     for auto, nimi, reg, kayttoon, km, extra, soc in AUTOT:
         tmp = tempfile.mkdtemp()
@@ -50,7 +50,7 @@ def main():
         wait(lambda: app.decoder.state.vin and app.decoder.state.nfp_kwh and app.decoder.state.brick_count, 60)
         vid = app.storage.add_vehicle({"vin": app.decoder.state.vin, "nimi": nimi, "rekisteri": reg,
                                        "kayttoonotto": kayttoon, "omistaja": "Esimerkkiasiakas",
-                                       "lisatiedot": "Esimerkkiauto. Mittaukset on tehty AKVERIin esittelytilassa."})
+                                       "lisatiedot": "Esimerkkiauto. Mittaukset on tehty AKVERIn esittelytilassa."})
         app.storage.learn(vid, {"esimerkki": True})
         tids = []
 
@@ -94,7 +94,7 @@ def main():
         for t in tids:
             assert app.storage.test(t)["tila"] == "valmis", (auto, t)
             name, data = mittaustiedosto.export(app.storage, t, with_report=False)
-            (OUT / f"{reg}_{app.storage.test(t)['tyyppi']}.akux").write_bytes(data)
+            (OUT / f"{reg}_{app.storage.test(t)['tyyppi']}.akveri").write_bytes(data)
             print(name, len(data) // 1024, "kt")
         app.storage.close()
 

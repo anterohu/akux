@@ -67,14 +67,14 @@ class UsbBridge(private val context: Context) {
         val dev = try {
             adapter.bondedDevices.firstOrNull { it.address == address }
         } catch (_: SecurityException) {
-            throw IOException("Salli AKVERIille lähellä olevien laitteiden käyttö puhelimen asetuksista (Sovellukset > AKVERI > Luvat).")
+            throw IOException("Salli AKVERIlle lähellä olevien laitteiden käyttö puhelimen asetuksista (Sovellukset > AKVERI > Luvat).")
         } ?: throw IOException("Sovitinta ei löydy. Muodosta pari OBDLinkin kanssa puhelimen Bluetooth-asetuksista.")
         val spp = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
         val sock = try {
             adapter.cancelDiscovery()
             dev.createRfcommSocketToServiceRecord(spp).also { it.connect() }
         } catch (e: SecurityException) {
-            throw IOException("Salli AKVERIille lähellä olevien laitteiden käyttö puhelimen asetuksista (Sovellukset > AKVERI > Luvat).")
+            throw IOException("Salli AKVERIlle lähellä olevien laitteiden käyttö puhelimen asetuksista (Sovellukset > AKVERI > Luvat).")
         } catch (e: IOException) {
             throw IOException("Bluetooth-yhteys sovittimeen ei onnistunut. Tarkista, että sovitin on kytketty autoon ja lähellä.")
         }
@@ -113,7 +113,7 @@ class UsbBridge(private val context: Context) {
                 val intent = Intent("fi.akux.app.USB_LUPA").setPackage(context.packageName)
                 val pi = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_MUTABLE)
                 usb.requestPermission(driver.device, pi)
-                throw IOException("Salli AKVERIille pääsy sovittimeen puhelimen kysymässä ikkunassa.")
+                throw IOException("Salli AKVERIlle pääsy sovittimeen puhelimen kysymässä ikkunassa.")
             }
             val conn = usb.openDevice(driver.device)
                 ?: throw IOException("Sovittimen avaaminen epäonnistui.")
@@ -181,7 +181,7 @@ class UsbBridge(private val context: Context) {
     }
 
     /**
-     * Tallentaa tiedoston puhelimen Lataukset/Akux-kansioon. Python tallentaa tällä
+     * Tallentaa tiedoston puhelimen Lataukset/AKVERI-kansioon. Python tallentaa tällä
      * jokaisen valmiin mittauksen mittaustiedostona ja PDF-raporttina.
      */
     fun saveToDownloads(name: String, mime: String, data: ByteArray): String {
@@ -189,13 +189,13 @@ class UsbBridge(private val context: Context) {
         val values = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, name)
             put(MediaStore.Downloads.MIME_TYPE, mime)
-            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Akux")
+            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/AKVERI")
         }
         val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
             ?: throw IOException("Tiedoston tallennus Lataukset-kansioon epäonnistui.")
         resolver.openOutputStream(uri)?.use { it.write(data) }
             ?: throw IOException("Tiedoston tallennus Lataukset-kansioon epäonnistui.")
-        return "Lataukset/Akux/$name"
+        return "Lataukset/AKVERI/$name"
     }
 
     /** Python kutsuu tätä, kun ohjelma suljetaan käyttöliittymästä. */

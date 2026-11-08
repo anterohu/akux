@@ -3,11 +3,57 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sqlite3
 import sys
 import threading
 import time
 from pathlib import Path
+
+
+VANHA_NIMI, UUSI_NIMI = "Akux", "AKVERI"
+
+
+def siirra_kansio(vanha: Path, uusi: Path, tunniste: str | None = None) -> Path:
+    """Siirtää aiemman nimen kansion uudelle nimelle ja palauttaa käytettävän kansion.
+
+    Kansio nimetään uudelleen, joten tiedostot eivät kopioidu eivätkä katoa. Jos siirto ei onnistu
+    (esimerkiksi tiedosto on toisen ohjelman käytössä), käytetään vanhaa kansiota kuten ennenkin.
+    """
+    if not vanha.exists() or vanha == uusi:
+        return uusi
+    if not uusi.exists():
+        try:
+            vanha.rename(uusi)
+            return uusi
+        except OSError:
+            # Toinen prosessi on voinut ehtiä siirtää kansion samaan aikaan
+            return uusi if uusi.exists() and not vanha.exists() else vanha
+    # Molemmat ovat olemassa: uusi kansio on syntynyt ennen siirtoa, mutta tiedot ovat vanhassa
+    if tunniste and not (uusi / tunniste).exists() and (vanha / tunniste).exists():
+        try:
+            for p in list(vanha.iterdir()):
+                if not (uusi / p.name).exists():
+                    shutil.move(str(p), str(uusi / p.name))
+        except OSError:
+            pass
+        try:
+            vanha.rmdir()
+        except OSError:
+            pass
+        return uusi if (uusi / tunniste).exists() else vanha
+    return uusi
+
+
+def uusi_polku(p: str | None) -> str | None:
+    """Tallennettu polku aiemman nimen kansioon: palauttaa vastaavan polun uudessa kansiossa, jos se löytyy."""
+    if not p:
+        return None
+    vanha = Path(p)
+    if vanha.exists() or VANHA_NIMI not in vanha.parts:
+        return None
+    uusi = Path(*[UUSI_NIMI if x == VANHA_NIMI else x for x in vanha.parts])
+    return str(uusi) if uusi.exists() else None
 
 
 def default_data_dir() -> Path:
@@ -16,7 +62,7 @@ def default_data_dir() -> Path:
         return Path(env)
     if sys.platform.startswith("win"):
         base = Path(os.environ.get("APPDATA", Path.home()))
-        return base / "Akux"
+        return siirra_kansio(base / VANHA_NIMI, base / UUSI_NIMI, "akux.db")
     return Path.home() / ".akux"
 
 
@@ -121,6 +167,34 @@ class Storage:
         self._migrate()
         self.db.commit()
         self.settings_path = self.dir / "asetukset.json"
+        self._korjaa_polut()
+
+    def _korjaa_polut(self):
+        """Kansioiden siirron tai varmuuskopion palautuksen jälkeen tallennetut polut osoittamaan nykyisiin kansioihin."""
+        try:
+            with self.lock:
+                rows = self.db.execute("SELECT id, raakadata FROM tests WHERE raakadata IS NOT NULL").fetchall()
+                for tid, path in rows:
+                    if not path or Path(path).exists():
+                        continue
+                    new = uusi_polku(path)
+                    if not new:
+                        cand = self.dir / "raakadata" / Path(path.replace("\\", "/")).name
+                        new = str(cand) if cand.exists() else None
+                    if new:
+                        self.db.execute("UPDATE tests SET raakadata=? WHERE id=?", (new, tid))
+                self.db.commit()
+            if self.settings_path.exists():
+                s = json.loads(self.settings_path.read_text(encoding="utf-8"))
+                fix = {}
+                for k in ("logo", "mittaus_kansio"):
+                    new = uusi_polku(s.get(k))
+                    if new:
+                        fix[k] = new
+                if fix:
+                    self.save_settings(fix)
+        except (sqlite3.Error, OSError, ValueError):
+            pass
 
     def _migrate(self):
         """Lisää uudempien versioiden sarakkeet vanhaan tietokantaan tietoja menettämättä."""

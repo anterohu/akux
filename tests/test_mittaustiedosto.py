@@ -48,7 +48,7 @@ def test_mittaustiedosto():
         a.disconnect()
         files = sorted(os.listdir(folder))
         print("Tallennetut:", files)
-        akux_files = [f for f in files if f.endswith(".akux")]
+        akux_files = [f for f in files if f.endswith(".akveri")]
         pdf_files = [f for f in files if f.endswith(".pdf")]
         assert len(akux_files) == 1 and len(pdf_files) == 1
         assert akux_files[0].startswith("AKVERI_ABC-123_") and "pikatarkastus" in akux_files[0]

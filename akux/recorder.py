@@ -46,9 +46,9 @@ VAIHEET = {
                   ("itse_loppu", "Loppuarvot"), ("valmis", "Valmis")],
 }
 # Mittaukset, jotka voi keskeyttää ja jatkaa myöhemmin (myös ohjelman sulkemisen jälkeen)
-JATKETTAVAT = {AJO, PIKA_AJO, TAYSI, ITSEPURKAUS}
+JATKETTAVAT = {AJO, PIKA_AJO, TAYSI, ITSEPURKAUS, KAPASITEETTI}
 JATKETTAVAT_VAIHEET = {"lepo_ajo_alku", "ajo", "lepo_ajo_loppu", "lepo_alku", "odota_lataus",
-                       "lepo_itse_alku", "odotus", "itse_loppu"}
+                       "lataus", "lepo_loppu", "lepo_itse_alku", "odotus", "itse_loppu"}
 KUORMA_A = 80.0           # kuormitustapahtuman virtaraja (A)
 
 REG_WINDOW_S = 60.0       # resistanssin laskennan aikaikkuna (s)
@@ -208,8 +208,17 @@ class Recorder:
             now = self.app.source.now()
             st.update_test(tid, tila="käynnissä")
             self._event(now, f"Mittaus jatkuu (osa {self.osat})")
-            self._check_pause_charging(now)
-            if self.vaihe in ("lepo_ajo_alku", "lepo_ajo_loppu", "lepo_alku", "lepo_itse_alku"):
+            if self.vaihe == "lataus":
+                # Tauon aikana akkuun mennyt energia täydennetään akunhallinnan energialaskennasta
+                # samalla tavalla kuin lyhyissä datakatkoissa.
+                t0 = (self.marks.get("jatkotauko") or {}).get("t") or state.get("t_viim") or now
+                self.gaps.append({"alku": t0, "loppu": now, "kesto_s": max(0.0, now - t0),
+                                  "ner_alku": self.marks.get("_ner_last"), "ner_loppu": None,
+                                  "_e_mark": self.e_in - self.e_out, "tauko": True})
+                self.marks.pop("jatkotauko", None)
+            else:
+                self._check_pause_charging(now)
+            if self.vaihe in ("lepo_ajo_alku", "lepo_ajo_loppu", "lepo_alku", "lepo_itse_alku", "lepo_loppu"):
                 self.rest_since = None
             self.t_phase = now
             self._persist_state()
@@ -244,13 +253,15 @@ class Recorder:
 
     _STATE_KEYS = ("vaihe", "marks", "gaps", "notes", "t_start", "e_in", "e_out", "ah_in", "ah_out", "i2_in",
                    "i2_out", "bricks_reg", "pack_reg", "p_max_kw", "p_min_kw", "v_min_load", "load_events", "curve", "osat",
-                   "brick_acc", "quick_started")
+                   "brick_acc", "quick_started", "ch_e_neg", "ch_e_pos", "ch_ah_neg", "ch_ah_pos", "ch_i2",
+                   "ch_seconds", "r_window")
 
     def _state_dict(self) -> dict:
         d = {k: getattr(self, k) for k in self._STATE_KEYS}
         d["merkinnat"], d["aukot"], d["huomiot"], d["t_alku"] = self.marks, self.gaps, self.notes, self.t_start
         d["brick_acc"] = {str(k): v for k, v in (self.brick_acc or {}).items()}
         d["bricks_reg"] = {str(k): v for k, v in self.bricks_reg.items()}
+        d["t_viim"] = self.last_hv[0] if self.last_hv else None
         return d
 
     def _load_state(self, d: dict):

@@ -18,7 +18,7 @@ const MALLIRYHMAT = [
   ["Cybertruck", m => m.malli_koodi === "C"],
 ];
 const cellsTxt = c => (Array.isArray(c) ? c.join(" tai ") : (c || ""));
-const guideHtml = (g, card = false) => `${card ? "<h2>Kytkentä autoon</h2>" : `<h3 style="margin:14px 0 6px">Kytkentä autoon</h3>`}<div class="small"><b>${esc(g.liitin)}.</b> ${esc(g.ohje)}</div>${g.varmistettu ? "" : `<div class="small muted" style="margin-top:6px">Tätä kytkentää ei ole vielä varmistettu AKVERIilla. Tarkista väylä ensimmäisellä kytkentäkerralla Yleiskuvan kohdasta Kartoita väylä.</div>`}`;
+const guideHtml = (g, card = false) => `${card ? "<h2>Kytkentä autoon</h2>" : `<h3 style="margin:14px 0 6px">Kytkentä autoon</h3>`}<div class="small"><b>${esc(g.liitin)}.</b> ${esc(g.ohje)}</div>${g.varmistettu ? "" : `<div class="small muted" style="margin-top:6px">Tätä kytkentää ei ole vielä varmistettu AKVERIlla. Tarkista väylä ensimmäisellä kytkentäkerralla Yleiskuvan kohdasta Kartoita väylä.</div>`}`;
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
@@ -246,7 +246,7 @@ views.yleiskuva = {
     box.innerHTML = `<h3>Väylän kartoitus</h3><div class="notice ${cls}">${esc(r.teksti)}</div>
       <p class="small muted">Liitännässä liikkui ${r.lajeja} erilaista viestiä.</p>
       ${r.viestit.length ? `<table class="t"><tr><th>Tunniste</th><th class="num">Taajuus</th><th>Tieto</th></tr>
-      ${r.viestit.map(v => `<tr><td>${esc(v.tunniste)}</td><td class="num">${n(v.taajuus_hz, 1)} Hz</td><td class="small ${v.kuvaus ? "" : "muted"}">${esc(v.kuvaus || "Ei käytössä AKVERIissa")}</td></tr>`).join("")}</table>` : ""}`;
+      ${r.viestit.map(v => `<tr><td>${esc(v.tunniste)}</td><td class="num">${n(v.taajuus_hz, 1)} Hz</td><td class="small ${v.kuvaus ? "" : "muted"}">${esc(v.kuvaus || "Ei käytössä AKVERIssa")}</td></tr>`).join("")}</table>` : ""}`;
   },
   updateConn() {
     const y = S.yhteys, el = $("#connInfo");
@@ -755,7 +755,7 @@ views.mittaukset = {
   render(arg) { if (arg) return this.renderOne(Number(arg)); this.renderList(); },
   async renderList() {
     view.innerHTML = `<div class="head"><div><h1>Mittaukset</h1><div class="muted">Ohjelmaan tallennetut ja tiedostoista avatut mittaukset</div></div>
-      <label class="btn primary" style="cursor:pointer">Avaa mittaustiedosto<input type="file" id="tOpen" accept=".akux" hidden></label></div>
+      <label class="btn primary" style="cursor:pointer">Avaa mittaustiedosto<input type="file" id="tOpen" accept=".akveri,.akux" hidden></label></div>
       <div class="card" id="tList"></div>`;
     const { mittaukset } = await api("/api/mittaukset");
     $("#tList").innerHTML = testTable(mittaukset, true);
@@ -781,7 +781,7 @@ views.mittaukset = {
     view.innerHTML = `${bk.html}<div class="head"><div><h1>${esc(tyyppi(t.tyyppi))}</h1>
       <div class="muted">${esc(v.nimi || "")} · ${date(t.aloitettu)}</div></div>
       <div class="row">${done ? `<a class="btn primary" href="/api/mittaukset/${id}/raportti.pdf" target="_blank">Avaa raportti (PDF)</a>` : ""}
-        <a class="btn" href="/api/mittaukset/${id}/tiedosto.akux">Mittaustiedosto</a>
+        <a class="btn" href="/api/mittaukset/${id}/tiedosto.akveri">Mittaustiedosto</a>
         <a class="btn" href="/api/mittaukset/${id}/data.csv">Mittausdata (CSV)</a></div></div>
       ${r.virhe ? `<div class="notice bad">${esc(r.virhe)}</div>` : ""}
       ${!done && !r.virhe ? (t.tila === "kesken" ? `<div class="notice warn"><b>Mittaus on kesken.</b> Jatka sitä <a href="#/mittaus">Mittaus</a>-sivulta, kun sovitin on kytketty samaan autoon.</div>`
@@ -879,7 +879,7 @@ views.asetukset = {
       </div>
 
       <div class="card"><h2>Mittausten tallennus</h2>
-        <p class="small muted">Jokainen valmis mittaus tallennetaan mittaustiedostona (.akux) ja PDF-raporttina. Mittaustiedosto sisältää kaikki mittauksen tiedot ja raakadatan, ja sen voi avata missä tahansa AKVERI-versiossa kohdasta Mittaukset → Avaa mittaustiedosto.</p>
+        <p class="small muted">Jokainen valmis mittaus tallennetaan mittaustiedostona (.akveri) ja PDF-raporttina. Mittaustiedosto sisältää kaikki mittauksen tiedot ja raakadatan, ja sen voi avata millä tahansa koneella, jolle AKVERI on asennettu, kohdasta Mittaukset → Avaa mittaustiedosto.</p>
         <label class="check"><input type="checkbox" name="mittaus_tallennus" ${s.mittaus_tallennus ? "checked" : ""}><span>Tallenna jokainen valmis mittaus automaattisesti</span></label>
         ${ANDROID ? `<p class="small">Tallennuskansio: <b>${esc(s.mittaus_kansio_oletus)}</b></p>` :
           `<label class="f"><span>Tallennuskansio</span><input name="mittaus_kansio" value="${esc(s.mittaus_kansio)}" placeholder="${esc(s.mittaus_kansio_oletus)}"><small class="muted">Jätä tyhjäksi, niin tiedostot tallentuvat kansioon ${esc(s.mittaus_kansio_oletus)}. Voit käyttää myös pilvikansiota, esimerkiksi OneDrivea.</small></label>`}
@@ -919,7 +919,7 @@ views.asetukset = {
         </div>`}
         <div class="card"><h2>Puhelinilmoitukset</h2>
           <label class="check"><input type="checkbox" name="ilmoitukset_kaytossa" ${s.ilmoitukset_kaytossa ? "checked" : ""}><span>Lähetä ilmoitukset puhelimeen</span></label>
-          <label class="f"><span>Ilmoitusaiheen osoite (ntfy)</span><input name="ilmoitus_osoite" id="nUrl" value="${esc(s.ilmoitus_osoite)}" placeholder="https://ntfy.sh/akux-oma-aihe"></label>
+          <label class="f"><span>Ilmoitusaiheen osoite (ntfy)</span><input name="ilmoitus_osoite" id="nUrl" value="${esc(s.ilmoitus_osoite)}" placeholder="https://ntfy.sh/akveri-oma-aihe"></label>
           <label class="check"><input type="checkbox" name="ilmoitus_vaiheet" ${s.ilmoitus_vaiheet ? "checked" : ""}><span>Mittauksen vaihe vaihtuu</span></label>
           <label class="check"><input type="checkbox" name="ilmoitus_valmis" ${s.ilmoitus_valmis ? "checked" : ""}><span>Mittaus on valmis</span></label>
           <label class="check"><input type="checkbox" name="ilmoitus_ongelmat" ${s.ilmoitus_ongelmat ? "checked" : ""}><span>Ongelma: lataus keskeytyy tai yhteys katkeaa</span></label>
@@ -979,7 +979,7 @@ views.yllapito = {
       <div class="grid g2">
         <div class="card"><h2>Päivitys</h2>
           <p class="small">Käytössä on versio <b>${esc(info.versio)}</b>.</p>
-          <p class="small muted">Uusin versio julkaistaan GitHubin Releases-sivulla. ${ANDROID ? "Lataa AKVERI-x.y.z.apk ja asenna se vanhan päälle." : "Lataa AKVERI-asennus-x.y.z.exe ja aja se. Asennus sulkee AKVERIin, päivittää sen ja säilyttää tiedot."} Autot, mittaukset, raportit ja asetukset säilyvät.</p>
+          <p class="small muted">Uusin versio julkaistaan GitHubin Releases-sivulla. ${ANDROID ? "Lataa AKVERI-x.y.z.apk ja asenna se vanhan päälle." : "Lataa AKVERI-asennus-x.y.z.exe ja aja se. Asennus sulkee AKVERIn, päivittää sen ja säilyttää tiedot."} Autot, mittaukset, raportit ja asetukset säilyvät.</p>
           <div class="row"><a class="btn primary" href="https://github.com/anterohu/akux/releases/latest" target="_blank" rel="noopener">Avaa julkaisut</a></div></div>
         <div class="card"><h2>Varmuuskopiot</h2>
           <p class="small muted">Ohjelma tekee varmuuskopion automaattisesti kerran viikossa ja säilyttää viisi uusinta. Tallenna kopio välillä myös muistitikulle tai pilvipalveluun.</p>
@@ -994,7 +994,7 @@ views.yllapito = {
         <dt>Ohjelma</dt><dd>${esc(info.nimi)} ${esc(info.versio)}</dd>
         <dt>Tietojen sijainti</dt><dd style="word-break:break-all">${esc(info.datakansio)}</dd>
         <dt>Järjestelmä</dt><dd>${esc(info.jarjestelma)}</dd></dl>
-        <p class="small muted" style="margin-top:12px">${ANDROID ? "Tiedot säilyvät sovelluksen omassa tallennustilassa. Raportit ja varmuuskopiot tallentuvat myös Lataukset/Akux-kansioon, kun avaat ne. " : ""}Viestimäärittelyt perustuvat Tesla-omistajien yhteisön ylläpitämään avoimeen aineistoon. Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä. AKVERI ei ole Teslan tekemä eikä hyväksymä.</p></div>`;
+        <p class="small muted" style="margin-top:12px">${ANDROID ? "Tiedot säilyvät sovelluksen omassa tallennustilassa. Raportit ja varmuuskopiot tallentuvat myös Lataukset/AKVERI-kansioon, kun avaat ne. " : ""}Viestimäärittelyt perustuvat Tesla-omistajien yhteisön ylläpitämään avoimeen aineistoon. Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä. AKVERI ei ole Teslan tekemä eikä hyväksymä.</p></div>`;
 
     $("#qRun").onclick = async () => {
       const b = $("#qRun");

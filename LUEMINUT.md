@@ -1,4 +1,4 @@
-# AKVERI 1.6
+# AKVERI 1.7
 
 AKVERI lukee Teslan ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta OBDLink-sovittimella ja tekee tuloksista selkeän ja yksityiskohtaisen PDF-raportin ostajalle, asiakkaalle tai omaan käyttöön. Kaikki mittausarvot ovat auton akunhallinnan luovuttamia.
 
@@ -10,9 +10,9 @@ Valmiit ohjelmat ovat GitHubin **Releases**-sivulla: https://github.com/anterohu
 
 **Windows:** lataa `AKVERI-asennus-x.y.z.exe` ja aja se. AKVERI avautuu omaan sovellusikkunaansa, eikä selainta tarvita. Asennus lisää pikakuvakkeen työpöydälle ja Käynnistä-valikkoon. Jos Windows näyttää ilmoituksen *Windows suojasi tietokonettasi*, valitse **Lisätietoja → Suorita silti**. Ilmoitus tulee vain asennusohjelmasta kerran jokaista uutta versiota kohden, ei itse ohjelmasta.
 
-**Tuetut sovittimet:** OBDLink EX ja SX (USB) sekä OBDLink MX+ ja LX (Bluetooth). Bluetooth-sovitin paritetaan ensin Windowsin tai puhelimen Bluetooth-asetuksista, minkä jälkeen se näkyy AKVERIin sovitinlistassa. Tavalliset ELM327-sovittimet eivät pysy Teslan väylän perässä, joten AKVERI ei hyväksy niitä. OBDLink CX (Bluetooth Low Energy) ei ole vielä tuettu.
+**Tuetut sovittimet:** OBDLink EX ja SX (USB) sekä OBDLink MX+ ja LX (Bluetooth). Bluetooth-sovitin paritetaan ensin Windowsin tai puhelimen Bluetooth-asetuksista, minkä jälkeen se näkyy AKVERIn sovitinlistassa. Tavalliset ELM327-sovittimet eivät pysy Teslan väylän perässä, joten AKVERI ei hyväksy niitä. OBDLink CX (Bluetooth Low Energy) ei ole vielä tuettu.
 
-**Android (10 tai uudempi):** lataa `AKVERI-x.y.z.apk` puhelimeen ja avaa se. Android kysyy kerran luvan asentaa sovelluksia tästä lähteestä. Kytke OBDLink EX välikaapelilla auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen ja salli AKVERIille pääsy sovittimeen. Diagnostiikkaliitin on keskikonsolin takapäässä: vuosien 2019–2020 autoissa 20-pinninen ja 2021 alkaen 26-pinninen. Jalkatilan OBD-liitäntä ei välitä akun tietoja. Kapasiteettimittaukseen (8–14 h) tarvitaan OTG-sovitin, jossa on PD-latausportti, jotta puhelin latautuu mittauksen ajan.
+**Android (10 tai uudempi):** lataa `AKVERI-x.y.z.apk` puhelimeen ja avaa se. Android kysyy kerran luvan asentaa sovelluksia tästä lähteestä. Kytke OBDLink EX välikaapelilla auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen ja salli AKVERIlle pääsy sovittimeen. Diagnostiikkaliitin on keskikonsolin takapäässä: vuosien 2019–2020 autoissa 20-pinninen ja 2021 alkaen 26-pinninen. Jalkatilan OBD-liitäntä ei välitä akun tietoja. Kapasiteettimittaukseen (8–14 h) tarvitaan OTG-sovitin, jossa on PD-latausportti, jotta puhelin latautuu mittauksen ajan.
 
 **Päivitys:** lataa uusi versio samasta paikasta ja asenna se vanhan päälle. Autot, mittaukset, raportit ja asetukset säilyvät. Mitään tiedostoja ei tarvitse poistaa, siirtää eikä nimetä uudelleen.
 
@@ -20,10 +20,10 @@ Valmiit ohjelmat ovat GitHubin **Releases**-sivulla: https://github.com/anterohu
 
 ## Mittaustiedostot
 
-Jokainen valmis mittaus tallennetaan automaattisesti mittaustiedostona (`.akux`) ja PDF-raporttina:
+Jokainen valmis mittaus tallennetaan automaattisesti mittaustiedostona (`.akveri`, aiempien versioiden `.akux`-tiedostot avautuvat edelleen) ja PDF-raporttina:
 
-- Windows: `Tiedostot\Akux\Mittaukset` (kansion voi vaihtaa asetuksista, esimerkiksi OneDriveen)
-- Android: `Lataukset/Akux`
+- Windows: `Tiedostot\AKVERI\Mittaukset` (kansion voi vaihtaa asetuksista, esimerkiksi OneDriveen)
+- Android: `Lataukset/AKVERI`
 
 Mittaustiedosto sisältää kaiken: auton tiedot, mittausnäytteet, kennoryhmien jännitteet, tapahtumat, tuloksen, muuttamattoman raakadatan ja raportin. Sen voi avata missä tahansa AKVERI-versiossa ja millä tahansa laitteella kohdasta **Mittaukset → Avaa mittaustiedosto**. Ohjelma tarkistaa avattaessa, ettei tiedostoa ole muutettu.
 
@@ -64,12 +64,14 @@ Raportti on kaksiosainen. Pääsivut on tarkoitettu asiakkaalle, tekninen liite 
 
 Lataa uusi versio Releases-sivulta ja asenna se vanhan päälle (katso Asennus). Ylläpito-sivulla on suora linkki julkaisuihin.
 
+Versiosta 1.7.0 alkaen ohjelma ja sen kansiot ovat AKVERI-nimisiä. Päivitys siirtää aiemman Akux-version tiedot (`%APPDATA%\Akux` ja `Tiedostot\Akux`) automaattisesti uusiin kansioihin ensimmäisellä käynnistyskerralla. Käsin ei tarvitse siirtää eikä poistaa mitään.
+
 ## Tietojen sijainti
 
-- Mittaustiedostot ja raportit: `Tiedostot\Akux\Mittaukset` tai asetuksissa valittu kansio
-- Ohjelman autot, mittaushistoria, asetukset ja varmuuskopiot: `%APPDATA%\Akux`
-- Ohjelma: `%LOCALAPPDATA%\Programs\Akux`
-- Rakennustyökalut (vain Asenna.bat-rakennuksessa): `%LOCALAPPDATA%\Akux\rakennus`
+- Mittaustiedostot ja raportit: `Tiedostot\AKVERI\Mittaukset` tai asetuksissa valittu kansio
+- Ohjelman autot, mittaushistoria, asetukset ja varmuuskopiot: `%APPDATA%\AKVERI`
+- Ohjelma: `%LOCALAPPDATA%\Programs\AKVERI`
+- Rakennustyökalut (vain Asenna.bat-rakennuksessa): `%LOCALAPPDATA%\AKVERI\rakennus`
 
 ## Linux ja macOS
 

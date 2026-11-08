@@ -156,11 +156,11 @@ class MainActivity : ComponentActivity() {
 
     private fun isDownload(u: Uri): Boolean {
         val p = u.path ?: return false
-        return p.endsWith(".pdf") || p.endsWith(".csv") || p.endsWith(".gz") || p.endsWith(".zip") || p.endsWith(".akux") ||
+        return p.endsWith(".pdf") || p.endsWith(".csv") || p.endsWith(".gz") || p.endsWith(".zip") || p.endsWith(".akux") || p.endsWith(".akveri") ||
             p == "/api/yllapito/varmuuskopio"
     }
 
-    /** Lataa tiedoston ohjelmalta, tallentaa sen Lataukset/Akux-kansioon ja avaa tai jakaa sen. */
+    /** Lataa tiedoston ohjelmalta, tallentaa sen Lataukset/AKVERI-kansioon ja avaa tai jakaa sen. */
     private fun download(url: String) {
         Toast.makeText(this, "Avataan…", Toast.LENGTH_SHORT).show()
         thread(name = "akux-lataus") {
@@ -180,7 +180,7 @@ class MainActivity : ComponentActivity() {
                 saveToDownloads(name, mime, bytes)
                 val uri = FileProvider.getUriForFile(this, "$packageName.tiedostot", f)
                 runOnUiThread {
-                    Toast.makeText(this, "Tallennettu: Lataukset/Akux/$name", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "Tallennettu: Lataukset/AKVERI/$name", Toast.LENGTH_LONG).show()
                     val view = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime)
                         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     val send = Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri)
@@ -203,7 +203,7 @@ class MainActivity : ComponentActivity() {
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, name)
                 put(MediaStore.Downloads.MIME_TYPE, mime)
-                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Akux")
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/AKVERI")
             }
             val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return
             contentResolver.openOutputStream(uri)?.use { it.write(bytes) }

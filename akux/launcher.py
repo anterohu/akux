@@ -1,4 +1,4 @@
-"""Sovelluksen käynnistin (Akux.exe).
+"""Sovelluksen käynnistin (AKVERI.exe).
 
 - Avaa käyttöliittymän omaan sovellusikkunaansa. Windowsissa ikkuna käyttää Windowsin
   WebView2-näyttökomponenttia (pywebview), joten selainta ei avata. Jos komponentti
@@ -13,6 +13,7 @@ import json
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -23,14 +24,24 @@ import urllib.request
 from pathlib import Path
 
 PORT = 8765
-IDLE_EXIT_S = 90
+IDLE_EXIT_S = 300
 
 
-def _running(port: int) -> bool:
+def _running(port: int, timeout: float = 1.5) -> bool:
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/tila", timeout=1.5) as r:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/tila", timeout=timeout) as r:
             return str(json.load(r).get("nimi", "")).upper() in ("AKVERI", "AKUX")
     except Exception:  # noqa: BLE001
+        return False
+
+
+def _port_open(port: int) -> bool:
+    """Onko palvelin käynnissä? Yhteydenotto onnistuu, vaikka palvelin olisi hetken kiireinen
+    (esimerkiksi raporttia muodostaessaan hitaalla koneella). Sammunut palvelin hylkää yhteyden heti."""
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=5):
+            return True
+    except OSError:
         return False
 
 
@@ -54,7 +65,7 @@ def _browser() -> str | None:
 def open_window(url: str):
     exe = _browser()
     if exe:
-        profile = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "Akux" / "ikkuna"
+        profile = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "AKVERI" / "ikkuna"
         profile.mkdir(parents=True, exist_ok=True)
         try:
             subprocess.Popen([exe, f"--app={url}", "--window-size=1320,880",
@@ -107,7 +118,7 @@ class IkkunaApi:
         """Avaa tiedoston (esimerkiksi raportin) tietokoneen oletusohjelmassa."""
         try:
             name, data = self._fetch(path)
-            d = Path(tempfile.gettempdir()) / "Akux"
+            d = Path(tempfile.gettempdir()) / "AKVERI"
             d.mkdir(exist_ok=True)
             out = d / name
             out.write_bytes(data)
@@ -153,9 +164,50 @@ def close_window(win, code: int = 0, grace: float = 8.0):
 
 
 def _storage_dir(second: bool = False) -> str:
-    d = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "Akux" / ("ikkuna-2" if second else "ikkuna")
+    d = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "AKVERI" / ("ikkuna-2" if second else "ikkuna")
     d.mkdir(parents=True, exist_ok=True)
     return str(d)
+
+
+def watch_server(close, port: int = PORT, marker: Path | None = None, poll: float = 1.0,
+                 down_limit: float = 10.0, ping: bool = True) -> None:
+    """Sulkee ikkunan (close), kun palvelin on sammunut. Käytetään myös asennusohjelman päivittäessä.
+
+    Ikkuna suljetaan vain, kun palvelin on varmasti sammunut: hidas vastaus ei riitä syyksi,
+    koska hitaalla koneella palvelin voi olla hetken kiireinen. Uudelleenkäynnistyksessä katko
+    sallitaan 30 sekuntia.
+    """
+    def pinger():
+        # Kertoo palvelimelle, että ikkuna on auki, jottei palvelin sulkeudu joutokäyntinä.
+        while True:
+            _running(port, timeout=20)
+            time.sleep(5)
+
+    if ping:
+        threading.Thread(target=pinger, name="akux-ikkunaping", daemon=True).start()
+    seen, down_since = False, None
+    last = time.time()
+    while True:
+        time.sleep(poll)
+        now = time.time()
+        if now - last > max(10.0, 10 * poll):
+            # Kone oli lepotilassa tai täysin jumissa: aloitetaan seuranta alusta
+            down_since = None
+        last = now
+        if _port_open(port):
+            seen, down_since = True, None
+            continue
+        if not seen:
+            continue
+        down_since = down_since or now
+        try:
+            restarting = marker is not None and now - float(marker.read_text()) < 60
+        except (OSError, ValueError):
+            restarting = False
+        if now - down_since > (30 if restarting else down_limit):
+            print("Palvelin on sammunut, ikkuna suljetaan", flush=True)
+            close()
+            return
 
 
 def run_window(wv, url: str | None, test: bool = False, on_start=None, watch: bool = False) -> int:
@@ -171,26 +223,8 @@ def run_window(wv, url: str | None, test: bool = False, on_start=None, watch: bo
         print("Ikkunatesti: ikkuna luotu", flush=True)
 
     def watcher():
-        # Kun ohjelma suljetaan (myös asennusohjelman päivittäessä), ikkuna sulkeutuu perässä.
-        # Uudelleenkäynnistys kestää muutaman sekunnin, joten katko sallitaan 20 sekuntia.
         from .storage import default_data_dir
-        marker = default_data_dir() / ".uudelleenkaynnistys"
-        seen, down_since = False, None
-        while True:
-            time.sleep(1)
-            if _running(PORT):
-                seen, down_since = True, None
-                continue
-            if not seen:
-                continue
-            down_since = down_since or time.time()
-            try:
-                restarting = time.time() - float(marker.read_text()) < 60
-            except (OSError, ValueError):
-                restarting = False
-            if time.time() - down_since > (30 if restarting else 2):
-                close_window(win, grace=4)
-                return
+        watch_server(lambda: close_window(win, grace=4), PORT, default_data_dir() / ".uudelleenkaynnistys")
 
     def started():
         if test:
@@ -246,7 +280,7 @@ def _log_to_file():
 
 
 def _spawn(args: list[str], low_priority: bool = False):
-    """Käynnistää AKVERIin erillisen prosessin (palvelin tai esilataus) ilman konsoli-ikkunaa."""
+    """Käynnistää AKVERIn erillisen prosessin (palvelin tai esilataus) ilman konsoli-ikkunaa."""
     base = [sys.executable] + ([] if getattr(sys, "frozen", False) else ["-m", "akux.launcher"])
     kw = {"close_fds": True}
     if sys.platform.startswith("win"):
@@ -285,7 +319,8 @@ def main():
     wv = None if no_window else _webview()
     if test:
         print("Ikkunatesti: näyttökomponentti", "löytyi" if wv else "puuttuu", flush=True)
-    if _running(PORT):
+    if _running(PORT, timeout=5) or _port_open(PORT):
+        # Ohjelma on jo käynnissä (myös hetkellisesti kiireinen palvelin): avataan vain ikkuna
         if no_window:
             return
         if wv:
@@ -301,8 +336,8 @@ def main():
         _spawn(["--ei-ikkunaa"])
 
         def on_start(win):
-            for _ in range(240):              # odotetaan, että palvelin vastaa (enintään 2 min)
-                if _running(PORT):
+            for _ in range(600):              # odotetaan, että palvelin vastaa (hidas kone: enintään 5 min)
+                if _running(PORT, timeout=5):
                     win.load_url(url)
                     return
                 time.sleep(0.5)

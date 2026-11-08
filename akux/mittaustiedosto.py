@@ -1,4 +1,4 @@
-"""Mittaustiedosto (.akux).
+"""Mittaustiedosto (.akveri, aiemmin .akux).
 
 Jokainen mittaus tallennetaan omaksi tiedostokseen, joka sisältää kaiken: auton
 tiedot, mittausnäytteet, kennoryhmien jännitteet, tapahtumat, tuloksen,
@@ -23,7 +23,8 @@ from . import NIMI, VERSIO
 
 MUOTO = "akux-mittaus"
 MUOTO_VERSIO = 1
-PAATE = ".akux"
+PAATE = ".akveri"
+LUETTAVAT_PAATTEET = (".akveri", ".akux")   # aiempien versioiden tiedostot avautuvat edelleen
 
 # Android-sovellus tallentaa tiedostot puhelimen Lataukset-kansioon (ks. android.py)
 SAVE_HOOK = None
@@ -35,8 +36,9 @@ def default_folder() -> Path:
         return Path(env)
     home = Path.home()
     if sys.platform.startswith("win"):
+        from .storage import siirra_kansio
         docs = Path(os.environ.get("USERPROFILE", home)) / "Documents"
-        return docs / "Akux" / "Mittaukset"
+        return siirra_kansio(docs / "Akux", docs / "AKVERI", "Mittaukset") / "Mittaukset"
     return home / "Akux" / "Mittaukset"
 
 
@@ -119,9 +121,9 @@ def inspect(data: bytes) -> dict:
         z = zipfile.ZipFile(io.BytesIO(data))
         m = json.loads(z.read("mittaus.json"))
     except (zipfile.BadZipFile, KeyError, json.JSONDecodeError):
-        raise ValueError("Tiedosto ei ole AKVERIin mittaustiedosto.")
+        raise ValueError("Tiedosto ei ole AKVERIn mittaustiedosto.")
     if m.get("muoto") != MUOTO:
-        raise ValueError("Tiedosto ei ole AKVERIin mittaustiedosto.")
+        raise ValueError("Tiedosto ei ole AKVERIn mittaustiedosto.")
     if m.get("muoto_versio", 1) > MUOTO_VERSIO:
         raise ValueError("Mittaustiedosto on tehty uudemmalla AKVERI-versiolla. Päivitä AKVERI ja avaa tiedosto uudelleen.")
     for path, digest in (m.get("tiedostot") or {}).items():

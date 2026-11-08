@@ -1,25 +1,25 @@
 @echo off
 rem ======================================================================
-rem  Akux - asennus Windowsiin
-rem  Tekee tasta kansiosta Akux.exe-sovelluksen tietokoneellesi,
+rem  AKVERI - asennus Windowsiin
+rem  Tekee tasta kansiosta AKVERI.exe-sovelluksen tietokoneellesi,
 rem  lisaa pikakuvakkeet tyopoydalle ja Kaynnista-valikkoon ja avaa ohjelman.
 rem  Ajetaan kerran, ja uudelleen vain kun asennat uuden version.
 rem ======================================================================
 chcp 65001 >nul
-title Akux - asennus
+title AKVERI - asennus
 setlocal
 cd /d "%~dp0"
 
 set "APPDIR=%~dp0"
-set "BUILD=%LOCALAPPDATA%\Akux\rakennus"
+set "BUILD=%LOCALAPPDATA%\AKVERI\rakennus"
 set "PYROOT=%BUILD%\python"
 set "PY=%PYROOT%\tools\python.exe"
 set "PYW=%PYROOT%\tools\pythonw.exe"
 set "PYVER=3.12.10"
-set "TARGET=%LOCALAPPDATA%\Programs\Akux"
+set "TARGET=%LOCALAPPDATA%\Programs\AKVERI"
 
 echo.
-echo  Akux - asennus
+echo  AKVERI - asennus
 echo  -----------------------
 echo  Asennus kestaa ensimmaisella kerralla noin 5-10 minuuttia ja vaatii verkkoyhteyden.
 echo.
@@ -40,9 +40,9 @@ echo [2/4] Asennetaan kirjastot...
 "%PY%" -m pip install --disable-pip-version-check --no-warn-script-location -q --upgrade -r "%APPDIR%requirements.txt" pyinstaller
 if errorlevel 1 goto :virhe
 
-echo [3/4] Rakennetaan Akux.exe...
+echo [3/4] Rakennetaan AKVERI.exe...
 if exist "%BUILD%\dist" rmdir /s /q "%BUILD%\dist"
-"%PY%" -m PyInstaller --noconfirm --clean --log-level WARN --windowed --name Akux ^
+"%PY%" -m PyInstaller --noconfirm --clean --log-level WARN --windowed --name AKVERI ^
   --icon "%APPDIR%akux.ico" ^
   --add-data "%APPDIR%akux\web;akux\web" ^
   --add-data "%APPDIR%akux\data;akux\data" ^
@@ -56,14 +56,14 @@ if exist "%BUILD%\dist" rmdir /s /q "%BUILD%\dist"
   --exclude-module tkinter ^
   --distpath "%BUILD%\dist" --workpath "%BUILD%\work" --specpath "%BUILD%" ^
   "%APPDIR%Akux.pyw"
-if not exist "%BUILD%\dist\Akux\Akux.exe" goto :varatapa
+if not exist "%BUILD%\dist\AKVERI\AKVERI.exe" goto :varatapa
 
 echo [4/4] Asennetaan ohjelma...
-robocopy "%BUILD%\dist\Akux" "%TARGET%" /MIR /NFL /NDL /NJH /NJS /NP >nul
+robocopy "%BUILD%\dist\AKVERI" "%TARGET%" /MIR /NFL /NDL /NJH /NJS /NP >nul
 if errorlevel 8 goto :virhe
-set "LAUNCH=%TARGET%\Akux.exe"
+set "LAUNCH=%TARGET%\AKVERI.exe"
 set "LARGS="
-set "ICON=%TARGET%\Akux.exe"
+set "ICON=%TARGET%\AKVERI.exe"
 goto :pikakuvakkeet
 
 :varatapa
@@ -83,14 +83,14 @@ set "ICON=%TARGET%\akux.ico"
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$w=New-Object -ComObject WScript.Shell;" ^
   "foreach($d in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'))){" ^
-  "  $s=$w.CreateShortcut((Join-Path $d 'Akux.lnk'));" ^
+  "  $s=$w.CreateShortcut((Join-Path $d 'AKVERI.lnk'));" ^
   "  $s.TargetPath='%LAUNCH%'; $s.Arguments='%LARGS%'; $s.WorkingDirectory='%TARGET%';" ^
   "  $s.IconLocation='%ICON%'; $s.Description='Ajoakun kunnon ja kapasiteetin mittaus'; $s.Save() }"
 
 echo.
-echo  Valmis. Akux on asennettu kansioon:
+echo  Valmis. AKVERI on asennettu kansioon:
 echo  %TARGET%
-echo  Kaynnista ohjelma jatkossa tyopoydan pikakuvakkeesta Akux.
+echo  Kaynnista ohjelma jatkossa tyopoydan pikakuvakkeesta AKVERI.
 echo  Mittaukset ja asetukset sailyvat, kun asennat uuden version.
 echo.
 start "" /D "%TARGET%" "%LAUNCH%" %LARGS%

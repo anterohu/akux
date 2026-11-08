@@ -29,6 +29,11 @@ def _keep_awake(on: bool):
 
 class App:
     def __init__(self, data_dir=None):
+        try:
+            from . import mittaustiedosto
+            mittaustiedosto.default_folder()   # siirtää aiemman nimen mittauskansion ennen polkujen tarkistusta
+        except Exception:  # noqa: BLE001
+            pass
         self.storage = Storage(data_dir)
         self.decoder = TeslaDecoder()
         self.recorder = Recorder(self)
