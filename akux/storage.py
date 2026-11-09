@@ -103,6 +103,7 @@ OLETUSASETUKSET = {
     "vesileima": "toisto",
     "tekninen_liite": True,
     "logo_koko": "normaali",
+    "kennokuvaaja": "profiili",
 }
 
 SCHEMA = """
@@ -201,6 +202,10 @@ class Storage:
         cols = {r[1] for r in self.db.execute("PRAGMA table_info(vehicles)")}
         if "kayttoonotto" not in cols:
             self.db.execute("ALTER TABLE vehicles ADD COLUMN kayttoonotto TEXT")
+        tcols = {r[1] for r in self.db.execute("PRAGMA table_info(tests)")}
+        if "riippumaton" not in tcols:
+            # 1 = mittaaja on riippumaton, 0 = ei riippumaton, tyhjä = ei valittu (aiemmat mittaukset)
+            self.db.execute("ALTER TABLE tests ADD COLUMN riippumaton INTEGER")
 
     def close(self):
         with self.lock:
@@ -326,11 +331,13 @@ class Storage:
         self._exec("DELETE FROM vehicles WHERE id=?", (vid,))
 
     # -- mittaukset -----------------------------------------------------
-    def add_test(self, vehicle_id: int, tyyppi: str, mittarilukema=None, mittaaja="", lisatiedot="") -> int:
+    def add_test(self, vehicle_id: int, tyyppi: str, mittarilukema=None, mittaaja="", lisatiedot="",
+                 riippumaton=None) -> int:
         cur = self._exec(
-            "INSERT INTO tests (vehicle_id, tyyppi, tila, aloitettu, mittarilukema, mittaaja, lisatiedot) "
-            "VALUES (?,?,?,?,?,?,?)",
-            (vehicle_id, tyyppi, "käynnissä", time.time(), mittarilukema, mittaaja, lisatiedot))
+            "INSERT INTO tests (vehicle_id, tyyppi, tila, aloitettu, mittarilukema, mittaaja, lisatiedot, riippumaton) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (vehicle_id, tyyppi, "käynnissä", time.time(), mittarilukema, mittaaja, lisatiedot,
+             None if riippumaton is None else int(bool(riippumaton))))
         return cur.lastrowid
 
     def update_test(self, tid: int, **fields):
@@ -365,9 +372,10 @@ class Storage:
         with self.lock:
             cur = self.db.execute(
                 "INSERT INTO tests (vehicle_id, tyyppi, tila, aloitettu, paattynyt, mittarilukema, mittaaja, "
-                "lisatiedot, tarkiste) VALUES (?,?,?,?,?,?,?,?,?)",
+                "lisatiedot, tarkiste, riippumaton) VALUES (?,?,?,?,?,?,?,?,?,?)",
                 (t["vehicle_id"], tyyppi, t["tila"], t["aloitettu"], t.get("paattynyt"), t.get("mittarilukema"),
-                 t.get("mittaaja") or "", t.get("lisatiedot") if lisatiedot is None else lisatiedot, t.get("tarkiste")))
+                 t.get("mittaaja") or "", t.get("lisatiedot") if lisatiedot is None else lisatiedot, t.get("tarkiste"),
+                 t.get("riippumaton")))
             new = cur.lastrowid
             for table in ("samples", "snapshots", "events"):
                 cols = [r[1] for r in self.db.execute(f"PRAGMA table_info({table})") if r[1] != "test_id"]

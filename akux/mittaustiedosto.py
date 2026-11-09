@@ -159,7 +159,8 @@ def import_file(storage, data: bytes, merkitse: bool = True) -> dict:
             storage.save_vehicle_photo(vid, z.read("auton_kuva.jpg"))
         except ValueError:
             pass
-    tid = storage.add_test(vid, t["tyyppi"], t.get("mittarilukema"), t.get("mittaaja") or "", t.get("lisatiedot") or "")
+    tid = storage.add_test(vid, t["tyyppi"], t.get("mittarilukema"), t.get("mittaaja") or "", t.get("lisatiedot") or "",
+                           t.get("riippumaton"))
     raw_path = None
     if "raakadata.csv.gz" in z.namelist():
         raw_path = storage.dir / "raakadata" / f"mittaus_{tid:05d}.csv.gz"

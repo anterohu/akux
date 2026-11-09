@@ -48,6 +48,13 @@ class ApiError(Exception):
         self.code = code
 
 
+def _riippumaton(v):
+    """Mittaajan riippumattomuus: True, False tai None (ei valittu)."""
+    if v is None or v == "":
+        return None
+    return str(v).lower() in ("1", "true", "kyllä", "kylla", "on")
+
+
 def _num(x):
     if x in (None, ""):
         return None
@@ -441,7 +448,10 @@ class Api:
         try:
             tid = self.app.start_test(vehicle_id=vid, tyyppi=tyyppi, mittarilukema=_num(body.get("mittarilukema")),
                                       mittaaja=body.get("mittaaja") or self.app.settings.get("mittaaja", ""),
-                                      lisatiedot=body.get("lisatiedot", ""))
+                                      lisatiedot=body.get("lisatiedot", ""),
+                                      riippumaton=_riippumaton(body.get("riippumaton")))
+            if body.get("riippumaton") is not None:
+                self.app.storage.save_settings({"riippumaton_viimeksi": _riippumaton(body.get("riippumaton"))})
         except RuntimeError as e:
             raise ApiError(str(e))
         return {"id": tid}
@@ -522,6 +532,12 @@ class Api:
         if self.app.recorder.test_id == tid:
             raise ApiError("Mittaus on käynnissä. Keskeytä se ensin.")
         self.app.storage.delete_test(tid)
+        return {"ok": True}
+
+    def aseta_riippumattomuus(self, q, body, tid):
+        if not self.app.storage.test(tid):
+            raise ApiError("Mittausta ei löydy.", 404)
+        self.app.storage.update_test(tid, riippumaton=_riippumaton(body.get("riippumaton")))
         return {"ok": True}
 
     def laske_uudelleen(self, q, body, tid):
@@ -670,7 +686,8 @@ ROUTES = [
     ("GET", r"/api/mittaukset", "mittaukset"), ("GET", r"/api/mittaukset/(\d+)", "mittaus"),
     ("DELETE", r"/api/mittaukset/(\d+)", "poista_mittaus"), ("POST", r"/api/mittaukset/avaa", "avaa_mittaus"),
     ("POST", r"/api/mittaukset/(\d+)/tallenna", "tallenna_kansioon"), ("GET", r"/api/mittaukset/(\d+)/tarkista", "tarkista"),
-    ("POST", r"/api/mittaukset/(\d+)/laske-uudelleen", "laske_uudelleen"), ("POST", r"/api/mittaukset/(\d+)/jaa", "jaa_osiin"),
+    ("POST", r"/api/mittaukset/(\d+)/laske-uudelleen", "laske_uudelleen"),
+    ("POST", r"/api/mittaukset/(\d+)/riippumattomuus", "aseta_riippumattomuus"), ("POST", r"/api/mittaukset/(\d+)/jaa", "jaa_osiin"),
     ("GET", r"/api/asetukset", "asetukset"), ("POST", r"/api/asetukset", "tallenna_asetukset"),
     ("POST", r"/api/vaylakartoitus", "aloita_kartoitus"), ("GET", r"/api/vaylakartoitus", "kartoitus"),
     ("POST", r"/api/ajoneuvot/(\d+)/kuva", "auton_kuva"),

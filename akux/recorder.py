@@ -134,7 +134,8 @@ class Recorder:
         return self.test_id is not None
 
     # ------------------------------------------------------------------
-    def start(self, vehicle_id: int, tyyppi: str, mittarilukema=None, mittaaja="", lisatiedot="") -> int:
+    def start(self, vehicle_id: int, tyyppi: str, mittarilukema=None, mittaaja="", lisatiedot="",
+              riippumaton=None) -> int:
         with self.lock:
             if self.active:
                 raise RuntimeError("Mittaus on jo käynnissä.")
@@ -142,7 +143,7 @@ class Recorder:
                 raise RuntimeError("Yhdistä ensin sovittimeen tai esittelytilaan.")
             st = self.app.storage
             self._reset_counters()
-            tid = st.add_test(vehicle_id, tyyppi, mittarilukema, mittaaja, lisatiedot)
+            tid = st.add_test(vehicle_id, tyyppi, mittarilukema, mittaaja, lisatiedot, riippumaton)
             self.test_id = tid
             self.tyyppi = tyyppi
             self.vehicle_id = vehicle_id

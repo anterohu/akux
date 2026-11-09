@@ -468,6 +468,10 @@ views.mittaus = {
           <label class="f"><span>Mittarilukema (km)</span><input id="mOdo" inputmode="numeric" placeholder="Luetaan autosta, jos tyhjä"></label>
           <label class="f"><span>Mittaaja</span><input id="mWho" value="${esc(s.mittaaja)}"></label>
           <label class="f"><span>Lisätiedot</span><input id="mNote" placeholder="Esimerkiksi tilaajan nimi"></label>
+          <label class="f"><span>Mittaajan riippumattomuus</span><select id="mIndep">
+            <option value="" ${s.riippumaton_viimeksi === undefined || s.riippumaton_viimeksi === null ? "selected" : ""} disabled>Valitse</option>
+            <option value="1" ${s.riippumaton_viimeksi === true ? "selected" : ""}>Riippumaton mittaaja</option>
+            <option value="0" ${s.riippumaton_viimeksi === false ? "selected" : ""}>Ei riippumaton (esimerkiksi myyjä)</option></select></label>
         </div>
         <div class="row"><button class="btn primary" id="mStart" disabled>Aloita mittaus</button><span class="small muted" id="mStartHint"></span></div>
       </div>`;
@@ -493,9 +497,10 @@ views.mittaus = {
       this.updateNew(S);
     }));
     this.type = null;
-    $("#mStart").onclick = () => act(() => api("/api/mittaukset", { method: "POST", body: {
+    $("#mStart").onclick = () => $("#mIndep").value === "" ? alert("Valitse, onko mittaaja riippumaton. Valinta näkyy raportissa.") : act(() => api("/api/mittaukset", { method: "POST", body: {
       ajoneuvo_id: Number($("#mVeh").value), tyyppi: this.type, mittarilukema: $("#mOdo").value,
-      mittaaja: $("#mWho").value, lisatiedot: $("#mNote").value } }), "Mittaus aloitettu").then(poll);
+      mittaaja: $("#mWho").value, lisatiedot: $("#mNote").value,
+      riippumaton: $("#mIndep").value === "" ? null : $("#mIndep").value === "1" } }), "Mittaus aloitettu").then(poll);
   },
   updateNew(S) {
     const w = $("#mWarn"), st = $("#mStart");
@@ -805,6 +810,12 @@ views.mittaukset = {
           <div class="row" style="margin-top:10px"><button class="btn sm" id="tVerify">Tarkista raakadata</button><a class="btn sm" href="/api/mittaukset/${id}/raakadata.csv.gz">Lataa raakadata</a><span id="tVerRes" class="small"></span></div></div>
         <div class="card"><h2>Tapahtumat</h2><div class="small" style="max-height:220px;overflow:auto">${(t.tapahtumat || []).map(e => `<div class="row" style="flex-wrap:nowrap;gap:12px;padding:3px 0"><span class="muted" style="min-width:110px">${date(e.t)}</span><span>${esc(e.teksti)}</span></div>`).join("")}</div></div>
       </div>
+      <div class="card" style="margin-top:16px"><h2>Mittaajan riippumattomuus</h2>
+        <p class="small muted">Näkyy raportin etusivulla. Riippumaton mittaaja ei ole ajoneuvon kaupan osapuoli eikä sidoksissa siihen.</p>
+        <select id="tIndep">
+          <option value="" ${t.riippumaton === null || t.riippumaton === undefined ? "selected" : ""}>Ei valittu (ei näy raportissa)</option>
+          <option value="1" ${t.riippumaton === 1 ? "selected" : ""}>Riippumaton mittaaja</option>
+          <option value="0" ${t.riippumaton === 0 ? "selected" : ""}>Ei riippumaton (esimerkiksi myyjä)</option></select></div>
       ${done ? `<div class="card" style="margin-top:16px"><h2>Tuloksen laskenta</h2>
         <p class="small muted">Tulos on laskettu AKVERIn versiolla ${esc(r.versio || "–")}${r.mittausversio && r.mittausversio !== r.versio ? ` (mittaus tallennettu versiolla ${esc(r.mittausversio)})` : ""}.
         Uudelleenlaskenta käyttää samaa tallennettua mittausdataa ja ohjelman nykyisiä arviointiperusteita. Mittausdata ei muutu.</p>
@@ -812,6 +823,8 @@ views.mittaukset = {
         ${t.tyyppi === "taysi" ? `<button class="btn sm" id="tSplit">Jaa kapasiteettimittaukseksi ja ajotestiksi</button>` : ""}
         <span id="tCalcRes" class="small"></span></div></div>` : ""}
       <div class="row" style="margin-top:16px"><span class="spacer"></span><button class="btn danger sm" id="tDel">Poista mittaus</button></div>`;
+    $("#tIndep").onchange = e => act(() => api(`/api/mittaukset/${id}/riippumattomuus`, { method: "POST",
+      body: { riippumaton: e.target.value === "" ? null : e.target.value === "1" } }), "Tallennettu");
     const rc = $("#tRecalc");
     if (rc) rc.onclick = async () => {
       if (!confirm("Lasketaanko tulos uudelleen nykyisellä versiolla? Aiemmin tallennetut PDF-raportit eivät muutu, mutta uusi raportti muodostetaan uudella laskennalla.")) return;
@@ -887,6 +900,9 @@ views.asetukset = {
           ${[["b", "Kaarimittari (oletus)"], ["a", "Akkukuva ja luokka-asteikko"], ["c", "Tumma tunnuslukukaista"]].map(([k, t]) => `<option value="${k}" ${(s.raportin_ulkoasu || "b") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
         <label class="f"><span>Vesileima</span><select name="vesileima">
           ${[["toisto", "Pienet toistuvat (oletus)"], ["iso", "Suuri vino AKVERI"], ["rivit", "Harvat vinot rivit"], ["ei", "Ei vesileimaa"]].map(([k, t]) => `<option value="${k}" ${(s.vesileima || "toisto") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        <label class="f"><span>Kennoryhmien kuvaaja</span><select name="kennokuvaaja">
+          ${[["profiili", "Järjestetty profiili (oletus)"], ["moduulit", "Moduulikartta"]].map(([k, t]) => `<option value="${k}" ${(s.kennokuvaaja || "profiili") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        <p class="small muted">Moduulikartta näytetään malleille, joiden moduulijako on varmistettu (Model 3, Model S ja Model X). Muille malleille raporttiin tulee järjestetty profiili. Ryhmät numerojärjestyksessä näkyvät aina teknisessä liitteessä.</p>
         <label class="f"><span>Tekninen liite</span><select name="tekninen_liite">
           ${[["1", "Mukana raportin lopussa (oletus)"], ["0", "Ei liitettä, vain pääsivut"]].map(([k, t]) => `<option value="${k}" ${((s.tekninen_liite === false) ? "0" : "1") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
       </div>

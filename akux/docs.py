@@ -210,6 +210,12 @@ OHJE = [
             ("p", "Jokaisen raportin tiedot voidaan todentaa. Kaikki mittauksen aikana vastaanotetut viestit "
                   "tallennetaan muuttamattomina, ja raporttiin merkitään niiden tarkiste. Mittauksen sivulla "
                   "<b>Tarkista raakadata</b> varmistaa, ettei aineistoa ole muutettu."),
+            ("ul", [
+                "<b>Mittaajan riippumattomuus</b> valitaan mittausta aloitettaessa, ja sitä voi muuttaa mittauksen sivulla. Riippumaton mittaaja ei ole ajoneuvon kaupan osapuoli eikä sidoksissa siihen. Valinta näkyy raportin etusivulla. Jos mittaat esimerkiksi oman myytävän autosi, valitse <b>Ei riippumaton</b>.",
+                "<b>Vastuunrajaus</b> on etusivun alareunassa: raportti kuvaa akun tilaa mittaushetkellä, se ei ole takuu, ja ohjelmiston toimittaja ei vastaa mittauksen suorittamisesta eikä tuloksiin perustuvista päätöksistä.",
+                "<b>Raportin numero</b> ja sivunumero muodossa <b>Sivu 3/14</b> ovat jokaisen sivun alareunassa, joten irrallinen sivu yhdistyy oikeaan raporttiin ja puuttuva sivu huomataan.",
+                "<b>Kennoryhmien kuvaaja</b> valitaan asetuksista: <b>järjestetty profiili</b> (oletus) näyttää ryhmät jännitteen mukaan järjestettynä, ja tasainen käyrä tarkoittaa tasaisesti varautunutta akkua. <b>Moduulikartta</b> näyttää ryhmät akun moduuleittain, jolloin poikkeavan ryhmän moduuli näkyy suoraan. Moduulikartta on käytössä malleille, joiden moduulijako on varmistettu (Model 3, Model S ja Model X). Ryhmät numerojärjestyksessä ovat aina teknisessä liitteessä.",
+            ]),
         ],
     },
     {

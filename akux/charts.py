@@ -79,6 +79,91 @@ def cell_chart(volts: list, title: str, width_mm=174, height_mm=62, poikkeavat=(
     return _png(fig)
 
 
+def module_layout(model_name: str | None, n: int) -> list[int] | None:
+    """Kennoryhmien jako moduuleihin, kun se on varmistettu lähteistä.
+    Model 3: neljä moduulia, 23 + 25 + 25 + 23 ryhmää (Electrek 2017) tai LFP-akussa 25 + 28 + 28 + 25 kennoa
+    (Battery Design). Model S ja X: 16 moduulia, kussakin 6 ryhmää. Muille malleille jakoa ei käytetä."""
+    name = (model_name or "").lower()
+    if "model 3" in name:
+        return {96: [23, 25, 25, 23], 106: [25, 28, 28, 25]}.get(n)
+    if ("model s" in name or "model x" in name) and n == 96:
+        return [6] * 16
+    return None
+
+
+def cell_profile_chart(volts: list, title: str, poikkeavat=(), raja_mv: float = 15.0,
+                       width_mm=174, height_mm=62) -> bytes:
+    """Kennoryhmät jännitteen mukaan järjestettynä: tasainen käyrä tarkoittaa tasaisesti varautunutta akkua."""
+    idx = [k for k, v in enumerate(volts) if v]
+    vals = sorted(volts[k] for k in idx)
+    med = vals[len(vals) // 2] * 1000
+    order = sorted(idx, key=lambda k: volts[k])
+    ys = [volts[k] * 1000 for k in order]
+    xs = list(range(1, len(ys) + 1))
+    out = {p["nro"] for p in poikkeavat}
+    fig, ax = plt.subplots(figsize=(width_mm / 25.4, height_mm / 25.4))
+    ax.axhspan(med - raja_mv, med + raja_mv, color=GOOD, alpha=0.08, linewidth=0, zorder=0,
+               label=f"Tavanomainen vaihtelu ±{raja_mv:.0f} mV")
+    ax.axhline(med, color=MUTED, linewidth=0.8, linestyle="--", label="Mediaani", zorder=1)
+    ax.plot(xs, ys, color=ACCENT, linewidth=1.3, marker="o", markersize=2.0, zorder=3)
+    for x, k, y in zip(xs, order, ys):
+        if (k + 1) in out:
+            ax.scatter([x], [y], color=BAD, s=26, zorder=4)
+            ax.annotate(f"ryhmä {k + 1}", (x, y), xytext=(6 if x < len(xs) / 2 else -6, 0),
+                        textcoords="offset points", fontsize=7, color=BAD, va="center",
+                        ha="left" if x < len(xs) / 2 else "right")
+    span = max(max(ys) - med, med - min(ys), raja_mv) * 1.3
+    ax.set_ylim(med - span, med + span)
+    ax.set_xlim(0, len(xs) + 1)
+    ax.set_xticks([])
+    ax.set_xlabel("Kennoryhmät jännitteen mukaan järjestettynä")
+    ax.set_ylabel("Jännite (mV)")
+    ax.yaxis.set_major_formatter(_fi(0))
+    ax.legend(loc="lower right")
+    ax.set_title(title + f"  ·  mediaani {med / 1000:.3f} V".replace(".", ","))
+    return _png(fig)
+
+
+def module_chart(volts: list, layout: list[int], title: str, poikkeavat=(), width_mm=174) -> bytes:
+    """Kennoryhmät moduuleittain värikarttana; ruudun luku on poikkeama mediaanista (mV)."""
+    from matplotlib.colors import LinearSegmentedColormap
+    vals = sorted(v for v in volts if v)
+    med = vals[len(vals) // 2]
+    dev = [((v - med) * 1000) if v else 0.0 for v in volts]
+    lim = max(30.0, max(abs(d) for d in dev))
+    cm = LinearSegmentedColormap.from_list("ero", [BAD, "#F3D9C7", "#FFFFFF", "#C9D7E6", ACCENT])
+    out = {p["nro"] for p in poikkeavat}
+    ncols = 1 if len(layout) <= 4 else 4
+    nrows = -(-len(layout) // ncols)
+    height_mm = 11 * nrows + 14 if ncols == 1 else 9 * nrows + 14
+    fig, axs = plt.subplots(nrows, ncols, figsize=(width_mm / 25.4, height_mm / 25.4), squeeze=False)
+    start = 0
+    for m, n in enumerate(layout):
+        ax = axs[m // ncols][m % ncols]
+        row = dev[start:start + n]
+        ax.imshow([row], aspect="auto", cmap=cm, vmin=-lim, vmax=lim, extent=(start + 0.5, start + n + 0.5, 0, 1))
+        for j, d in enumerate(row):
+            nro = start + j + 1
+            dr = round(d)
+            ax.text(nro, 0.5, ("0" if dr == 0 else f"{dr:+d}").replace("-", "−"), ha="center", va="center",
+                    fontsize=5.2 if n > 10 else 6.5, fontweight="bold" if nro in out else "normal",
+                    color="white" if abs(d) > lim * 0.6 else INK)
+        ax.set_yticks([0.5])
+        ax.set_yticklabels([f"Moduuli {m + 1}"], fontsize=6.5)
+        ax.set_xticks([start + 1, start + n])
+        ax.tick_params(axis="x", labelsize=5.5, length=0, pad=1)
+        ax.grid(False)
+        for sp in ax.spines.values():
+            sp.set_visible(False)
+        start += n
+    for k in range(len(layout), nrows * ncols):
+        axs[k // ncols][k % ncols].axis("off")
+    fig.suptitle(title + f"  ·  poikkeama mediaanista {med:.3f} V (mV)".replace(".", ","),
+                 fontsize=9, color=INK, x=0.01, ha="left")
+    fig.tight_layout()
+    return _png(fig)
+
+
 def capacity_chart(samples: list[dict], t0: float, width_mm=174, height_mm=70) -> bytes:
     s = [x for x in samples if x["soc_avg"] is not None]
     hours = [(x["t"] - t0) / 3600 for x in s]

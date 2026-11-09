@@ -530,7 +530,7 @@ class ReportDoc(BaseDocTemplate):
         self.ctx = ctx
         frame = Frame(M, 20 * mm, CW, H - 46 * mm, id="f", leftPadding=0, rightPadding=0,
                       topPadding=0, bottomPadding=0)
-        first = Frame(M, 44 * mm, CW, H - 70 * mm, id="f1", leftPadding=0, rightPadding=0,
+        first = Frame(M, 54 * mm, CW, H - 80 * mm, id="f1", leftPadding=0, rightPadding=0,
                       topPadding=0, bottomPadding=0)
         wm = lambda c, d: draw_watermark(c, ctx.get("vesileima"))  # noqa: E731
         self.addPageTemplates([PageTemplate(id="first", frames=[first], onPage=self._first, onPageEnd=wm),
@@ -555,7 +555,7 @@ class ReportDoc(BaseDocTemplate):
             c.drawRightString(W - M, H - 23 * mm - size - 2.6 * mm, self.ctx.get("qr_label") or "Raportin tunnistetiedot")
             c.restoreState()
         c.saveState()
-        y = 22 * mm
+        y = 32 * mm
         # Allekirjoitusten väliin AKVERI-leima, keskitettynä allekirjoitusalueen korkeuteen
         seal_r = 13 * mm
         half = (CW - 2 * seal_r - 10 * mm) / 2
@@ -568,6 +568,28 @@ class ReportDoc(BaseDocTemplate):
         c.setFillColor(MUTED)
         c.drawString(M, y + 13 * mm, "Paikka ja päiväys")
         c.drawString(W - M - half, y + 13 * mm, "Mittaajan allekirjoitus ja nimenselvennys")
+        # Riippumattomuus ja vastuunrajaus allekirjoitusten alle
+        lines = []
+        indep = self.ctx.get("riippumaton")
+        if indep is True:
+            lines.append("Mittaus on tehty riippumattomasti: mittaaja ei ole ajoneuvon kaupan osapuoli eikä sidoksissa siihen.")
+        elif indep is False:
+            lines.append("Mittaaja ei ole riippumaton: mittaaja on ajoneuvon kaupan osapuoli tai sidoksissa siihen.")
+        lines += ["Raportti kuvaa akun tilaa mittaushetkellä. Se ei ole takuu akun tai ajoneuvon kunnosta eikä niiden "
+                  "kestosta. Tulokset perustuvat auton akunhallinnan",
+                  f"tietoihin, ja niiden tarkkuus on ilmoitettu raportissa. {NIMI}-ohjelmiston toimittaja ei vastaa "
+                  "mittauksen suorittamisesta eikä tuloksiin perustuvista päätöksistä."]
+        c.setFont("Inter", 5.9)
+        yy = y - 8.5 * mm
+        for k, ln in enumerate(lines):
+            if k == 0 and indep is not None:
+                c.setFont("Inter-SemiBold", 6.2)
+                c.setFillColor(INK)
+            else:
+                c.setFont("Inter", 5.9)
+                c.setFillColor(MUTED)
+            c.drawString(M, yy, ln)
+            yy -= 2.5 * mm
         c.restoreState()
 
     def _decorate(self, c, doc):
@@ -619,7 +641,6 @@ class ReportDoc(BaseDocTemplate):
         c.setFont("Inter", 6.8)
         c.setFillColor(MUTED)
         c.drawString(M + lw + 3 * mm, 10 * mm, ctx["footer"])
-        c.drawRightString(W - M, 10 * mm, f"Sivu {doc.page}")
         c.restoreState()
 
 
@@ -657,6 +678,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         "title": f"{title}  ·  {test_kind}", "report_no": report_no, "vesileima": s.get("vesileima") or "toisto", "date": _date(test.get("paattynyt") or test["aloitettu"], False),
         "measured": _date(test["aloitettu"], False),
         "logo_koko": s.get("logo_koko") or "normaali",
+        "riippumaton": None if test.get("riippumaton") is None else bool(test["riippumaton"]),
         "footer": s.get("raportin_alatunniste") or (
             f"{VERSIO}  ·  Tiedot: auton akunhallinta  ·  Raakadatan tarkiste {(test.get('tarkiste') or '')[:16]}…"),
     }
@@ -818,6 +840,8 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         ("Nyt, brutto / netto", _bn(kk.get("brutto_nyt"), kk.get("netto_nyt"))),
         ("Mittauspäivä", _date(test["aloitettu"])),
         ("Mittaaja", test.get("mittaaja") or s.get("mittaaja")),
+        *([("Riippumattomuus", "Riippumaton mittaaja" if test["riippumaton"] else "Mittaaja ei ole riippumaton")]
+          if test.get("riippumaton") is not None else []),
     ]
     two = Table([[_kv(left, (32 * mm, CW / 2 - 35 * mm)), _kv(right, (34 * mm, CW / 2 - 34 * mm))]],
                 colWidths=[CW / 2, CW / 2], hAlign="LEFT")
@@ -1243,15 +1267,22 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
                    "akunhallinnasta. Levossa mitattu jännite-ero kertoo, kuinka tasaisesti kennoryhmät ovat "
                    "varautuneet. Suuri yksittäinen poikkeama voi viitata heikentyneeseen ryhmään.", "body"))
         E.append(Spacer(1, 3 * mm))
-        E.append(_img(charts.cell_chart(cs["jannitteet"], r.get("kennot_otsikko", "Kennoryhmät"),
-                                        poikkeavat=cs["poikkeavat"]), CW))
+        layout = (charts.module_layout(veh.get("malli"), len(cs["jannitteet"]))
+                  if s.get("kennokuvaaja") == "moduulit" else None)
+
+        def main_cell_chart(stats, title):
+            if layout and len(stats["jannitteet"]) == sum(layout):
+                return charts.module_chart(stats["jannitteet"], layout, title, poikkeavat=stats["poikkeavat"])
+            return charts.cell_profile_chart(stats["jannitteet"], title, poikkeavat=stats["poikkeavat"],
+                                             raja_mv=stats.get("poikkeama_raja_mv") or 15.0)
+
+        E.append(_img(main_cell_chart(cs, r.get("kennot_otsikko", "Kennoryhmät")), CW))
         low = r.get("kennot_matala")
         if low:
             E.append(Spacer(1, 2 * mm))
             drive = test.get("tyyppi") in ("ajotesti", "pika_ajo")
-            E.append(_img(charts.cell_chart(low["jannitteet"], "Kennoryhmät matalassa varauksessa ajon jälkeen" if drive
-                                            else "Kennoryhmät matalassa varauksessa ennen latausta",
-                                            poikkeavat=low["poikkeavat"]), CW))
+            E.append(_img(main_cell_chart(low, "Kennoryhmät matalassa varauksessa ajon jälkeen" if drive
+                                          else "Kennoryhmät matalassa varauksessa ennen latausta"), CW))
         E.append(Spacer(1, 3 * mm))
         rows = [[P("Tunnusluku", "label"), P(r.get("kennot_otsikko", ""), "label")]]
         drive = test.get("tyyppi") in ("ajotesti", "pika_ajo")
@@ -1282,6 +1313,9 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
             E.append(PageBreak())
             E.append(P(title, "h2"))
             E.append(P(intro + " Poikkeama on ilmoitettu suhteessa kaikkien ryhmien keskiarvoon.", "small"))
+            E.append(Spacer(1, 3 * mm))
+            E.append(_img(charts.cell_chart(stats["jannitteet"], "Kennoryhmät numerojärjestyksessä",
+                                            poikkeavat=stats["poikkeavat"], height_mm=52), CW))
             E.append(Spacer(1, 3 * mm))
             vals = stats["jannitteet"]
             mean = stats["ka_v"]
@@ -1558,5 +1592,34 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         while A and isinstance(A[0], (PageBreak, CondPageBreak)):
             A.pop(0)
         E.extend(A)
-    doc.build(E)
+    doc.build(E, canvasmaker=_numbered_canvas(ctx["report_no"]))
     return out_path
+
+
+def _numbered_canvas(report_no: str):
+    """Sivunumero muodossa "Raportti 2026-00001 · Sivu 3/14": irrallinen sivu yhdistyy raporttiin ja
+    puuttuva sivu huomataan."""
+    from reportlab.pdfgen.canvas import Canvas
+
+    class NumberedCanvas(Canvas):
+        def __init__(self, *a, **kw):
+            super().__init__(*a, **kw)
+            self._pages = []
+
+        def showPage(self):
+            self._pages.append(dict(self.__dict__))
+            self._startPage()
+
+        def save(self):
+            n = len(self._pages)
+            for st in self._pages:
+                self.__dict__.update(st)
+                self.saveState()
+                self.setFont("Inter", 6.8)
+                self.setFillColor(MUTED)
+                self.drawRightString(W - M, 10 * mm, f"Raportti {report_no}  ·  Sivu {self._pageNumber}/{n}")
+                self.restoreState()
+                super().showPage()
+            super().save()
+
+    return NumberedCanvas
