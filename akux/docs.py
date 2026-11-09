@@ -197,6 +197,8 @@ OHJE = [
             ("ul", [
                 "<b>Akun kunto (SOH)</b> on nykyinen kapasiteetti prosentteina alkuperäisestä. Vähintään 90 % on erinomainen, 85–90 % hyvä, 80–85 % tyydyttävä ja 70–80 % heikentynyt.",
                 "<b>Kennoryhmien jännite-ero</b> levossa: alle 15 mV erinomainen, alle 30 mV hyvä ja alle 50 mV tyydyttävä. Suurempi ero tai yksittäinen poikkeava ryhmä kannattaa tarkistaa.",
+                "Raja-arvot perustuvat käytettyjen sähköautojen akkutestien aineistoon (Generational, noin 10 000 testiä: tyypillinen ero noin 8 mV, yli 50 mV vaatii selvittelyä, yli 100 mV viittaa vikaan) sekä akkujärjestelmien täyden latauksen ohjearvoihin (enintään 30 mV hyväksyttävä, vähintään 50 mV vaatii tasauslatauksen).",
+                "<b>Jyrkkä alue ja LFP-akku</b>: alle 20 %:n varauksessa kennojännite muuttuu jyrkästi, joten ero on luonnostaan suurempi. LFP-akun jännite on keskivarauksella lähes tasainen, mutta nousee täyden ja laskee tyhjän lähellä hyvin jyrkästi, joten LFP-akun ero on luonnostaan suurempi myös täyteen ladattuna. Se on akkukemian ominaisuus eikä vika. Näillä alueilla rajat ovat alle 50 mV hyvä ja alle 100 mV tyydyttävä. LFP-akun keskivarauksella pieni ero ei yksin todista tasapainoa, joten luokaksi annetaan enintään hyvä.",
                 "<b>Mittaustarkkuus</b> (±) kertoo, kuinka paljon mitattu kapasiteetti voi poiketa todellisesta. Se pienenee, kun lataus aloitetaan matalasta varauksesta ja lepojaksot pidetään täysimittaisina.",
                 "<b>Vertailu ajomäärään</b> kertoo, onko kapasiteetin alenema keskimääräinen, pienempi vai suurempi kuin samalla ajomäärällä yleensä.",
             ]),

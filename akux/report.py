@@ -1191,7 +1191,8 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
             addd("Akun lämpötila", f"{fmt(dc['lampotila_alku'])} → {fmt(dc['lampotila_max'])} °C", "Alussa ja enimmillään")
         if dc.get("jannite_ero_max_mv") is not None:
             addd("Suurin jännite-ero latauksessa", f"{fmt(dc['jannite_ero_max_mv'], 0)} mV",
-                 f"Luokka: {(dc.get('luokka') or '–').lower()}")
+                 f"Luokka: {(dc.get('luokka') or '–').lower()}"
+                 + (f", {dc['jannite_ero_alue']}" if dc.get("jannite_ero_alue") else ""))
         E.append(KeepTogether(_table(rows, [66 * mm, 40 * mm, CW - 106 * mm])))
 
     # ---------------- Itsepurkautuminen ----------------------------------
@@ -1247,13 +1248,17 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         low = r.get("kennot_matala")
         if low:
             E.append(Spacer(1, 2 * mm))
-            E.append(_img(charts.cell_chart(low["jannitteet"], "Kennoryhmät matalassa varauksessa ennen latausta",
+            drive = test.get("tyyppi") in ("ajotesti", "pika_ajo")
+            E.append(_img(charts.cell_chart(low["jannitteet"], "Kennoryhmät matalassa varauksessa ajon jälkeen" if drive
+                                            else "Kennoryhmät matalassa varauksessa ennen latausta",
                                             poikkeavat=low["poikkeavat"]), CW))
         E.append(Spacer(1, 3 * mm))
         rows = [[P("Tunnusluku", "label"), P(r.get("kennot_otsikko", ""), "label")]]
-        hdr = [P("Tunnusluku", "label"), P("Täyden latauksen jälkeen" if low else "Mittaushetkellä", "label")]
+        drive = test.get("tyyppi") in ("ajotesti", "pika_ajo")
+        hdr = [P("Tunnusluku", "label"), P(("Ennen ajoa" if drive else "Täyden latauksen jälkeen") if low
+                                         else "Mittaushetkellä", "label")]
         if low:
-            hdr.append(P("Matalassa varauksessa", "label"))
+            hdr.append(P("Ajon jälkeen" if drive else "Matalassa varauksessa", "label"))
         rows = [hdr]
 
         def line(n, f):
@@ -1438,8 +1443,8 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     if dc:
         meth += [
             ("Pikalataus", "Latausteho lasketaan akunhallinnan jännitteestä ja virrasta kymmenen sekunnin välein. "
-             "Kennoryhmien jännite-ero huomioidaan vain tasaisen tehon kohdista. Jännite-eron luokat: alle 50 mV "
-             "erinomainen, alle 80 mV hyvä, alle 120 mV tyydyttävä."),
+             "Kennoryhmien jännite-ero huomioidaan vain tasaisen tehon kohdista, LFP-akulla vain 20–90 %:n varauksessa. "
+             "Jännite-eron luokat: alle 50 mV erinomainen, alle 80 mV hyvä, alle 120 mV tyydyttävä."),
         ]
     if itse:
         meth += [
@@ -1452,9 +1457,15 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         ]
     meth += [
         ("Kennoryhmät", "Kennoryhmien jännitteet luetaan akunhallinnasta 0,1 mV:n tarkkuudella. Poikkeavaksi "
-         "merkitään ryhmä, jonka jännite eroaa mediaanista yli 15 mV tai yli nelinkertaisesti tavanomaisen "
-         "hajonnan verran. Jännite-eron luokat levossa: alle 15 mV erinomainen, alle 30 mV hyvä, alle 50 mV "
-         "tyydyttävä. Alle 20 %:n varauksessa rajat ovat 1,5-kertaiset, koska kennojännite muuttuu siellä jyrkemmin."),
+         "merkitään ryhmä, jonka jännite eroaa mediaanista yli puolet hyvän rajasta tai yli nelinkertaisesti "
+         "tavanomaisen hajonnan verran. Jännite-eron luokat levossa: alle 15 mV erinomainen, alle 30 mV hyvä, "
+         "alle 50 mV tyydyttävä. Raja-arvot perustuvat käytettyjen sähköautojen akkutestien aineistoon (Generational, "
+         "noin 10 000 testiä: tyypillinen ero noin 8 mV, yli 50 mV vaatii selvittelyä, yli 100 mV viittaa vikaan) "
+         "sekä akkujärjestelmien täyden latauksen ohjearvoihin (enintään 30 mV hyväksyttävä, vähintään 50 mV vaatii "
+         "tasauslatauksen). Jännitekäyrän jyrkällä alueella kennoryhmien ero on luonnostaan suurempi: alle 20 %:n "
+         "varauksessa ja LFP-akulla myös vähintään 95 %:n varauksessa käytetään rajoja alle 50 mV hyvä ja alle "
+         "100 mV tyydyttävä. LFP-akun jännite on keskivarauksella lähes tasainen, joten pieni ero ei siellä yksin "
+         "todista tasapainoa, ja luokaksi annetaan enintään hyvä."),
         ("Kunnon luokitus", "Vähintään 90 % erinomainen, 85–90 % hyvä, 80–85 % tyydyttävä, 70–80 % heikentynyt. "
          "Teslan akkutakuu kattaa kapasiteetin laskun alle 70 %:n takuuaikana."),
         ("Vertailu ajomäärään", "Vertailukäyrä perustuu Teslan vaikuttavuusraportissa (Impact Report 2023) "
@@ -1470,8 +1481,14 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     A.append(P("Mittauksen tiedot", "h3"))
     info = r.get("meta", {}).get("sovitin") or {}
     A.append(_kv([
-        ("Ohjelma", f"{NIMI} {VERSIO}" + (f" (mittaus tallennettu versiolla {r['versio']})"
-                                      if r.get("versio") and r["versio"] != VERSIO else "")),
+        ("Ohjelma", f"{NIMI} {VERSIO}" + (f" (mittaus tallennettu versiolla {r.get('mittausversio') or r['versio']})"
+                                      if (r.get("mittausversio") or r.get("versio")) not in (None, VERSIO) else "")),
+        *([("Tuloksen laskenta", f"Laskettu uudelleen versiolla {r['versio']} samasta mittausdatasta"
+            + (f" (aiempi laskenta versiolla {r['aiempi_laskenta']['versio']})"
+               if (r.get("aiempi_laskenta") or {}).get("versio") else ""))]
+          if r.get("aiempi_laskenta") else []),
+        *([("Mittauksen alkuperä", f"Osa täyttä akkutestiä nro {r['osa_testista']}, sama mittausdata")]
+          if r.get("osa_testista") else []),
         ("Tietolähde", f"{r.get('meta', {}).get('lahde') or '–'}, {info.get('sovitin') or '–'}"),
         ("Viestiarkkitehtuuri", veh.get("alusta_nimi") or "–"),
         ("Akunhallinnan energiaviestin muoto", {"uusi": "Uudempi (kanavoitu)", "vanha": "Vanhempi",

@@ -23,6 +23,10 @@ jobs:
       - name: Ikkunavahti
         run: python tests/test_ikkunavahti.py
         timeout-minutes: 2
+      - name: Kennoryhmien arvio akkukemian mukaan
+        run: python tests/test_kennoarvio.py
+      - name: Uudelleenlaskenta ja täyden testin jako
+        run: python tests/test_uudelleenlaskenta.py
       - name: Kokonaisuus
         run: python tests/test_kokonaisuus.py
       - name: Reunatapaukset

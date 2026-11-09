@@ -10,7 +10,6 @@ from . import vin as vinmod
 
 TARKKUUSRAJA_PCT = 3.0   # päätuloksen suurin sallittu epävarmuus (kunto, %-yksikköä)
 SOH_LUOKAT = [(90, "Erinomainen"), (85, "Hyvä"), (80, "Tyydyttävä"), (70, "Heikentynyt"), (0, "Takuurajan alittava")]
-ERO_LUOKAT = [(15, "Erinomainen"), (30, "Hyvä"), (50, "Tyydyttävä"), (1e9, "Poikkeava")]
 
 
 def soh_class(pct):
@@ -20,12 +19,91 @@ def soh_class(pct):
     return SOH_LUOKAT[-1][1]
 
 
-def delta_class(mv, soc=None):
-    scale = 1.5 if (soc is not None and soc < 20) else 1.0
-    for lim, name in ERO_LUOKAT:
-        if mv <= lim * scale:
-            return name
-    return ERO_LUOKAT[-1][1]
+# Kennoryhmien jännite-eron luokat (mV, levossa). Lähteet: Generational-yhtiön noin 10 000 käytetyn
+# sähköauton akkutestin aineisto (tyypillinen ero noin 8 mV, yli 50 mV vaatii selvittelyä, yli 100 mV
+# viittaa vikaan) sekä akkujärjestelmien täyden latauksen ohjearvot (enintään 30 mV hyväksyttävä,
+# vähintään 50 mV vaatii tasauslatauksen).
+ERO_RAJAT_NORMAALI = (15, 30, 50)        # erinomainen, hyvä, tyydyttävä
+# Jännitekäyrän jyrkällä alueella (alle 20 %:n varaus, LFP-akulla myös vähintään 95 %) kennoryhmien ero
+# on luonnostaan suurempi. Siellä käytetään selvittely- ja vikarajoja (50 ja 100 mV), eikä luokkaa
+# erinomainen anneta.
+ERO_RAJAT_JYRKKA = (None, 50, 100)
+
+
+def ero_alue(soc=None, chem=None) -> str:
+    """Jännitekäyrän alue akkukemian ja varaustilan mukaan.
+
+    NCA- ja NMC-kennojen jännitekäyrä on keskivarauksella ja täydessä akussa loiva; alle 20 %:n
+    varauksessa se jyrkkenee. LFP-kennojen käyrä on keskivarauksella lähes tasainen, mutta nousee täyden
+    varauksen lähellä ja laskee tyhjän lähellä hyvin jyrkästi. Siksi LFP-akun kennoryhmien jännite-ero on
+    täyteen ladattuna ja tyhjän lähellä luonnostaan suurempi kuin keskivarauksella. Se on akkukemian
+    ominaisuus eikä vika."""
+    if chem == "LFP" and soc is not None:
+        if soc >= 95:
+            return "lfp_taysi"
+        if soc <= 20:
+            return "lfp_matala"
+        return "lfp_tasainen"
+    if soc is not None and soc < 20:
+        return "matala"
+    return "normaali"
+
+
+def ero_rajat(soc=None, chem=None) -> tuple:
+    alue = ero_alue(soc, chem)
+    return ERO_RAJAT_JYRKKA if alue in ("lfp_taysi", "lfp_matala", "matala") else ERO_RAJAT_NORMAALI
+
+
+def delta_class(mv, soc=None, chem=None):
+    alue = ero_alue(soc, chem)
+    erin, hyva, tyyd = ero_rajat(soc, chem)
+    if erin is not None and mv <= erin and alue != "lfp_tasainen":
+        return "Erinomainen"
+    if mv <= hyva:
+        return "Hyvä"
+    if mv <= tyyd:
+        return "Tyydyttävä"
+    return "Poikkeava"
+
+
+ALUE_SELITE = {
+    "lfp_taysi": "LFP-akun kennoryhmien jännitteet eroavat täyteen ladattuna luonnostaan enemmän kuin "
+                 "keskivarauksella, koska jännite nousee varauksen loppupäässä jyrkästi. Se on akkukemian "
+                 "ominaisuus eikä vika. Arviossa on siksi käytetty jyrkän alueen raja-arvoja: alle 50 mV hyvä, "
+                 "alle 100 mV tyydyttävä.",
+    "lfp_matala": "LFP-akun kennoryhmien jännitteet eroavat tyhjän lähellä luonnostaan selvästi enemmän kuin "
+                  "keskivarauksella, koska jännite laskee varauksen alapäässä jyrkästi. Se on akkukemian ominaisuus "
+                  "eikä vika. Arviossa on siksi käytetty jyrkän alueen raja-arvoja: alle 50 mV hyvä, alle 100 mV "
+                  "tyydyttävä.",
+    "matala": "Alle 20 %:n varauksessa kennojännite muuttuu jyrkästi, joten kennoryhmien ero on luonnostaan "
+              "suurempi. Arviossa on käytetty jyrkän alueen raja-arvoja: alle 50 mV hyvä, alle 100 mV tyydyttävä.",
+    "lfp_tasainen": "LFP-akun jännite pysyy keskivarauksella lähes muuttumattomana, joten kennoryhmien jännitteet "
+                    "ovat lähellä toisiaan, vaikka niiden varaustiloissa olisi eroa. Pieni jännite-ero ei siksi yksin "
+                    "todista kennojen tasapainoa. Luotettavin arvio saadaan täyden latauksen ja levon jälkeen.",
+}
+
+
+def classify_cells(cs: dict | None, chem: str | None) -> None:
+    """Luokittelee kennoryhmien jännite-eron ja poikkeavat ryhmät akkukemian ja varaustilan mukaan."""
+    if not cs:
+        return
+    alue = ero_alue(cs.get("soc"), chem)
+    rajat = ero_rajat(cs.get("soc"), chem)
+    cs["luokka"] = delta_class(cs["ero_mv"], cs.get("soc"), chem)
+    cs["alue"] = alue
+    cs["rajat_mv"] = list(rajat)
+    # Poikkeavaksi merkitään ryhmä, joka eroaa mediaanista yli puolet hyvän rajasta (15 tai 25 mV)
+    # tai yli nelinkertaisen tavanomaisen hajonnan verran.
+    cs["poikkeama_raja_mv"] = rajat[1] / 2
+    cs["selite"] = ALUE_SELITE.get(alue)
+    vals = [(k + 1, v) for k, v in enumerate(cs.get("jannitteet") or []) if v]
+    if len(vals) >= 2:
+        vs = [v for _, v in vals]
+        med = statistics.median(vs)
+        mad = statistics.median([abs(v - med) for v in vs]) * 1.4826
+        limit = max(cs["poikkeama_raja_mv"] / 1000, 4 * mad)
+        cs["poikkeavat"] = [{"nro": n, "v": v, "poikkeama_mv": (v - med) * 1000}
+                            for n, v in vals if abs(v - med) > limit]
 
 
 def expected_loss_pct(km: float | None, model_code: str | None = None) -> float | None:
@@ -283,7 +361,7 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
     if tyyppi == "taysi":
         res["yhdistetty"] = ext.combine(res.get("kapasiteetti") or {}, res.get("purku") or {}, ref_kwh)
     if tyyppi == "pikalataus":
-        res["pikalataus"] = ext.analyze_dc(meta)
+        res["pikalataus"] = ext.analyze_dc(meta, chem_key)
     if tyyppi == "itsepurkaus":
         res["itsepurkaus"] = ext.analyze_self_discharge(meta, chem_key)
 
@@ -366,7 +444,8 @@ def _analyze_cells_other(res, snaps, meta, tyyppi):
     m = meta.get("merkinnat", {})
     if tyyppi in ("ajotesti", "pika_ajo"):
         s_hi = _snap(snaps, "ajo_alku")
-        s_lo = _snap(snaps, "loppu")
+        # Täydestä akkutestistä erotetussa ajotestissä ajon jälkeinen lepo on ennen latausta
+        s_lo = _snap(snaps, "lepo_alku", "loppu")
         if s_hi:
             res["kennot"] = cell_stats(s_hi["data"].get("kennot"), s_hi["data"].get("soc_avg"), s_hi["data"].get("pack_i"))
             res["kennot_otsikko"] = "Kennoryhmien jännitteet levossa ennen ajoa"
@@ -570,6 +649,9 @@ def _analyze_capacity(res, snaps, samples, meta, chem_key, ref_kwh, nfp, buffer)
 
 # ----------------------------------------------------------------------
 def _summarize(res):
+    chem = res["ajoneuvo"].get("kemia")
+    classify_cells(res.get("kennot"), chem)
+    classify_cells(res.get("kennot_matala"), chem)
     ar = res["arviot"]
     cap = res.get("kapasiteetti") or {}
     bms = res.get("bms") or {}
@@ -621,9 +703,14 @@ def _summarize(res):
 
     cs = res.get("kennot")
     if cs:
+        kuv = (f"Suurin {fmt(cs['max_v'], 3)} V (ryhmä {cs['max_nro']}), "
+               f"pienin {fmt(cs['min_v'], 3)} V (ryhmä {cs['min_nro']}).")
+        if cs.get("alue") in ("lfp_taysi", "lfp_matala", "lfp_tasainen", "matala") and cs.get("soc") is not None:
+            r = cs["rajat_mv"]
+            kuv += (f" Mitattu {fmt(cs['soc'], 0)} %:n varauksessa, raja-arvot tällä varauksella: "
+                    f"alle {fmt(r[1], 0)} mV hyvä, alle {fmt(r[2], 0)} mV tyydyttävä.")
         ar.append({"nimi": "Kennoryhmien jännite-ero", "arvo": f"{fmt(cs['ero_mv'], 0)} mV", "luokka": cs["luokka"],
-                   "kuvaus": f"Suurin {fmt(cs['max_v'], 3)} V (ryhmä {cs['max_nro']}), "
-                             f"pienin {fmt(cs['min_v'], 3)} V (ryhmä {cs['min_nro']})."})
+                   "kuvaus": kuv})
         n_out = len(cs["poikkeavat"])
         ar.append({"nimi": "Poikkeavat kennoryhmät", "arvo": "Ei havaittu" if n_out == 0 else f"{n_out} kpl",
                    "luokka": "Erinomainen" if n_out == 0 else ("Tyydyttävä" if n_out == 1 else "Poikkeava"),
@@ -649,10 +736,11 @@ def _summarize(res):
 
     low = res.get("kennot_matala")
     if low:
-        lcls = delta_class(low["ero_mv"], low.get("soc"))
+        lcls = low["luokka"]
         hr = cap.get("heikoin_ryhma") or {}
-        desc = f"Mitattu levossa {fmt(low.get('soc'))} %:n varauksessa ennen latausta."
-        if hr.get("poikkeama_mv", 0) < -15:
+        desc = (f"Mitattu levossa {fmt(low.get('soc'))} %:n varauksessa ennen latausta. Tyhjän lähellä ero on "
+                "luonnostaan suurempi, joten arviossa on käytetty jyrkän alueen raja-arvoja.")
+        if hr.get("poikkeama_mv", 0) < -low["poikkeama_raja_mv"]:
             desc += f" Pienin jännite ryhmässä {hr['nro']} ({fmt(hr['poikkeama_mv'], 0)} mV mediaanista)."
         ar.append({"nimi": "Jännite-ero matalassa varauksessa", "arvo": f"{fmt(low['ero_mv'], 0)} mV",
                    "luokka": lcls, "kuvaus": desc})
@@ -682,7 +770,14 @@ def _summarize(res):
                "Hyvä": "on tavanomaisella tasolla",
                "Tyydyttävä": "on hieman tavanomaista suurempi",
                "Poikkeava": "on selvästi tavanomaista suurempi ja kannattaa tarkistaa"}[cs["luokka"]]
+        if cs.get("alue") == "lfp_tasainen" and cs["luokka"] == "Hyvä":
+            txt = "on pieni"
         parts.append(f"Kennoryhmien jännite-ero levossa on {fmt(cs['ero_mv'], 0)} mV, mikä {txt}.")
+        if cs.get("alue") == "lfp_taysi":
+            parts.append("LFP-akun kennojännitteet eroavat täyteen ladattuna luonnostaan enemmän kuin "
+                         "keskivarauksella, ja tämä on huomioitu arviossa.")
+        elif cs.get("alue") == "lfp_tasainen":
+            parts.append("LFP-akun kennojen tasapaino arvioidaan luotettavimmin täyden latauksen jälkeen.")
         if cs["poikkeavat"]:
             parts.append("Poikkeavia kennoryhmiä havaittiin: " +
                          ", ".join(f"ryhmä {p['nro']}" for p in cs["poikkeavat"][:6]) + ".")
@@ -690,7 +785,8 @@ def _summarize(res):
             parts.append("Täydessä akussa poikkeavia kennoryhmiä ei havaittu." if res.get("kennot_matala")
                          else "Poikkeavia kennoryhmiä ei havaittu.")
     hr = cap.get("heikoin_ryhma")
-    if hr and hr["poikkeama_mv"] < -15:
+    low = res.get("kennot_matala") or {}
+    if hr and hr["poikkeama_mv"] < -(low.get("poikkeama_raja_mv") or 15):
         parts.append(f"Kennoryhmä {hr['nro']} on matalassa varauksessa {fmt(abs(hr['poikkeama_mv']), 0)} mV muita "
                      "alempana, mikä viittaa muita pienempään kapasiteettiin.")
     summary["teksti"] = " ".join(parts) if parts else "Mittauksesta ei saatu riittävästi tietoa tuloksen muodostamiseen."
@@ -715,12 +811,74 @@ def interpretation(soh, cs, cap) -> str:
     if cs and cs["luokka"] in ("Tyydyttävä", "Poikkeava"):
         t += " Kennoryhmien jännite-ero on tavanomaista suurempi, joten akku kannattaa tarkistaa uudelleen täyden latauksen ja levon jälkeen."
     hr = (cap or {}).get("heikoin_ryhma")
-    if hr and hr.get("poikkeama_mv", 0) < -50:
+    # Yli 100 mV:n poikkeama tyhjän lähellä viittaa vikaan (Generational, käytettyjen sähköautojen akkutestit)
+    if hr and hr.get("poikkeama_mv", 0) < -100:
         t += f" Kennoryhmä {hr['nro']} poikkeaa muista matalassa varauksessa, ja sen kehitystä kannattaa seurata seuraavissa mittauksissa."
     return t
 
 
 # ----------------------------------------------------------------------
+def reanalyze(storage, tid: int) -> dict:
+    """Laskee valmiin mittauksen tuloksen uudelleen tämän version laskennalla samasta tallennetusta datasta.
+    Mittausdata ei muutu; aiemman laskennan versio ja kunto jäävät talteen raporttia varten."""
+    t = storage.test(tid)
+    old = (t or {}).get("tulos") or {}
+    meta = old.get("meta")
+    if not t or t.get("tila") != "valmis" or not meta:
+        raise ValueError("Mittauksesta ei ole valmista tulosta, jota voisi laskea uudelleen.")
+    res = analyze_test(storage, tid, meta)
+    res["mittausversio"] = old.get("mittausversio") or old.get("versio")
+    if old.get("versio") != VERSIO or old.get("aiempi_laskenta"):
+        prev = old.get("aiempi_laskenta") or {"versio": old.get("versio"),
+                                               "kunto_pct": (old.get("yhteenveto") or {}).get("kunto_pct")}
+        res["aiempi_laskenta"] = prev
+    if old.get("osa_testista"):
+        res["osa_testista"] = old["osa_testista"]
+    storage.update_test(tid, tulos=res)
+    return res
+
+
+OSAT = {"kapasiteetti": ("kapasiteetti", "Kapasiteettimittaus"), "ajotesti": ("purku", "Ajotesti")}
+
+
+def split_full_test(storage, tid: int) -> list[dict]:
+    """Jakaa valmiin täyden akkutestin erillisiksi mittauksiksi: kapasiteettimittaus (lataus) ja
+    ajotesti (purku). Kumpikin saa oman raportin samasta mittausdatasta."""
+    t = storage.test(tid)
+    res = (t or {}).get("tulos") or {}
+    if not t or t.get("tyyppi") != "taysi" or t.get("tila") != "valmis" or not res.get("meta"):
+        raise ValueError("Vain valmiin täyden akkutestin voi jakaa osiin.")
+    meta = res["meta"]
+    m = meta.get("merkinnat", {})
+    t0, t1 = meta.get("t_alku"), meta.get("t_loppu")
+    t_ajo_loppu = (m.get("ajo_loppu") or {}).get("t")
+    t_lepo = (m.get("lepo_alku") or {}).get("t") or (m.get("lataus_alku") or {}).get("t")
+    # Kummankin osan näytteet ja kesto rajataan omaan jaksoonsa: ajotesti ajon alusta ajon jälkeisen
+    # levon loppuun, kapasiteettimittaus ajon lopusta latauksen jälkeisen levon loppuun.
+    jaksot = {"ajotesti": (t0, t_lepo or t1), "kapasiteetti": (t_ajo_loppu or t0, t1)}
+    out = []
+    for tyyppi, (key, nimi) in OSAT.items():
+        if not (res.get(key) or {}).get("valmis"):
+            out.append({"tyyppi": tyyppi, "nimi": nimi, "id": None, "syy": f"{nimi} ei valmistunut täydessä testissä."})
+            continue
+        lis = (t.get("lisatiedot") or "").strip()
+        a, b = jaksot[tyyppi]
+        rng = (a - 1, b + 1) if (a is not None and b is not None) else None
+        new = storage.copy_test(tid, tyyppi, (lis + "\n" if lis else "") + f"{nimi}, osa täyttä akkutestiä nro {tid}.",
+                                t_range=rng)
+        sub = dict(meta)
+        if rng:
+            sub["t_alku"], sub["t_loppu"] = a, b
+        r = analyze_test(storage, new, sub)
+        r["mittausversio"] = res.get("mittausversio") or res.get("versio")
+        r["osa_testista"] = tid
+        storage.update_test(new, tulos=r)
+        pt = r.get("paatulos") or {}
+        out.append({"tyyppi": tyyppi, "nimi": nimi, "id": new, "valmis": bool(pt.get("valmis")),
+                    "kunto_pct": (r.get("yhteenveto") or {}).get("kunto_pct")})
+    return out
+
+
 def learn_vehicle(storage, tid: int, res: dict):
     test = storage.test(tid)
     vid = test["vehicle_id"]

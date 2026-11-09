@@ -209,7 +209,7 @@ def combine(charge: dict, discharge: dict, ref_kwh) -> dict | None:
 # ----------------------------------------------------------------------
 # Pikalataus
 # ----------------------------------------------------------------------
-def analyze_dc(meta: dict) -> dict | None:
+def analyze_dc(meta: dict, chem_key: str | None = None) -> dict | None:
     m = meta.get("merkinnat", {})
     A, L = m.get("pikalataus_alku"), m.get("pikalataus_loppu")
     curve = [c for c in (meta.get("kayra") or []) if c[1] is not None and c[2] is not None]
@@ -227,9 +227,14 @@ def analyze_dc(meta: dict) -> dict | None:
         return None
     t20, t80 = t_at(20), t_at(80)
     # Jännite-ero vain tasaisen tehon kohdista: tehon muuttuessa kennoryhmien arvot eivät ole samanhetkisiä
+    # LFP-akulla jännitekäyrä on jyrkkä tyhjän ja täyden lähellä, jolloin kennoryhmien jännitteet
+    # eroavat luonnostaan. Jännite-ero arvioidaan siksi vain tasaiselta alueelta 20–90 %.
+    lfp = chem_key == "LFP"
     deltas = []
     for a, b, c in zip(curve, curve[1:], curve[2:]):
         if b[4] is None or b[0] - curve[0][0] < 60 or b[2] <= 0:
+            continue
+        if lfp and not (20 <= b[1] <= 90):
             continue
         if abs(a[2] - b[2]) <= 0.15 * b[2] and abs(c[2] - b[2]) <= 0.15 * b[2]:
             deltas.append(b[4])
@@ -241,6 +246,7 @@ def analyze_dc(meta: dict) -> dict | None:
         "soc_alku": A.get("soc_avg"), "soc_loppu": L.get("soc_avg"),
         "aika_20_80_min": (t80 - t20) / 60 if (t20 and t80) else None,
         "jannite_ero_max_mv": max(deltas) if deltas else None,
+        "jannite_ero_alue": "20–90 %:n varauksessa" if lfp else None,
         "lampotila_alku": temps[0] if temps else None, "lampotila_max": max(temps) if temps else None,
         "kayra": [[c[1], c[2]] for c in curve if c[2] >= 3],
     }

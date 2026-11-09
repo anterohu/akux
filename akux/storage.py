@@ -356,6 +356,39 @@ class Storage:
             r["tulos"] = json.loads(r["tulos"]) if r["tulos"] else None
         return rows
 
+    def copy_test(self, tid: int, tyyppi: str, lisatiedot: str | None = None, t_range: tuple | None = None) -> int:
+        """Kopioi mittauksen tallenteet uudeksi mittaukseksi (täyden akkutestin jakaminen osiin).
+        Raakadata kopioidaan, joten kummankin mittauksen voi poistaa toisesta riippumatta."""
+        t = self.test(tid)
+        if not t:
+            raise ValueError("Mittausta ei löydy")
+        with self.lock:
+            cur = self.db.execute(
+                "INSERT INTO tests (vehicle_id, tyyppi, tila, aloitettu, paattynyt, mittarilukema, mittaaja, "
+                "lisatiedot, tarkiste) VALUES (?,?,?,?,?,?,?,?,?)",
+                (t["vehicle_id"], tyyppi, t["tila"], t["aloitettu"], t.get("paattynyt"), t.get("mittarilukema"),
+                 t.get("mittaaja") or "", t.get("lisatiedot") if lisatiedot is None else lisatiedot, t.get("tarkiste")))
+            new = cur.lastrowid
+            for table in ("samples", "snapshots", "events"):
+                cols = [r[1] for r in self.db.execute(f"PRAGMA table_info({table})") if r[1] != "test_id"]
+                c = ",".join(cols)
+                if t_range:
+                    self.db.execute(f"INSERT INTO {table} (test_id,{c}) SELECT ?,{c} FROM {table} "
+                                    "WHERE test_id=? AND t>=? AND t<=?", (new, tid, t_range[0], t_range[1]))
+                else:
+                    self.db.execute(f"INSERT INTO {table} (test_id,{c}) SELECT ?,{c} FROM {table} WHERE test_id=?",
+                                    (new, tid))
+            self.db.commit()
+        if t.get("raakadata") and Path(t["raakadata"]).exists():
+            src = Path(t["raakadata"])
+            dst = self.dir / "raakadata" / src.name.replace(f"{tid:05d}", f"{new:05d}", 1)
+            if dst == src or dst.exists():
+                dst = self.dir / "raakadata" / f"mittaus_{new:05d}{''.join(src.suffixes)}"
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+            self.update_test(new, raakadata=str(dst))
+        return new
+
     def delete_test(self, tid: int):
         t = self.test(tid)
         if t and t.get("raakadata"):

@@ -524,6 +524,24 @@ class Api:
         self.app.storage.delete_test(tid)
         return {"ok": True}
 
+    def laske_uudelleen(self, q, body, tid):
+        rec = self.app.recorder
+        if rec.active and rec.test_id == tid:
+            raise ApiError("Mittaus on käynnissä.", 409)
+        try:
+            res = analysis.reanalyze(self.app.storage, tid)
+        except ValueError as e:
+            raise ApiError(str(e)) from e
+        y = res.get("yhteenveto") or {}
+        return {"ok": True, "versio": VERSIO, "kunto_pct": y.get("kunto_pct"),
+                "aiempi": res.get("aiempi_laskenta")}
+
+    def jaa_osiin(self, q, body, tid):
+        try:
+            return {"ok": True, "osat": analysis.split_full_test(self.app.storage, tid)}
+        except ValueError as e:
+            raise ApiError(str(e)) from e
+
     def tarkista(self, q, body, tid):
         t = self.app.storage.test(tid)
         if not t or not t.get("raakadata"):
@@ -652,6 +670,7 @@ ROUTES = [
     ("GET", r"/api/mittaukset", "mittaukset"), ("GET", r"/api/mittaukset/(\d+)", "mittaus"),
     ("DELETE", r"/api/mittaukset/(\d+)", "poista_mittaus"), ("POST", r"/api/mittaukset/avaa", "avaa_mittaus"),
     ("POST", r"/api/mittaukset/(\d+)/tallenna", "tallenna_kansioon"), ("GET", r"/api/mittaukset/(\d+)/tarkista", "tarkista"),
+    ("POST", r"/api/mittaukset/(\d+)/laske-uudelleen", "laske_uudelleen"), ("POST", r"/api/mittaukset/(\d+)/jaa", "jaa_osiin"),
     ("GET", r"/api/asetukset", "asetukset"), ("POST", r"/api/asetukset", "tallenna_asetukset"),
     ("POST", r"/api/vaylakartoitus", "aloita_kartoitus"), ("GET", r"/api/vaylakartoitus", "kartoitus"),
     ("POST", r"/api/ajoneuvot/(\d+)/kuva", "auton_kuva"),

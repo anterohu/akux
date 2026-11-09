@@ -129,7 +129,7 @@ function route() {
 window.addEventListener("hashchange", route);
 
 // ---------- kennokaavio ----------
-function cellSvg(volts) {
+function cellSvg(volts, raja = 15) {
   const vals = volts.filter(Boolean);
   if (!vals.length) return `<div class="empty small">Kennojännitteitä ei vielä vastaanotettu.</div>`;
   const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
@@ -140,7 +140,7 @@ function cellSvg(volts) {
   dev.forEach((d, i) => {
     const h = Math.abs(d) / lim * (H / 2 - 6);
     const y = d >= 0 ? H / 2 - h : H / 2;
-    bars += `<rect x="${(i * bw + bw * .14).toFixed(1)}" y="${y.toFixed(1)}" width="${(bw * .72).toFixed(1)}" height="${Math.max(.8, h).toFixed(1)}" rx="1" fill="${Math.abs(d) > 15 ? "var(--bad)" : "var(--accent)"}"><title>Ryhmä ${i + 1}: ${volts[i] ? volts[i].toFixed(4).replace(".", ",") + " V" : "–"} (${d >= 0 ? "+" : ""}${n1(d)} mV)</title></rect>`;
+    bars += `<rect x="${(i * bw + bw * .14).toFixed(1)}" y="${y.toFixed(1)}" width="${(bw * .72).toFixed(1)}" height="${Math.max(.8, h).toFixed(1)}" rx="1" fill="${Math.abs(d) > raja ? "var(--bad)" : "var(--accent)"}"><title>Ryhmä ${i + 1}: ${volts[i] ? volts[i].toFixed(4).replace(".", ",") + " V" : "–"} (${d >= 0 ? "+" : ""}${n1(d)} mV)</title></rect>`;
   });
   return `<svg class="cells" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Kennoryhmien poikkeama keskiarvosta">
     <line x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" stroke="var(--muted)" stroke-width="1"/>${bars}</svg>
@@ -798,14 +798,32 @@ views.mittaukset = {
         ${(r.arviot || []).map(a => `<tr><td>${esc(a.nimi)}</td><td><b>${esc(a.arvo)}</b></td><td>${a.luokka ? `<span class="pill ${pillClass(a.luokka)}">${esc(a.luokka)}</span>` : ""}</td><td class="small muted hide-m">${esc(a.kuvaus)}</td></tr>`).join("")}</table>
         ${(r.huomiot || []).length ? `<h3>Huomiot</h3><ul class="small">${r.huomiot.map(h => `<li>${esc(h)}</li>`).join("")}</ul>` : ""}
       </div>
-      ${r.kennot ? `<div class="card"><h2>${esc(r.kennot_otsikko || "Kennoryhmät")}</h2>${cellSvg(r.kennot.jannitteet)}</div>` : ""}` : ""}
+      ${r.kennot ? `<div class="card"><h2>${esc(r.kennot_otsikko || "Kennoryhmät")}</h2>${cellSvg(r.kennot.jannitteet, r.kennot.poikkeama_raja_mv || 15)}${r.kennot.selite ? `<p class="muted small">${esc(r.kennot.selite)}</p>` : ""}</div>` : ""}` : ""}
       <div class="grid g2" style="margin-top:16px">
         <div class="card"><h2>Tietojen eheys</h2><p class="small muted">Kaikki vastaanotetut viestit on tallennettu muuttamattomina. Tarkistus laskee raakadatan tarkisteen uudelleen ja vertaa sitä raporttiin merkittyyn.</p>
           <div class="small" style="word-break:break-all"><span class="muted">Tarkiste</span> ${esc(t.tarkiste || "–")}</div>
           <div class="row" style="margin-top:10px"><button class="btn sm" id="tVerify">Tarkista raakadata</button><a class="btn sm" href="/api/mittaukset/${id}/raakadata.csv.gz">Lataa raakadata</a><span id="tVerRes" class="small"></span></div></div>
         <div class="card"><h2>Tapahtumat</h2><div class="small" style="max-height:220px;overflow:auto">${(t.tapahtumat || []).map(e => `<div class="row" style="flex-wrap:nowrap;gap:12px;padding:3px 0"><span class="muted" style="min-width:110px">${date(e.t)}</span><span>${esc(e.teksti)}</span></div>`).join("")}</div></div>
       </div>
+      ${done ? `<div class="card" style="margin-top:16px"><h2>Tuloksen laskenta</h2>
+        <p class="small muted">Tulos on laskettu AKVERIn versiolla ${esc(r.versio || "–")}${r.mittausversio && r.mittausversio !== r.versio ? ` (mittaus tallennettu versiolla ${esc(r.mittausversio)})` : ""}.
+        Uudelleenlaskenta käyttää samaa tallennettua mittausdataa ja ohjelman nykyisiä arviointiperusteita. Mittausdata ei muutu.</p>
+        <div class="row"><button class="btn sm" id="tRecalc">Laske uudelleen nykyisellä versiolla</button>
+        ${t.tyyppi === "taysi" ? `<button class="btn sm" id="tSplit">Jaa kapasiteettimittaukseksi ja ajotestiksi</button>` : ""}
+        <span id="tCalcRes" class="small"></span></div></div>` : ""}
       <div class="row" style="margin-top:16px"><span class="spacer"></span><button class="btn danger sm" id="tDel">Poista mittaus</button></div>`;
+    const rc = $("#tRecalc");
+    if (rc) rc.onclick = async () => {
+      if (!confirm("Lasketaanko tulos uudelleen nykyisellä versiolla? Aiemmin tallennetut PDF-raportit eivät muutu, mutta uusi raportti muodostetaan uudella laskennalla.")) return;
+      const res = await act(() => api(`/api/mittaukset/${id}/laske-uudelleen`, { method: "POST" }), "Tulos laskettu uudelleen");
+      if (res) this.renderOne(id);
+    };
+    const sp = $("#tSplit");
+    if (sp) sp.onclick = async () => {
+      if (!confirm("Jaetaanko täysi akkutesti kahdeksi erilliseksi mittaukseksi (kapasiteettimittaus ja ajotesti)? Kumpikin saa oman raportin samasta mittausdatasta. Alkuperäinen täysi testi säilyy ennallaan.")) return;
+      const res = await act(() => api(`/api/mittaukset/${id}/jaa`, { method: "POST" }), "Täysi testi jaettu osiin");
+      if (res) $("#tCalcRes").innerHTML = res.osat.map(o => o.id ? `<a href="#/mittaukset/${o.id}">${esc(o.nimi)} (nro ${o.id})</a>` : `<span class="muted">${esc(o.syy)}</span>`).join(" · ");
+    };
     $("#tVerify").onclick = async () => {
       const res = await act(() => api(`/api/mittaukset/${id}/tarkista`));
       $("#tVerRes").innerHTML = `<span class="pill ${res.ok ? "good" : "bad"}">${esc(res.viesti)}</span> <span class="muted">${res.rivit ? n(res.rivit, 0) + " viestiä" : ""}</span>`;
