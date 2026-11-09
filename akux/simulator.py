@@ -368,12 +368,14 @@ class BatterySimulator(Source):
                 for sub in range(2):
                     self._step(half)
                     self.sim_t += half
-                    if sub == 0 and self._cb:
+                    cb = self._cb          # testit voivat katkaista syötön kesken kierroksen
+                    if sub == 0 and cb:
                         cid, data = self._hv_frame(self._pack_voltage(self.current), self.current)
-                        self._cb(self.sim_t, cid, data)
-                if self._cb:
+                        cb(self.sim_t, cid, data)
+                cb = self._cb
+                if cb:
                     for cid, data in self._frames(self.sim_t):
-                        self._cb(self.sim_t, cid, data)
+                        cb(self.sim_t, cid, data)
             else:
                 self._leak(dt)
                 self.sim_t += dt
