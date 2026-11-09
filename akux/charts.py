@@ -102,7 +102,7 @@ def module_chart(volts: list, layout: list[int], title: str, poikkeavat=(), widt
     out = {p["nro"] for p in poikkeavat}
     ncols = 1 if len(layout) <= 4 else 4
     nrows = -(-len(layout) // ncols)
-    height_mm = 11 * nrows + 14 if ncols == 1 else 9 * nrows + 14
+    height_mm = 15 * nrows + 14 if ncols == 1 else 12 * nrows + 14
     fig, axs = plt.subplots(nrows, ncols, figsize=(width_mm / 25.4, height_mm / 25.4), squeeze=False)
     start = 0
     for m, n in enumerate(layout):
@@ -113,12 +113,13 @@ def module_chart(volts: list, layout: list[int], title: str, poikkeavat=(), widt
             nro = start + j + 1
             dr = round(d)
             ax.text(nro, 0.5, ("0" if dr == 0 else f"{dr:+d}").replace("-", "−"), ha="center", va="center",
-                    fontsize=5.2 if n > 10 else 6.5, fontweight="bold" if nro in out else "normal",
+                    fontsize=7.2 if n > 10 else 8, fontweight="bold" if nro in out else "normal",
                     color="white" if abs(d) > lim * 0.6 else INK)
         ax.set_yticks([0.5])
-        ax.set_yticklabels([f"Moduuli {m + 1}"], fontsize=6.5)
+        ax.set_yticklabels([f"Moduuli {m + 1}"], fontsize=7.5)
         ax.set_xticks([start + 1, start + n])
-        ax.tick_params(axis="x", labelsize=5.5, length=0, pad=1)
+        ax.tick_params(axis="x", labelsize=6.5, length=0, pad=1)
+        ax.tick_params(axis="y", length=0)
         ax.grid(False)
         for sp in ax.spines.values():
             sp.set_visible(False)
