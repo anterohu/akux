@@ -1345,6 +1345,36 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         E.append(Spacer(1, 4 * mm))
         E.append(_img(charts.trend_chart(pts), CW))
 
+    # ---------------- Jännite-ero varaustilan mukaan --------------------
+    from .analysis import spread_by_soc
+    sp = spread_by_soc(samples, veh.get("kemia")) if test.get("tyyppi") in (
+        "taysi", "kapasiteetti", "ajotesti", "pika_ajo", "pikalataus") else None
+    if sp:
+        A.append(CondPageBreak(120 * mm))
+        A.append(Spacer(1, 6 * mm))
+        A.append(P("Kennoryhmien jännite-ero varaustilan mukaan", "h2"))
+        lfp = veh.get("kemia") == "LFP"
+        A.append(P("Kuvaaja näyttää kennoryhmien suurimman ja pienimmän jännitteen eron koko mittauksen ajalta "
+                   "varaustilan mukaan, erikseen latauksessa ja ajossa. Arvot ovat kahden prosenttiyksikön "
+                   "välein laskettuja mediaaneja. Jännitekäyrän jyrkällä alueella ero kasvaa luonnostaan, koska pienikin ero "
+                   "kennoryhmien varauksessa näkyy siellä suurena jännite-erona. "
+                   + ("LFP-akun jännite on keskivarauksella lähes tasainen ja muuttuu jyrkästi sekä tyhjän että "
+                      "täyden lähellä, joten ero kasvaa kummassakin päässä. Se on akkukemian ominaisuus eikä vika. "
+                      if lfp else "")
+                   + "Virran aikana mitattu ero on suurempi kuin levossa, joten akun luokitus tehdään levossa "
+                   "mitatuista arvoista. Ajosta on otettu mukaan vain tasainen ajo (akun virta enintään 80 A), "
+                   "jotta kiihdytykset ja ajotyyli eivät vaikuta kuvaan.", "body"))
+        A.append(Spacer(1, 2 * mm))
+        A.append(_img(charts.spread_soc_chart(sp), CW))
+        rows_s = [[P("Varausalue", "label"), P("Pienin ero", "label"), P("Keskimäärin", "label"),
+                   P("Suurin ero", "label"), P("", "label")]]
+        for a_ in sp["alueet"]:
+            rows_s.append([P(a_["alue"], "cell"), P(f"{fmt(a_['pienin_mv'], 0)} mV", "cellr"),
+                           P(f"{fmt(a_['ka_mv'], 0)} mV", "cellr"), P(f"{fmt(a_['suurin_mv'], 0)} mV", "cellr"),
+                           P("Jyrkkä alue" if a_["jyrkka"] else "Tasainen alue" if lfp else "", "cell")])
+        A.append(Spacer(1, 2 * mm))
+        A.append(_table(rows_s, [40 * mm, 28 * mm, 28 * mm, 28 * mm, CW - 124 * mm]))
+
     # ---------------- Akunhallinta ja elinkaari -----------------------
     A.append(CondPageBreak(90 * mm))
     A.append(Spacer(1, 6 * mm))

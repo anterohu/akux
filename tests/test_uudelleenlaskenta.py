@@ -31,6 +31,9 @@ def test_uudelleenlaskenta_ja_jako():
             assert res["aiempi_laskenta"]["versio"] == old_ver
         assert res["kennot"]["alue"] == "lfp_taysi", res["kennot"].get("alue")
         assert abs(res["yhteenveto"]["kunto_pct"] - old["yhteenveto"]["kunto_pct"]) < 0.05
+        sp = analysis.spread_by_soc(st.samples(tid), "LFP")
+        assert set(sp["sarjat"]) == {"lataus", "purku"} and [a["alue"] for a in sp["alueet"]] == \
+            ["Alle 20 %", "20–95 %", "Vähintään 95 %"]
         st.update_test(tid, tarkiste=t["tarkiste"])
         # Jako osiin
         osat = {o["tyyppi"]: o for o in analysis.split_full_test(st, tid)}

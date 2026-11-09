@@ -83,6 +83,42 @@ ALUE_SELITE = {
 }
 
 
+def spread_by_soc(samples: list[dict], chem: str | None) -> dict | None:
+    """Kennoryhmien suurimman ja pienimmän jännitteen ero varaustilan mukaan, erikseen latauksessa ja purussa.
+
+    Arvot ovat kahden prosenttiyksikön varausvälien mediaaneja, joten hetkelliset kiihdytykset eivät vääristä
+    kuvaa. Tulos näyttää, miten ero muuttuu jännitekäyrän jyrkillä alueilla (tyhjän ja LFP-akulla myös täyden
+    lähellä). Luokitus tehdään edelleen levossa mitatuista arvoista."""
+    bins: dict = {"lataus": {}, "purku": {}}
+    for x in samples:
+        if not (x.get("c_min") and x.get("c_max") and x.get("soc_avg") is not None and x.get("i") is not None):
+            continue
+        if abs(x["i"]) < 3:
+            continue
+        # Kiihdytykset kasvattavat eroa kennoryhmien resistanssien vuoksi: ajosta otetaan vain tasainen
+        # ajo (enintään 80 A, noin 25–30 kW), jotta ajotyyli ei vaikuta kuvaan
+        if x["i"] > 80:
+            continue
+        suunta = "lataus" if x["i"] < 0 else "purku"
+        bins[suunta].setdefault(int(x["soc_avg"] // 2), []).append((x["c_max"] - x["c_min"]) * 1000)
+    out = {}
+    for suunta, b in bins.items():
+        pts = sorted((k * 2 + 1.0, statistics.median(v)) for k, v in b.items() if len(v) >= 3)
+        if len(pts) >= 10:
+            out[suunta] = pts
+    if not out:
+        return None
+    jyrkka = [(0, 20)] + ([(95, 100)] if chem == "LFP" else [])
+    alueet = []
+    for nimi, lo, hi in (("Alle 20 %", 0, 20), *((("20–95 %", 20, 95), ("Vähintään 95 %", 95, 101)) if chem == "LFP"
+                                                  else (("Vähintään 20 %", 20, 101),))):
+        vals = [mv for pts in out.values() for s_, mv in pts if lo <= s_ < hi]
+        if vals:
+            alueet.append({"alue": nimi, "pienin_mv": min(vals), "ka_mv": statistics.fmean(vals), "suurin_mv": max(vals),
+                           "jyrkka": any(lo == a for a, _ in jyrkka)})
+    return {"sarjat": out, "jyrkat": jyrkka, "alueet": alueet}
+
+
 def classify_cells(cs: dict | None, chem: str | None) -> None:
     """Luokittelee kennoryhmien jännite-eron ja poikkeavat ryhmät akkukemian ja varaustilan mukaan."""
     if not cs:

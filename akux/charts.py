@@ -120,6 +120,30 @@ def voltage_spread_chart(samples: list[dict], t0: float, width_mm=174, height_mm
     return _png(fig)
 
 
+def spread_soc_chart(data: dict, width_mm=174, height_mm=64) -> bytes:
+    """Kennoryhmien jännite-ero varaustilan mukaan latauksessa ja purussa; jyrkät alueet varjostettuina."""
+    fig, ax = plt.subplots(figsize=(width_mm / 25.4, height_mm / 25.4))
+    for lo, hi in data.get("jyrkat", []):
+        ax.axvspan(lo, hi, color=WARN, alpha=0.09, linewidth=0, zorder=0)
+    style = {"lataus": (ACCENT, "Latauksessa"), "purku": (ACCENT_2, "Ajossa")}
+    ymax = 10.0
+    for suunta, pts in data["sarjat"].items():
+        col, lab = style[suunta]
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+        ax.plot(xs, ys, color=col, linewidth=1.3, label=lab, zorder=3)
+        ymax = max(ymax, max(ys))
+    ax.set_xlim(0, 100)
+    ax.set_ylim(0, ymax * 1.25)
+    ax.set_xlabel("Varaustila (%)")
+    ax.set_ylabel("Ero (mV)")
+    ax.yaxis.set_major_formatter(_fi(0))
+    if data.get("jyrkat"):
+        ax.plot([], [], color=WARN, alpha=0.3, linewidth=6, label="Jännitekäyrän jyrkkä alue")
+    ax.legend(loc="upper center", ncol=3)
+    ax.set_title("Kennoryhmien jännite-ero varaustilan mukaan")
+    return _png(fig)
+
+
 def trend_chart(points: list[tuple], width_mm=174, height_mm=55) -> bytes:
     """points: (kilometrit, kunto %)"""
     fig, ax = plt.subplots(figsize=(width_mm / 25.4, height_mm / 25.4))
