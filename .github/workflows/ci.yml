@@ -102,7 +102,10 @@ jobs:
           Write-Host "Asennetaan $($old.Name)"
           $p = Start-Process $old.FullName -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/TASKS=desktopicon" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Edellisen version asennus epäonnistui" }
-          $exe = Join-Path $env:LOCALAPPDATA "Programs\Akux\Akux.exe"
+          # Edellinen versio voi olla vanhalla (Akux) tai uudella (AKVERI) nimellä asennettu
+          $exe = @((Join-Path $env:LOCALAPPDATA "Programs\AKVERI\AKVERI.exe"), (Join-Path $env:LOCALAPPDATA "Programs\Akux\Akux.exe")) |
+            Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $exe) { throw "Edellisen version ohjelmaa ei löydy" }
           Start-Process $exe
           $b = "http://127.0.0.1:8765"
           for ($i = 0; $i -lt 60; $i++) { try { $r = Invoke-RestMethod "$b/api/tila" -TimeoutSec 2; break } catch { Start-Sleep 2 } }
@@ -114,10 +117,11 @@ jobs:
           $m = Invoke-RestMethod "$b/api/mittaukset" -Method Post -ContentType "application/json" -Body (@{ajoneuvo_id=$v.id; tyyppi="pikatarkastus"} | ConvertTo-Json)
           for ($i = 0; $i -lt 90; $i++) { $t = Invoke-RestMethod "$b/api/tila"; if (-not $t.mittaus) { break }; Start-Sleep 2 }
           if ((Invoke-RestMethod "$b/api/mittaukset/$($m.id)").tila -ne "valmis") { throw "Edellisen version mittaus ei valmistunut" }
-          $old_files = Get-ChildItem (Join-Path ([Environment]::GetFolderPath('MyDocuments')) "Akux\Mittaukset")
-          $old_files | ForEach-Object { Write-Host "Edellisen version tiedosto: $($_.Name)" }
+          $md = [Environment]::GetFolderPath('MyDocuments')
+          $old_files = Get-ChildItem (Join-Path $md "Akux\Mittaukset"), (Join-Path $md "AKVERI\Mittaukset") -ErrorAction SilentlyContinue
+          $old_files | ForEach-Object { Write-Host "Edellisen version tiedosto: $($_.FullName)" }
           if (-not $old_files) { throw "Edellinen versio ei tallentanut mittaustiedostoja" }
-          if (-not (Test-Path (Join-Path $env:APPDATA "Akux\akux.db"))) { throw "Edellisen version tietokanta puuttuu" }
+          if (-not ((Test-Path (Join-Path $env:APPDATA "Akux\akux.db")) -or (Test-Path (Join-Path $env:APPDATA "AKVERI\akux.db")))) { throw "Edellisen version tietokanta puuttuu" }
           "$($m.id)" | Set-Content edellinen\mittaus.txt
           # Ohjelma jätetään käyntiin: asennuksen pitää sulkea se itse
       - name: Asenna, käynnistä ja testaa
@@ -154,7 +158,7 @@ jobs:
             if (Test-Path (Join-Path $env:APPDATA "Akux")) { throw "Vanha tietokansio %APPDATA%\Akux jäi siirtämättä" }
             if (-not (Test-Path (Join-Path $env:APPDATA "AKVERI\akux.db"))) { throw "Tietokanta puuttuu kansiosta %APPDATA%\AKVERI" }
             if (Test-Path (Join-Path $docs "Akux")) { throw "Vanha mittauskansio Tiedostot\Akux jäi siirtämättä" }
-            if (-not (Get-ChildItem (Join-Path $docs "AKVERI\Mittaukset") -Filter "*.akux")) { throw "Vanhat mittaustiedostot puuttuvat uudesta kansiosta" }
+            if (-not (Get-ChildItem (Join-Path $docs "AKVERI\Mittaukset") -Filter "*.ak*")) { throw "Vanhat mittaustiedostot puuttuvat uudesta kansiosta" }
             if (-not ((Invoke-RestMethod "$b/api/ajoneuvot").ajoneuvot | Where-Object { $_.rekisteri -eq "CI-1" })) { throw "Autot hävisivät siirrossa" }
             if ((Invoke-RestMethod "$b/api/asetukset").yritys_nimi -ne "CI Testi Oy") { throw "Asetukset hävisivät siirrossa" }
             $tk = Invoke-RestMethod "$b/api/mittaukset/$oid/tarkista"
