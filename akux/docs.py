@@ -169,7 +169,11 @@ OHJE = [
             ("p", "<b>Kuormitustesti.</b> Kun akusta otetaan suuri virta, kunkin kennoryhmän jännite laskee sen sisäisen "
                   "resistanssin mukaan. Tee turvallisessa paikassa kuusi reipasta kiihdytystä, esimerkiksi 30–80 km/h. "
                   "Ohjelma laskee kiihdytykset itse ja päättää mittauksen, kun pysäköit. Muita selvästi suurempi "
-                  "resistanssi viittaa heikentyneeseen kennoryhmään tai liitokseen."),
+                  "resistanssi viittaa heikentyneeseen kennoryhmään tai liitokseen. Resistanssi riippuu voimakkaasti "
+                  "lämpötilasta ja varaustilasta, joten testi aloitetaan vain vertailukelpoisissa olosuhteissa: varaus "
+                  "40–80 %, akun lämpötila 10–30 °C ja kennojen lämpötilaero alle 2 °C. Vaatimukset vastaavat DEKRAn "
+                  "akkutestiä. Jos ehto ei täyty, ohjelma kertoo syyn. Kylmän akun voi lämmittää ajamalla tai "
+                  "esilämmittämällä auton Tesla-sovelluksesta."),
             ("p", "<b>Pikalataustesti.</b> Aloita alle 30 %:n varauksesta. Navigoi pikalaturille auton navigaattorilla, "
                   "jotta akku esilämmitetään. Anna latauksen jatkua vähintään 80 %:iin. Raporttiin tulee latauskäyrä, "
                   "huipputeho, latausaika 20 → 80 % ja kennoryhmien suurin jännite-ero latauksen aikana. Latausteho "

@@ -158,9 +158,28 @@ def test_taysi_akkutesti(tmp):
     app.disconnect()
 
 
+def test_kuormitustesti_lahtoehdot(tmp):
+    """Kuormitustesti aloitetaan vain DEKRAn ehdoilla: varaus 40–80 %, akku 10–30 °C, lämpötilaero alle 2 °C."""
+    for kw, sana in ((dict(soc=0.92), "varaus"), (dict(soc=0.6, temp_c=4.0), "lämpötila")):
+        app = _app(tmp)
+        src = BatterySimulator(accel=4, weak_cell=None, **kw)
+        app.connect("demo", sim=src)
+        assert wait_until(lambda: app.decoder.state.vin and app.decoder.state.temp_min is not None, 20)
+        vid = app.storage.add_vehicle({"vin": app.decoder.state.vin})
+        try:
+            app.start_test(vehicle_id=vid, tyyppi="kuormitus")
+            raise AssertionError("kuormitustesti käynnistyi, vaikka ehdot eivät täyty")
+        except RuntimeError as e:
+            msg = str(e)
+        assert "Kuormitustestiä ei voi aloittaa" in msg and sana in msg, msg
+        assert not app.recorder.active and not app.storage.tests()
+        app.disconnect()
+        print("  estetty:", msg)
+
+
 def test_kuormitustesti(tmp):
     app = _app(tmp)
-    src = BatterySimulator(soc=0.8, accel=4, weak_cell=None)
+    src = BatterySimulator(soc=0.7, accel=4, weak_cell=None)
     src.r_cell[30] *= 1.6                         # yksi kennoryhmä selvästi muita suurempi resistanssi
     tid = _start(app, src, "kuormitus")
     _phase(app, "kuormitus", 60)
@@ -319,7 +338,7 @@ def test_kapasiteetti_katkot_latauksessa(tmp):
     app3.disconnect()
 
 
-ALL = [test_kapasiteetti_katkot_latauksessa, test_lataus_tauon_aikana, test_ajotesti_kahdessa_osassa, test_pika_ajotesti, test_taysi_akkutesti, test_kuormitustesti,
+ALL = [test_kuormitustesti_lahtoehdot, test_kapasiteetti_katkot_latauksessa, test_lataus_tauon_aikana, test_ajotesti_kahdessa_osassa, test_pika_ajotesti, test_taysi_akkutesti, test_kuormitustesti,
        test_pikalataustesti, test_itsepurkaustesti_ja_tauko, test_hylkays]
 
 if __name__ == "__main__":

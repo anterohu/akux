@@ -17,6 +17,11 @@ TAYSI = "taysi"
 AJO = "ajotesti"
 PIKA_AJO = "pika_ajo"
 KUORMITUS = "kuormitus"
+# Kuormitustestin lähtöehdot (DEKRAn akkutestin vaatimukset): resistanssi riippuu voimakkaasti
+# lämpötilasta ja varaustilasta, joten mittaus tehdään vain vertailukelpoisissa olosuhteissa.
+KUORMA_SOC = (40.0, 80.0)
+KUORMA_LAMPO = (10.0, 30.0)
+KUORMA_LAMPOERO = 2.0
 PIKALATAUS = "pikalataus"
 ITSEPURKAUS = "itsepurkaus"
 
@@ -142,6 +147,10 @@ class Recorder:
             if not self.app.source or not self.app.source.running:
                 raise RuntimeError("Yhdistä ensin sovittimeen tai esittelytilaan.")
             st = self.app.storage
+            if tyyppi == KUORMITUS:
+                virheet = self.kuormitus_ehdot()
+                if virheet:
+                    raise RuntimeError("Kuormitustestiä ei voi aloittaa: " + "; ".join(virheet) + ".")
             self._reset_counters()
             tid = st.add_test(vehicle_id, tyyppi, mittarilukema, mittaaja, lisatiedot, riippumaton)
             self.test_id = tid
@@ -159,6 +168,9 @@ class Recorder:
             if tyyppi in (PIKA, KUORMITUS, ITSEPURKAUS):
                 self.quick_started = now
                 self.brick_acc = {}
+            if tyyppi == KUORMITUS:
+                d = self.app.decoder.state
+                self.marks["lahtoehdot"] = {"soc": d.soc_ui, "t_min": d.temp_min, "t_max": d.temp_max}
             self.app.decoder.add_hv_listener(self._on_hv)
             self.app.decoder.add_brick_listener(self._on_brick)
             self._snapshot(now, "alku")
@@ -1040,6 +1052,25 @@ class Recorder:
             out["tarkistukset"] = self.checks()
             return out
 
+    def kuormitus_ehdot(self) -> list[str]:
+        """Kuormitustestin lähtöehdot. Palauttaa täyttymättömät ehdot; tyhjä lista, kun testin voi aloittaa."""
+        st = self.app.decoder.state
+        out = []
+        soc, tmin, tmax = st.soc_ui, st.temp_min, st.temp_max
+        if soc is None:
+            out.append("varaustilaa ei ole vielä saatu autosta")
+        elif not KUORMA_SOC[0] <= soc <= KUORMA_SOC[1]:
+            out.append(f"varaus on {fmt(soc)} %, vaaditaan {KUORMA_SOC[0]:.0f}–{KUORMA_SOC[1]:.0f} %")
+        if tmin is None or tmax is None:
+            out.append("akun lämpötilaa ei ole vielä saatu autosta")
+        else:
+            if tmin < KUORMA_LAMPO[0] or tmax > KUORMA_LAMPO[1]:
+                out.append(f"akun lämpötila on {fmt(tmin)}–{fmt(tmax)} °C, vaaditaan "
+                           f"{KUORMA_LAMPO[0]:.0f}–{KUORMA_LAMPO[1]:.0f} °C")
+            if tmax - tmin >= KUORMA_LAMPOERO:
+                out.append(f"akun lämpötilaero on {fmt(tmax - tmin)} °C, vaaditaan alle {fmt(KUORMA_LAMPOERO, 0)} °C")
+        return out
+
     def checks(self) -> list[dict]:
         """Mittausolosuhteiden tarkistukset käyttöliittymää varten."""
         st = self.app.decoder.state
@@ -1051,9 +1082,10 @@ class Recorder:
 
         tmin, tmax = st.temp_min, st.temp_max
         if tmin is not None and tmax is not None:
-            ok = s["lampotila_min"] <= tmin and tmax <= s["lampotila_max"]
+            lo, hi = KUORMA_LAMPO if self.tyyppi == KUORMITUS else (s["lampotila_min"], s["lampotila_max"])
+            ok = lo <= tmin and tmax <= hi
             add("Akun lämpötila", ok, f"{fmt(tmin)}–{fmt(tmax)} °C",
-                "" if ok else f"Vertailukelpoinen tulos saadaan, kun akku on {s['lampotila_min']}–{s['lampotila_max']} °C.")
+                "" if ok else f"Vertailukelpoinen tulos saadaan, kun akku on {fmt(lo, 0)}–{fmt(hi, 0)} °C.")
         else:
             add("Akun lämpötila", None, "ei tietoa")
         if self.tyyppi == KAPASITEETTI and self.vaihe in ("lepo_alku", "odota_lataus"):
@@ -1075,6 +1107,12 @@ class Recorder:
                 add("Lähtövaraus", ok, f"{fmt(st.soc_ui)} %",
                     "" if ok else "LFP-akun itsepurkautuminen voidaan mitata luotettavasti vain yli 90 %:n "
                                   "varauksessa. Lataa akku täyteen ennen testiä.")
+        if self.tyyppi == KUORMITUS and st.soc_ui is not None:
+            ok = KUORMA_SOC[0] <= st.soc_ui <= KUORMA_SOC[1]
+            add("Varaus", ok, f"{fmt(st.soc_ui)} %", "" if ok else "Kuormitustesti tehdään 40–80 %:n varauksessa.")
+        if self.tyyppi == KUORMITUS and tmin is not None and tmax is not None:
+            ok = tmax - tmin < KUORMA_LAMPOERO
+            add("Akun lämpötilaero", ok, f"{fmt(tmax - tmin)} °C", "" if ok else "Lämpötilaeron pitää olla alle 2 °C.")
         if self.tyyppi == PIKALATAUS and self.vaihe == "odota_pikalataus" and st.soc_ui is not None:
             ok = st.soc_ui <= 30
             add("Lähtövaraus", ok, f"{fmt(st.soc_ui)} %",

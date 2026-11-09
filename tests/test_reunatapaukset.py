@@ -182,7 +182,7 @@ def test_keskeytynyt_ohjelma():
         assert app2.storage.test(tid)["tila"] == "kesken"
         app2.recorder.discard(tid)
     with tempfile.TemporaryDirectory() as tmp:
-        app, src, vid = setup(tmp, soc=0.8, accel=4)
+        app, src, vid = setup(tmp, soc=0.7, accel=4)
         tid = app.start_test(vehicle_id=vid, tyyppi="kuormitus")
         time.sleep(1)
         src.stop()

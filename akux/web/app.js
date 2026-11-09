@@ -395,7 +395,7 @@ const TESTIRYHMAT = s => [
     ["taysi", "Kapasiteetti mitataan kahdesti: purkamalla ajossa ja lataamalla täyteen. Kaksi riippumatonta mittausta antaa tarkimman tuloksen.", "Ajo täydestä akusta alle 15 %:iin ja lataus, yleensä 1–2 päivää"],
     ["ajotesti", `Kapasiteetti mitattuna tavallisessa ajossa. Aloita täydestä akusta ja aja enintään ${s.ajo_loppu_soc} %:n varaukseen. Ajon voi jakaa useaan kertaan.`, "Yksi tai useampi ajokerta"],
     ["pika_ajo", `Tarkistaa, vastaako akunhallinnan kapasiteettiarvio ajossa mitattua. Varaus laskee ${s.pika_ajo_soc} %-yksikköä. Ei anna omaa kuntoprosenttia.`, "Noin 1–2 tunnin ajo"],
-    ["kuormitus", `Kennoryhmien sisäinen resistanssi ${s.kuormitus_tapahtumat} reippaalla kiihdytyksellä. Paljastaa heikon kennoryhmän tai liitoksen.`, "Noin 10 minuuttia"],
+    ["kuormitus", `Kennoryhmien sisäinen resistanssi ${s.kuormitus_tapahtumat} reippaalla kiihdytyksellä. Paljastaa heikon kennoryhmän tai liitoksen. Edellyttää: varaus 40–80 %, akku 10–30 °C ja lämpötilaero alle 2 °C.`, "Noin 10 minuuttia"],
   ]],
   ["Pikalaturilla", [
     ["pikalataus", "Latausteho, latauskäyrä ja kennoryhmien tasaisuus suurella latausvirralla. Aloita alle 30 %:n varauksesta.", "30–45 minuuttia"],

@@ -302,8 +302,8 @@ class BatterySimulator(Source):
 
         b = bytearray(6)
         b[0] = 0
-        b[2] = int(round((self.temp + 0.8 + 40) / 0.5))
-        b[3] = int(round((self.temp - 0.9 + 40) / 0.5))
+        b[2] = int(round((self.temp + 0.6 + 40) / 0.5))
+        b[3] = int(round((self.temp - 0.6 + 40) / 0.5))
         out.append((ID_MINMAX, bytes(b)))
         b = bytearray(6)
         put_bits(b, 0, 2, 1)

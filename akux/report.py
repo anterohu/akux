@@ -893,6 +893,11 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         "itsepurkaus": ("Seisonta yön yli", "Kennoryhmien lepojännitteet seisonnan alussa ja lopussa"),
     }.get(tyyppi, (test_kind, ""))
     cond("Mittaustapa", tapa[0], tapa[1])
+    le = (meta.get("merkinnat") or {}).get("lahtoehdot")
+    if tyyppi == "kuormitus" and le:
+        ero = (le["t_max"] - le["t_min"]) if le.get("t_max") is not None and le.get("t_min") is not None else None
+        cond("Lähtöehdot", f"Varaus {fmt(le.get('soc'))} %, akku {fmt(le.get('t_min'))}–{fmt(le.get('t_max'))} °C, "
+             f"lämpötilaero {fmt(ero)} °C", "Vaatimus: varaus 40–80 %, akku 10–30 °C, lämpötilaero alle 2 °C")
     cond("Mittauksen kesto", _dur((meta.get("t_loppu") or 0) - (meta.get("t_alku") or 0)) if meta.get("t_loppu") else None,
          f"{_date(test['aloitettu'])} alkaen")
     if tt.get("alku_min") is not None:

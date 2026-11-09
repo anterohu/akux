@@ -215,7 +215,7 @@ def run_types(car, tmp):
     app.disconnect()
 
     # Kuormitustesti
-    src = _sim(car, soc=0.8, accel=4, weak_cell=None)
+    src = _sim(car, soc=0.7, accel=4, weak_cell=None)
     bad = src.n // 3
     src.r_cell[bad - 1] *= 1.6
     tid = _start(app, src, "kuormitus")
