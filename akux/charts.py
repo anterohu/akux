@@ -91,39 +91,6 @@ def module_layout(model_name: str | None, n: int) -> list[int] | None:
     return None
 
 
-def cell_profile_chart(volts: list, title: str, poikkeavat=(), raja_mv: float = 15.0,
-                       width_mm=174, height_mm=62) -> bytes:
-    """Kennoryhmät jännitteen mukaan järjestettynä: tasainen käyrä tarkoittaa tasaisesti varautunutta akkua."""
-    idx = [k for k, v in enumerate(volts) if v]
-    vals = sorted(volts[k] for k in idx)
-    med = vals[len(vals) // 2] * 1000
-    order = sorted(idx, key=lambda k: volts[k])
-    ys = [volts[k] * 1000 for k in order]
-    xs = list(range(1, len(ys) + 1))
-    out = {p["nro"] for p in poikkeavat}
-    fig, ax = plt.subplots(figsize=(width_mm / 25.4, height_mm / 25.4))
-    ax.axhspan(med - raja_mv, med + raja_mv, color=GOOD, alpha=0.08, linewidth=0, zorder=0,
-               label=f"Tavanomainen vaihtelu ±{raja_mv:.0f} mV")
-    ax.axhline(med, color=MUTED, linewidth=0.8, linestyle="--", label="Mediaani", zorder=1)
-    ax.plot(xs, ys, color=ACCENT, linewidth=1.3, marker="o", markersize=2.0, zorder=3)
-    for x, k, y in zip(xs, order, ys):
-        if (k + 1) in out:
-            ax.scatter([x], [y], color=BAD, s=26, zorder=4)
-            ax.annotate(f"ryhmä {k + 1}", (x, y), xytext=(6 if x < len(xs) / 2 else -6, 0),
-                        textcoords="offset points", fontsize=7, color=BAD, va="center",
-                        ha="left" if x < len(xs) / 2 else "right")
-    span = max(max(ys) - med, med - min(ys), raja_mv) * 1.3
-    ax.set_ylim(med - span, med + span)
-    ax.set_xlim(0, len(xs) + 1)
-    ax.set_xticks([])
-    ax.set_xlabel("Kennoryhmät jännitteen mukaan järjestettynä")
-    ax.set_ylabel("Jännite (mV)")
-    ax.yaxis.set_major_formatter(_fi(0))
-    ax.legend(loc="lower right")
-    ax.set_title(title + f"  ·  mediaani {med / 1000:.3f} V".replace(".", ","))
-    return _png(fig)
-
-
 def module_chart(volts: list, layout: list[int], title: str, poikkeavat=(), width_mm=174) -> bytes:
     """Kennoryhmät moduuleittain värikarttana; ruudun luku on poikkeama mediaanista (mV)."""
     from matplotlib.colors import LinearSegmentedColormap

@@ -199,7 +199,7 @@ OHJE = [
                   "akunhallinnan tiedot, menetelmäkuvaus ja sanasto. Liitteen voi "
                   "jättää pois asetuksista, jolloin asiakas saa vain pääsivut."),
             ("ul", [
-                "<b>Akun kunto (SOH)</b> on nykyinen kapasiteetti prosentteina alkuperäisestä. Vähintään 90 % on erinomainen, 85–90 % hyvä, 80–85 % tyydyttävä ja 70–80 % heikentynyt.",
+                "<b>Akun kunto (SOH)</b> on nykyinen kapasiteetti prosentteina alkuperäisestä. Luokat noudattavat AVILOOn käytäntöä: vähintään 90 % on erinomainen, 80–90 % hyvä ja alle 80 % heikentynyt. Alle 70 % alittaa Teslan akkutakuun rajan.",
                 "<b>Kennoryhmien jännite-ero</b> levossa: alle 15 mV erinomainen, alle 30 mV hyvä ja alle 50 mV tyydyttävä. Suurempi ero tai yksittäinen poikkeava ryhmä kannattaa tarkistaa.",
                 "Raja-arvot perustuvat käytettyjen sähköautojen akkutestien aineistoon (Generational, noin 10 000 testiä: tyypillinen ero noin 8 mV, yli 50 mV vaatii selvittelyä, yli 100 mV viittaa vikaan) sekä akkujärjestelmien täyden latauksen ohjearvoihin (enintään 30 mV hyväksyttävä, vähintään 50 mV vaatii tasauslatauksen).",
                 "<b>Jyrkkä alue ja LFP-akku</b>: alle 20 %:n varauksessa kennojännite muuttuu jyrkästi, joten ero on luonnostaan suurempi. LFP-akun jännite on keskivarauksella lähes tasainen, mutta nousee täyden ja laskee tyhjän lähellä hyvin jyrkästi, joten LFP-akun ero on luonnostaan suurempi myös täyteen ladattuna. Se on akkukemian ominaisuus eikä vika. Näillä alueilla rajat ovat alle 50 mV hyvä ja alle 100 mV tyydyttävä. LFP-akun keskivarauksella pieni ero ei yksin todista tasapainoa, joten luokaksi annetaan enintään hyvä.",
@@ -217,8 +217,8 @@ OHJE = [
             ("ul", [
                 "<b>Mittaajan riippumattomuus</b> valitaan mittausta aloitettaessa, ja sitä voi muuttaa mittauksen sivulla. Riippumaton mittaaja ei ole ajoneuvon kaupan osapuoli eikä sidoksissa siihen. Valinta näkyy raportin etusivulla. Jos mittaat esimerkiksi oman myytävän autosi, valitse <b>Ei riippumaton</b>.",
                 "<b>Vastuunrajaus</b> on etusivun alareunassa: raportti kuvaa akun tilaa mittaushetkellä, se ei ole takuu, ja ohjelmiston toimittaja ei vastaa mittauksen suorittamisesta eikä tuloksiin perustuvista päätöksistä.",
-                "<b>Raportin numero</b> ja sivunumero muodossa <b>Sivu 3/14</b> ovat jokaisen sivun alareunassa, joten irrallinen sivu yhdistyy oikeaan raporttiin ja puuttuva sivu huomataan.",
-                "<b>Kennoryhmien kuvaaja</b> valitaan asetuksista: <b>järjestetty profiili</b> (oletus) näyttää ryhmät jännitteen mukaan järjestettynä, ja tasainen käyrä tarkoittaa tasaisesti varautunutta akkua. <b>Moduulikartta</b> näyttää ryhmät akun moduuleittain, jolloin poikkeavan ryhmän moduuli näkyy suoraan. Moduulikartta on käytössä malleille, joiden moduulijako on varmistettu (Model 3, Model S ja Model X). Ryhmät numerojärjestyksessä ovat aina teknisessä liitteessä.",
+                "<b>Testin numero</b> ja sivunumero muodossa <b>Sivu 3/14</b> ovat jokaisen sivun alareunassa, joten irrallinen sivu yhdistyy oikeaan raporttiin ja puuttuva sivu huomataan. Raakadatan tarkiste on teknisessä liitteessä.",
+                "<b>Kennoryhmien kuvaaja</b> valitaan asetuksista: <b>ryhmät numerojärjestyksessä</b> (oletus) tai <b>moduulikartta</b>, joka näyttää ryhmät akun moduuleittain, jolloin poikkeavan ryhmän moduuli näkyy suoraan. Moduulikartta on käytössä malleille, joiden moduulijako on varmistettu (Model 3, Model S ja Model X).",
             ]),
         ],
     },

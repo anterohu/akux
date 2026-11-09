@@ -103,7 +103,7 @@ OLETUSASETUKSET = {
     "vesileima": "toisto",
     "tekninen_liite": True,
     "logo_koko": "normaali",
-    "kennokuvaaja": "profiili",
+    "kennokuvaaja": "numerot",
 }
 
 SCHEMA = """

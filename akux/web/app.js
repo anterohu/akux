@@ -901,8 +901,8 @@ views.asetukset = {
         <label class="f"><span>Vesileima</span><select name="vesileima">
           ${[["toisto", "Pienet toistuvat (oletus)"], ["iso", "Suuri vino AKVERI"], ["rivit", "Harvat vinot rivit"], ["ei", "Ei vesileimaa"]].map(([k, t]) => `<option value="${k}" ${(s.vesileima || "toisto") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
         <label class="f"><span>Kennoryhmien kuvaaja</span><select name="kennokuvaaja">
-          ${[["profiili", "Järjestetty profiili (oletus)"], ["moduulit", "Moduulikartta"]].map(([k, t]) => `<option value="${k}" ${(s.kennokuvaaja || "profiili") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
-        <p class="small muted">Moduulikartta näytetään malleille, joiden moduulijako on varmistettu (Model 3, Model S ja Model X). Muille malleille raporttiin tulee järjestetty profiili. Ryhmät numerojärjestyksessä näkyvät aina teknisessä liitteessä.</p>
+          ${[["numerot", "Ryhmät numerojärjestyksessä (oletus)"], ["moduulit", "Moduulikartta"]].map(([k, t]) => `<option value="${k}" ${((s.kennokuvaaja === "moduulit") ? "moduulit" : "numerot") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        <p class="small muted">Moduulikartta näyttää kennoryhmät akun moduuleittain. Se on käytössä malleille, joiden moduulijako on varmistettu (Model 3, Model S ja Model X). Muille malleille raporttiin tulee ryhmät numerojärjestyksessä.</p>
         <label class="f"><span>Tekninen liite</span><select name="tekninen_liite">
           ${[["1", "Mukana raportin lopussa (oletus)"], ["0", "Ei liitettä, vain pääsivut"]].map(([k, t]) => `<option value="${k}" ${((s.tekninen_liite === false) ? "0" : "1") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
       </div>
@@ -1026,7 +1026,7 @@ views.yllapito = {
         <pre id="lBox" class="log" hidden></pre></div>
       <div class="card"><h2>Tietoja ohjelmasta</h2><dl class="kv">
         <dt>Ohjelma</dt><dd>${esc(info.nimi)} ${esc(info.versio)}</dd>
-        <dt>Tietojen sijainti</dt><dd style="word-break:break-all">${esc(info.datakansio)}</dd>
+        <dt>Tietojen sijainti</dt><dd style="word-break:break-all">${ANDROID ? "Sovelluksen oma tallennustila (AKVERI)" : esc(info.datakansio)}</dd>
         <dt>Järjestelmä</dt><dd>${esc(info.jarjestelma)}</dd></dl>
         <p class="small muted" style="margin-top:12px">${ANDROID ? "Tiedot säilyvät sovelluksen omassa tallennustilassa. Raportit ja varmuuskopiot tallentuvat myös Lataukset/AKVERI-kansioon, kun avaat ne. " : ""}Viestimäärittelyt perustuvat Tesla-omistajien yhteisön ylläpitämään avoimeen aineistoon. Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä. AKVERI ei ole Teslan tekemä eikä hyväksymä.</p></div>`;
 

@@ -69,19 +69,34 @@ def P(text, style="body"):
     return Paragraph(text, ST[style] if isinstance(style, str) else style)
 
 
-GRADE_LEVEL = {"Erinomainen": 4, "Kunnossa": 4, "Hyvä": 3, "Tyydyttävä": 2, "Huomioitava": 2,
-               "Heikentynyt": 1, "Poikkeava": 1, "Takuurajan alittava": 1}
-GRADE_TONE = {4: "#1F4E79", 3: "#1F4E79", 2: "#B7791F", 1: "#B42318"}
+GRADE_LEVEL = {"Erinomainen": 5, "Kunnossa": 5, "Hyvä": 4, "Tyydyttävä": 3, "Huomioitava": 3,
+               "Heikentynyt": 2, "Poikkeava": 1, "Takuurajan alittava": 1}
+GRADE_TONE = {5: "#1F4E79", 4: "#1F4E79", 3: "#B7791F", 2: "#B42318", 1: "#B42318"}
+
+
+def _star(c, cx, cy, r, filled):
+    import math
+    pts = []
+    for k in range(10):
+        a = math.pi / 2 + k * math.pi / 5
+        rr = r if k % 2 == 0 else r * 0.45
+        pts.append((cx + rr * math.cos(a), cy + rr * math.sin(a)))
+    p = c.beginPath()
+    p.moveTo(*pts[0])
+    for pt in pts[1:]:
+        p.lineTo(*pt)
+    p.close()
+    c.drawPath(p, stroke=0, fill=1)
 
 
 class Pill(Flowable):
-    """Luokan merkintä: neliportainen tasomittari ja luokan nimi."""
+    """Luokan merkintä: viisi tähteä ja luokan nimi."""
 
     def __init__(self, text):
         super().__init__()
         self.text = text or ""
         self.level = GRADE_LEVEL.get(self.text, 0)
-        self.w = 13 + pdfmetrics.stringWidth(self.text, "Inter-Medium", 7.6)
+        self.w = 31 + pdfmetrics.stringWidth(self.text, "Inter-Medium", 7.6)
         self.h = 10
 
     def wrap(self, aw, ah):
@@ -92,19 +107,18 @@ class Pill(Flowable):
             return
         c = self.canv
         tone = colors.HexColor(GRADE_TONE.get(self.level, "#6B7480"))
-        for k in range(4):
-            hh = 3 + k * 1.7
+        for k in range(5):
             c.setFillColor(tone if k < self.level else LINE)
-            c.rect(k * 2.4, 1.2, 1.6, hh, stroke=0, fill=1)
+            _star(c, 2.6 + k * 5.4, 4.6, 2.7, k < self.level)
         c.setFillColor(INK)
         c.setFont("Inter-Medium", 7.6)
-        c.drawString(13, 2, self.text)
+        c.drawString(31, 2, self.text)
 
 
 class SohHero(Flowable):
     """Etusivun kuntonäyttö: akkukuva, kuntoprosentti ja viisiportainen luokka-asteikko."""
     SEGMENTS = [(0, 70, "Alle 70 %", "Takuurajan alittava"), (70, 80, "70–80 %", "Heikentynyt"),
-                (80, 85, "80–85 %", "Tyydyttävä"), (85, 90, "85–90 %", "Hyvä"), (90, 101, "90–100 %", "Erinomainen")]
+                (80, 90, "80–90 %", "Hyvä"), (90, 101, "90–100 %", "Erinomainen")]
 
     def __init__(self, pct, width, caption, note=""):
         super().__init__()
@@ -197,7 +211,7 @@ class SohHero(Flowable):
 
 class SohGauge(Flowable):
     """Vaihtoehto B: kaarimittari, jonka keskellä kuntoprosentti."""
-    BANDS = [(60, 70, "#C8CED6"), (70, 80, "#AAB4C0"), (80, 85, "#8C99A8"), (85, 90, "#5C7A99"), (90, 100, "#1F4E79")]
+    BANDS = [(60, 70, "#C8CED6"), (70, 80, "#AAB4C0"), (80, 90, "#6F8399"), (90, 100, "#1F4E79")]
 
     def __init__(self, pct, width, caption, luokka):
         super().__init__()
@@ -522,15 +536,35 @@ def draw_watermark(c, style):
 
 
 # ----------------------------------------------------------------------
+HDR_TOP = H - 8 * mm
+LOGO_KOOT = {"pieni": (9 * mm, 40 * mm, 7.5 * mm), "normaali": (11 * mm, 55 * mm, 9 * mm),
+             "suuri": (14 * mm, 70 * mm, 11.5 * mm)}      # yrityksen logo: korkeus, enimmäisleveys; AKVERI-logo
+
+
+def header_line(ctx) -> float:
+    """Ylätunnisteen viivan korkeus: logo on sivun yläreunassa, ja sisältö alkaa logon koon mukaan."""
+    hgt, _, akv = LOGO_KOOT.get(ctx.get("logo_koko"), LOGO_KOOT["normaali"])
+    logo = ctx.get("logo")
+    if logo and Path(logo).exists():
+        h = hgt
+    elif not ctx.get("company"):
+        h = akv
+    else:
+        h = 9 * mm
+    return HDR_TOP - h - 2.5 * mm
+
+
 class ReportDoc(BaseDocTemplate):
     def __init__(self, path, ctx):
-        super().__init__(str(path), pagesize=A4, leftMargin=M, rightMargin=M, topMargin=26 * mm,
+        ctx["hdr_line"] = header_line(ctx)
+        top = ctx["hdr_line"] - 5 * mm
+        super().__init__(str(path), pagesize=A4, leftMargin=M, rightMargin=M, topMargin=H - top,
                          bottomMargin=20 * mm, title=ctx["title"].replace("  ·  ", " – "), author=ctx["company"] or NIMI,
                          subject="Ajoakun kuntoraportti", creator=f"{NIMI} {VERSIO}")
         self.ctx = ctx
-        frame = Frame(M, 20 * mm, CW, H - 46 * mm, id="f", leftPadding=0, rightPadding=0,
+        frame = Frame(M, 20 * mm, CW, top - 20 * mm, id="f", leftPadding=0, rightPadding=0,
                       topPadding=0, bottomPadding=0)
-        first = Frame(M, 54 * mm, CW, H - 80 * mm, id="f1", leftPadding=0, rightPadding=0,
+        first = Frame(M, 58 * mm, CW, top - 58 * mm, id="f1", leftPadding=0, rightPadding=0,
                       topPadding=0, bottomPadding=0)
         wm = lambda c, d: draw_watermark(c, ctx.get("vesileima"))  # noqa: E731
         self.addPageTemplates([PageTemplate(id="first", frames=[first], onPage=self._first, onPageEnd=wm),
@@ -548,14 +582,15 @@ class ReportDoc(BaseDocTemplate):
             x1, y1, x2, y2 = w.getBounds()
             d = Drawing(size, size, transform=[size / (x2 - x1), 0, 0, size / (y2 - y1), 0, 0])
             d.add(w)
-            renderPDF.draw(d, c, W - M - size + 1.5 * mm, H - 23 * mm - size)
+            qy = self.ctx["hdr_line"] - 2 * mm - size
+            renderPDF.draw(d, c, W - M - size + 1.5 * mm, qy)
             c.saveState()
             c.setFont("Inter", 5.6)
             c.setFillColor(MUTED)
-            c.drawRightString(W - M, H - 23 * mm - size - 2.6 * mm, self.ctx.get("qr_label") or "Raportin tunnistetiedot")
+            c.drawRightString(W - M, qy - 2.6 * mm, self.ctx.get("qr_label") or "Raportin tunnistetiedot")
             c.restoreState()
         c.saveState()
-        y = 32 * mm
+        y = 36 * mm
         # Allekirjoitusten väliin AKVERI-leima, keskitettynä allekirjoitusalueen korkeuteen
         seal_r = 13 * mm
         half = (CW - 2 * seal_r - 10 * mm) / 2
@@ -580,7 +615,7 @@ class ReportDoc(BaseDocTemplate):
                   f"tietoihin, ja niiden tarkkuus on ilmoitettu raportissa. {NIMI}-ohjelmiston toimittaja ei vastaa "
                   "mittauksen suorittamisesta eikä tuloksiin perustuvista päätöksistä."]
         c.setFont("Inter", 5.9)
-        yy = y - 8.5 * mm
+        yy = y - 11.5 * mm
         for k, ln in enumerate(lines):
             if k == 0 and indep is not None:
                 c.setFont("Inter-SemiBold", 6.2)
@@ -596,24 +631,24 @@ class ReportDoc(BaseDocTemplate):
         ctx = self.ctx
         # Himmeä AKVERI-vesileima sivun taustalle (piirretään ennen sisältöä)
         c.saveState()
-        y = H - 14 * mm
+        line_y = ctx["hdr_line"]
+        y = line_y + 7 * mm
         logo = ctx.get("logo")
+        hgt, maxw, akv = LOGO_KOOT.get(ctx.get("logo_koko"), LOGO_KOOT["normaali"])
         x0 = M
         if not ctx["company"] and not (logo and Path(logo).exists()):
-            # Ilman yrityksen tietoja otsikkona on AKVERI-logo
-            draw_logo(c, M, y - 7.2 * mm, 8.5 * mm)
+            # Ilman yrityksen tietoja otsikkona on AKVERI-logo; mittaavan yrityksen tiedoilla vain yrityksen omat
+            draw_logo(c, M, HDR_TOP - akv, akv)
             x0 = None
         elif logo and Path(logo).exists():
             try:
                 from reportlab.lib.utils import ImageReader
                 ir = ImageReader(logo)
                 iw, ih = ir.getSize()
-                # Logon koko asetuksista; logo asetetaan otsikkoviivan yläpuolelle
-                hgt, maxw = {"pieni": (9 * mm, 40 * mm), "suuri": (14 * mm, 70 * mm)}.get(
-                    ctx.get("logo_koko"), (11 * mm, 55 * mm))
+                # Logon koko asetuksista; logo sivun yläreunassa otsikkoviivan yläpuolella
                 wid = min(maxw, hgt * iw / ih)
                 h_img = wid * ih / iw
-                base = H - 19.5 * mm
+                base = HDR_TOP - hgt
                 c.drawImage(ir, M, base + (hgt - h_img) / 2, width=wid, height=h_img, mask="auto")
                 x0 = M + wid + 4 * mm
             except Exception:  # noqa: BLE001
@@ -631,10 +666,10 @@ class ReportDoc(BaseDocTemplate):
         c.drawRightString(W - M, y - 1, ctx["title"])
         c.setFont("Inter", 7.4)
         c.setFillColor(MUTED)
-        c.drawRightString(W - M, y - 11, f"Raportti {ctx['report_no']}  ·  {ctx['date']}")
+        c.drawRightString(W - M, y - 11, f"Testi nro {ctx['report_no']}  ·  {ctx['date']}")
         c.setStrokeColor(LINE)
         c.setLineWidth(0.8)
-        c.line(M, H - 21 * mm, W - M, H - 21 * mm)
+        c.line(M, line_y, W - M, line_y)
         # alatunniste
         c.line(M, 14 * mm, W - M, 14 * mm)
         lw = draw_logo(c, M, 8.9 * mm, 3.6 * mm, ink=MUTED)
@@ -670,17 +705,16 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     company_line = "  ·  ".join(x for x in (s.get("yritys_osoite"), s.get("yritys_puhelin"),
                                             s.get("yritys_sahkoposti"), s.get("yritys_www")) if x)
     report_no = f"{time.strftime('%Y', time.localtime(test['aloitettu']))}-{tid:05d}"
-    title = "AKVERI-testi"
     from .recorder import TYYPIT
     test_kind = TYYPIT.get(tyyppi, "Akun tarkastus")
+    title = test_kind
     ctx = {
         "company": s.get("yritys_nimi"), "company_line": company_line, "logo": s.get("logo"),
-        "title": f"{title}  ·  {test_kind}", "report_no": report_no, "vesileima": s.get("vesileima") or "toisto", "date": _date(test.get("paattynyt") or test["aloitettu"], False),
+        "title": test_kind, "report_no": report_no, "vesileima": s.get("vesileima") or "toisto", "date": _date(test.get("paattynyt") or test["aloitettu"], False),
         "measured": _date(test["aloitettu"], False),
         "logo_koko": s.get("logo_koko") or "normaali",
         "riippumaton": None if test.get("riippumaton") is None else bool(test["riippumaton"]),
-        "footer": s.get("raportin_alatunniste") or (
-            f"{VERSIO}  ·  Tiedot: auton akunhallinta  ·  Raakadatan tarkiste {(test.get('tarkiste') or '')[:16]}…"),
+        "footer": s.get("raportin_alatunniste") or f"{VERSIO}  ·  Tiedot: auton akunhallinta",
     }
     _y = r.get("yhteenveto") or {}
     qr_url = (s.get("qr_osoite") or "").strip()
@@ -717,7 +751,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         sub = f"Tesla {vi['malli']}  ·  {_prof['akku_lyhyt']}"
     year = vehicle.get("vuosimalli") or vi.get("vuosimalli")
     reg = (vehicle.get("rekisteri") or "").strip()
-    head = [P(title, "h1"), P(f"<b>{test_kind}</b>", "sub"), P(sub, "sub")]
+    head = [P(test_kind, "h1"), P(sub, "sub")]
     meta_line = "  ·  ".join(x for x in ((f"Vuosimalli {year}" if year else None),
                                          (f"Rekisterinumero <b>{reg}</b>" if reg else None)) if x)
     if meta_line:
@@ -1278,8 +1312,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         def main_cell_chart(stats, title):
             if layout and len(stats["jannitteet"]) == sum(layout):
                 return charts.module_chart(stats["jannitteet"], layout, title, poikkeavat=stats["poikkeavat"])
-            return charts.cell_profile_chart(stats["jannitteet"], title, poikkeavat=stats["poikkeavat"],
-                                             raja_mv=stats.get("poikkeama_raja_mv") or 15.0)
+            return charts.cell_chart(stats["jannitteet"], title, poikkeavat=stats["poikkeavat"])
 
         E.append(_img(main_cell_chart(cs, r.get("kennot_otsikko", "Kennoryhmät")), CW))
         low = r.get("kennot_matala")
@@ -1318,9 +1351,6 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
             E.append(PageBreak())
             E.append(P(title, "h2"))
             E.append(P(intro + " Poikkeama on ilmoitettu suhteessa kaikkien ryhmien keskiarvoon.", "small"))
-            E.append(Spacer(1, 3 * mm))
-            E.append(_img(charts.cell_chart(stats["jannitteet"], "Kennoryhmät numerojärjestyksessä",
-                                            poikkeavat=stats["poikkeavat"], height_mm=52), CW))
             E.append(Spacer(1, 3 * mm))
             vals = stats["jannitteet"]
             mean = stats["ka_v"]
@@ -1535,7 +1565,8 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
          "varauksessa ja LFP-akulla myös vähintään 95 %:n varauksessa käytetään rajoja alle 50 mV hyvä ja alle "
          "100 mV tyydyttävä. LFP-akun jännite on keskivarauksella lähes tasainen, joten pieni ero ei siellä yksin "
          "todista tasapainoa, ja luokaksi annetaan enintään hyvä."),
-        ("Kunnon luokitus", "Vähintään 90 % erinomainen, 85–90 % hyvä, 80–85 % tyydyttävä, 70–80 % heikentynyt. "
+        ("Kunnon luokitus", "Vähintään 90 % erinomainen, 80–90 % hyvä, 70–80 % heikentynyt (luokat AVILOOn käytännön "
+         "mukaan). "
          "Teslan akkutakuu kattaa kapasiteetin laskun alle 70 %:n takuuaikana."),
         ("Vertailu ajomäärään", "Vertailukäyrä perustuu Teslan vaikuttavuusraportissa (Impact Report 2023) "
          "julkaistuun keskiarvoon, jonka mukaan Model 3- ja Model Y -akkujen kapasiteetti on alentunut noin "
@@ -1622,7 +1653,7 @@ def _numbered_canvas(report_no: str):
                 self.saveState()
                 self.setFont("Inter", 6.8)
                 self.setFillColor(MUTED)
-                self.drawRightString(W - M, 10 * mm, f"Raportti {report_no}  ·  Sivu {self._pageNumber}/{n}")
+                self.drawRightString(W - M, 10 * mm, f"Testi nro {report_no}  ·  Sivu {self._pageNumber}/{n}")
                 self.restoreState()
                 super().showPage()
             super().save()

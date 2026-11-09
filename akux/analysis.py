@@ -9,7 +9,9 @@ from . import VERSIO, profiles
 from . import vin as vinmod
 
 TARKKUUSRAJA_PCT = 3.0   # päätuloksen suurin sallittu epävarmuus (kunto, %-yksikköä)
-SOH_LUOKAT = [(90, "Erinomainen"), (85, "Hyvä"), (80, "Tyydyttävä"), (70, "Heikentynyt"), (0, "Takuurajan alittava")]
+# Akun kunnon luokat AVILOOn käytännön mukaan: vähintään 90 % erinomainen (vihreä), 80–90 % hyvä,
+# alle 80 % heikentynyt (punainen merkintä). Alle 70 % alittaa Teslan akkutakuun rajan.
+SOH_LUOKAT = [(90, "Erinomainen"), (80, "Hyvä"), (70, "Heikentynyt"), (0, "Takuurajan alittava")]
 
 
 def soh_class(pct):

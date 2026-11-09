@@ -103,7 +103,10 @@ def _run(port):
 def start(data_dir: str, bridge, port: int = 8765):
     global _bridge
     _bridge = bridge
-    os.environ["AKUX_DATA"] = os.path.join(data_dir, "akux")
+    # Tiedot sovelluksen omassa tallennustilassa kansiossa "akveri"; aiempi "akux" siirretään automaattisesti
+    from pathlib import Path
+    from .storage import siirra_kansio
+    os.environ["AKUX_DATA"] = str(siirra_kansio(Path(data_dir) / "akux", Path(data_dir) / "akveri", "akux.db"))
     os.environ["AKUX_ALUSTA"] = PLATFORM
     os.environ.setdefault("MPLCONFIGDIR", os.path.join(data_dir, "matplotlib"))
     os.environ.setdefault("HOME", data_dir)

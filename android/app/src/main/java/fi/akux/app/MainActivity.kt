@@ -170,7 +170,7 @@ class MainActivity : ComponentActivity() {
                 if (c.responseCode != 200) throw Exception("Tiedostoa ei voitu muodostaa (${c.responseCode}).")
                 val disp = c.getHeaderField("Content-Disposition") ?: ""
                 val name = Regex("filename=\"?([^\";]+)").find(disp)?.groupValues?.get(1)
-                    ?: Uri.parse(url).lastPathSegment ?: "akux"
+                    ?: Uri.parse(url).lastPathSegment ?: "akveri"
                 val mime = (c.contentType ?: "application/octet-stream").substringBefore(";")
                 val bytes = c.inputStream.use { it.readBytes() }
 
