@@ -483,8 +483,18 @@ def _analyze_cells_other(res, snaps, meta, tyyppi):
         # Täydestä akkutestistä erotetussa ajotestissä ajon jälkeinen lepo on ennen latausta
         s_lo = _snap(snaps, "lepo_alku", "loppu")
         if s_hi:
-            res["kennot"] = cell_stats(s_hi["data"].get("kennot"), s_hi["data"].get("soc_avg"), s_hi["data"].get("pack_i"))
+            res["kennot"] = cs = cell_stats(s_hi["data"].get("kennot"), s_hi["data"].get("soc_avg"),
+                                            s_hi["data"].get("pack_i"))
             res["kennot_otsikko"] = "Kennoryhmien jännitteet levossa ennen ajoa"
+            a = m.get("ajo_alku") or {}
+            if cs and a.get("lepo_min") is not None:
+                cs["lepo_min"] = a["lepo_min"]
+                cs["lepo_riittava"] = bool(a["lepo_min"] >= 0.9 * (a.get("vaadittu_min") or 30) and not a.get("ohitettu"))
+                if not cs["lepo_riittava"]:
+                    res["kennot_otsikko"] = f"Kennoryhmien jännitteet ennen ajoa (lepo {fmt(a['lepo_min'], 0)} min)"
+                    res["huomiot"].append(f"Kennoryhmien jännitteet ennen ajoa on luettu {fmt(a['lepo_min'], 0)} minuutin "
+                                          "levon jälkeen, joten ne eivät ole ehtineet täysin tasaantua. Jännite-ero voi "
+                                          "näkyä todellista suurempana.")
         if s_lo:
             res["kennot_matala"] = cell_stats(s_lo["data"].get("kennot"), s_lo["data"].get("soc_avg"),
                                               s_lo["data"].get("pack_i"))
@@ -518,9 +528,29 @@ def _analyze_capacity(res, snaps, samples, meta, chem_key, ref_kwh, nfp, buffer)
                          s_high["data"].get("pack_i")) if s_high else None
     cs_low = cell_stats(s_low["data"].get("kennot"), s_low["data"].get("soc_avg"),
                         s_low["data"].get("pack_i")) if s_low else None
+    # Kennoryhmien arvio tehdään vain levossa luetuista jännitteistä. Jos lepo jäi vaadittua lyhyemmäksi
+    # (vaihe ohitettiin tai mittaus päättyi ennen lepoa), jännitteet eivät ole ehtineet tasaantua ja ero voi
+    # näkyä todellista suurempana. Se kerrotaan raportissa.
+    def _lepo(cs, rest, snap_name):
+        if not cs:
+            return
+        req = rest.get("vaadittu_min") or 30
+        mins = rest.get("kesto_min") if snap_name.startswith("lepo") else 0.0
+        cs["lepo_min"] = mins
+        cs["lepo_riittava"] = bool(mins is not None and mins >= 0.9 * req and not rest.get("ohitettu"))
+
+    _lepo(cs_high, rest1, s_high["nimi"] if s_high else "")
+    _lepo(cs_low, rest0, s_low["nimi"] if s_low else "")
     res["kennot"] = cs_high
-    res["kennot_otsikko"] = "Kennoryhmien jännitteet täyden latauksen jälkeen levossa"
+    res["kennot_otsikko"] = ("Kennoryhmien jännitteet täyden latauksen jälkeen levossa"
+                             if not cs_high or cs_high.get("lepo_riittava")
+                             else f"Kennoryhmien jännitteet täyden latauksen jälkeen (lepo {fmt(cs_high.get('lepo_min'), 0)} min)")
     res["kennot_matala"] = cs_low
+    for cs_, nimi in ((cs_high, "täyden latauksen jälkeen"), (cs_low, "ennen latausta")):
+        if cs_ and not cs_.get("lepo_riittava"):
+            res["huomiot"].append(f"Kennoryhmien jännitteet {nimi} on luettu {fmt(cs_.get('lepo_min'), 0)} minuutin "
+                                  "levon jälkeen, joten ne eivät ole ehtineet täysin tasaantua. Jännite-ero voi näkyä "
+                                  "todellista suurempana.")
 
     cap: dict = {"valmis": False}
     res["kapasiteetti"] = cap
@@ -745,6 +775,9 @@ def _summarize(res):
             r = cs["rajat_mv"]
             kuv += (f" Mitattu {fmt(cs['soc'], 0)} %:n varauksessa, raja-arvot tällä varauksella: "
                     f"alle {fmt(r[1], 0)} mV hyvä, alle {fmt(r[2], 0)} mV tyydyttävä.")
+        if cs.get("lepo_riittava") is False:
+            kuv += (f" Luettu {fmt(cs.get('lepo_min'), 0)} minuutin levon jälkeen, joten ero voi näkyä todellista "
+                    "suurempana.")
         ar.append({"nimi": "Kennoryhmien jännite-ero", "arvo": f"{fmt(cs['ero_mv'], 0)} mV", "luokka": cs["luokka"],
                    "kuvaus": kuv})
         n_out = len(cs["poikkeavat"])

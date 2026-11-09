@@ -629,7 +629,8 @@ class Recorder:
     def _begin_drive(self, t, skipped: bool):
         rest_min = ((t - self.rest_since) / 60) if self.rest_since else 0.0
         self._snapshot(t, "ajo_alku")
-        self.marks["ajo_alku"] = self._state_mark(t, {"lepo_min": rest_min, "ohitettu": skipped})
+        self.marks["ajo_alku"] = self._state_mark(t, {"lepo_min": rest_min, "ohitettu": skipped,
+                                                      "vaadittu_min": self.app.settings.get("ajo_lepo_min")})
         if skipped:
             self.notes.append(f"Lepojakso ennen ajoa jäi {rest_min:.0f} minuuttiin.")
         self.rest_since = None
@@ -769,6 +770,7 @@ class Recorder:
         snap = self._snapshot(t, "lepo_alku")
         rest_min = ((t - self.rest_since) / 60) if self.rest_since else 0.0
         self.marks["lepo_alku"] = {"t": t, "kesto_min": rest_min, "ohitettu": skipped,
+                                   "vaadittu_min": self.app.settings.get("lepo_alku_min"),
                                    "soc_avg": st.soc_avg, "soc_ui": st.soc_ui, "v": st.pack_v,
                                    "kennot_ka": snap.get("brick_avg"),
                                    "t_min": st.temp_min, "t_max": st.temp_max}
@@ -915,6 +917,7 @@ class Recorder:
             st = self.app.decoder.state
             rest_min = ((t - self.rest_since) / 60) if self.rest_since else 0.0
             self.marks["lepo_loppu"] = {"t": t, "kesto_min": rest_min, "soc_avg": st.soc_avg,
+                                        "vaadittu_min": self.app.settings.get("lepo_loppu_min"),
                                         "kennot_ka": snap.get("brick_avg"), "v": st.pack_v}
         self.flush()
         self._event(t, "Mittaus valmis")

@@ -61,6 +61,25 @@ def test_uudelleenlaskenta_ja_jako():
         st.close()
 
 
+
+
+def test_lyhyt_lepo_merkitaan():
+    """Jos lepo jäi lyhyeksi, kennoryhmien jännitteistä kerrotaan, etteivät ne ole ehtineet tasaantua."""
+    with tempfile.TemporaryDirectory() as d:
+        st = Storage(Path(d))
+        tid = mittaustiedosto.import_file(st, ESIM.read_bytes())["id"]
+        res = analysis.reanalyze(st, tid)
+        assert res["kennot"]["lepo_riittava"] and res["kennot_matala"]["lepo_riittava"]
+        meta = res["meta"]
+        meta["merkinnat"]["lepo_loppu"]["kesto_min"] = 5.0
+        meta["merkinnat"]["lepo_loppu"]["vaadittu_min"] = 30
+        r2 = analysis.analyze_test(st, tid, meta)
+        assert r2["kennot"]["lepo_riittava"] is False and "(lepo 5 min)" in r2["kennot_otsikko"]
+        assert any("ei ole ehtineet" in h or "eivät ole ehtineet" in h for h in r2["huomiot"])
+        st.close()
+
+
 if __name__ == "__main__":
-    test_uudelleenlaskenta_ja_jako()
-    print("OK test_uudelleenlaskenta_ja_jako")
+    for fn in (test_uudelleenlaskenta_ja_jako, test_lyhyt_lepo_merkitaan):
+        fn()
+        print("OK", fn.__name__)
