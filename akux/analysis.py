@@ -668,11 +668,21 @@ def _analyze_capacity(res, snaps, samples, meta, chem_key, ref_kwh, nfp, buffer)
         g.pop("_e_mark", None)
         if cnt_used:
             continue          # laskuri sisältää myös katkojen aikana ladatun energian
-        if g.get("ner_alku") is not None and g.get("ner_loppu") is not None:
-            gap_kwh += max(0.0, g["ner_loppu"] - g["ner_alku"])
+        c0g, c1g = g.get("laskurit_alku"), g.get("laskurit_loppu")
+        if c0g and c1g:
+            # Tauko: elinkaarilaskurien nettomuutos (lataus − purku), josta vähennetään jatkon jälkeen jo
+            # mitattu energia. Tauon aikainen kulutus (lämmitys, valvontatila) vähentää tulosta oikein.
+            net_cnt = (c1g[1] - c0g[1]) - (c1g[0] - c0g[0])
+            gap_kwh += net_cnt - g.get("e_jatkon_jalkeen", 0.0)
+            g["laskuri_kwh"] = net_cnt - g.get("e_jatkon_jalkeen", 0.0)
+        elif g.get("ner_alku") is not None and g.get("ner_loppu") is not None:
+            d_ner = g["ner_loppu"] - g["ner_alku"]
+            gap_kwh += d_ner if g.get("tauko") else max(0.0, d_ner)
     if gap_kwh:
-        res["huomiot"].append(f"Mittausdatan katkojen aikana akkuun mennyt energia ({fmt(gap_kwh, 2)} kWh) "
-                              "on täydennetty akunhallinnan energialaskennasta.")
+        lahde = ("akunhallinnan elinkaaren energialaskureista; tauon aikainen kulutus, kuten lämmitys, on vähennetty"
+                 if any(g.get("laskurit_loppu") for g in meta.get("aukot", [])) else "akunhallinnan energialaskennasta")
+        res["huomiot"].append(f"Mittausdatan katkojen ja taukojen aikana akkuun mennyt nettoenergia "
+                              f"({fmt(gap_kwh, 2)} kWh) on täydennetty {lahde}.")
     e_chem += gap_kwh
 
     dsoc = (soc1 - soc0) if (soc0 is not None and soc1 is not None) else None

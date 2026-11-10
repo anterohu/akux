@@ -77,6 +77,13 @@ def _reg_add(acc: list, win: list):
 
 
 
+def _cnt(st):
+    """Elinkaarilaskurit [purku, lataus] kWh, jos auto ilmoittaa ne."""
+    if st.total_discharge_kwh is not None and st.total_charge_kwh is not None:
+        return [st.total_discharge_kwh, st.total_charge_kwh]
+    return None
+
+
 def _soc_ui(st):
     """Näytön varaustila; jos auto ei ilmoita sitä (Nissan Leaf), akunhallinnan varaustila."""
     return st.soc_ui if st.soc_ui is not None else st.soc_avg
@@ -201,7 +208,8 @@ class Recorder:
             st = self.app.decoder.state
             self._flush_reg()
             self.marks["jatkotauko"] = {"t": t, "lataus_kwh": st.total_charge_kwh, "soc_avg": st.soc_avg,
-                                   "vaihe": self.vaihe}
+                                   "vaihe": self.vaihe,
+                                   "laskurit": _cnt(st)}
             self.flush()
             self._close_raw()
             self._persist_state(tila="kesken")
@@ -235,9 +243,13 @@ class Recorder:
             if self.vaihe == "lataus":
                 # Tauon aikana akkuun mennyt energia täydennetään akunhallinnan energialaskennasta
                 # samalla tavalla kuin lyhyissä datakatkoissa.
-                t0 = (self.marks.get("jatkotauko") or {}).get("t") or state.get("t_viim") or now
+                # Elinkaarilaskureista saadaan tauon aikana akkuun mennyt nettoenergia tarkasti, myös
+                # tauon aikainen kulutus (lämmitys, valvontatila) vähennettynä.
+                tk = self.marks.get("jatkotauko") or {}
+                t0 = tk.get("t") or state.get("t_viim") or now
                 self.gaps.append({"alku": t0, "loppu": now, "kesto_s": max(0.0, now - t0),
                                   "ner_alku": self.marks.get("_ner_last"), "ner_loppu": None,
+                                  "laskurit_alku": tk.get("laskurit"), "laskurit_loppu": None,
                                   "_e_mark": self.e_in - self.e_out, "tauko": True})
                 self.marks.pop("jatkotauko", None)
             else:
@@ -413,6 +425,10 @@ class Recorder:
                         and st.nominal_remaining_kwh is not None:
                     since = (self.e_in - self.e_out) - g.pop("_e_mark")
                     g["ner_loppu"] = st.nominal_remaining_kwh - since
+                    if g.get("laskurit_alku") and _cnt(st):
+                        # laskurit luettu tauon jälkeen: jatkon jälkeen jo mitattu energia vähennetään
+                        g["laskurit_loppu"] = _cnt(st)
+                        g["e_jatkon_jalkeen"] = since
             if self.vaihe == "lataus":
                 self.marks["_ner_last"] = st.nominal_remaining_kwh
             if abs(i) < 1.0:

@@ -288,6 +288,39 @@ def _offline(src, minutes, step=5.0):
         src.sim_t += step
 
 
+def test_yotauko_latauksessa_lammitys(tmp):
+    """Mittaus jätetään yöksi tauolle kesken latauksen. Lataus on pysäytetty ja auto kuluttaa yön aikana
+    energiaa (lämmitys, valvontatila). Aamulla lataus jatkuu. Yön kulutus pitää vähentää tuloksesta."""
+    app = _app(tmp)
+    src = BatterySimulator(soc=0.12, accel=300, weak_cell=None)
+    tid = _start(app, src, "kapasiteetti")
+    src.set_mode("charge", 11.0)
+    _phase(app, "lataus", 60)
+    assert wait_until(lambda: (app.decoder.state.soc_avg or 0) > 40, 120)
+    app.recorder.pause()                   # Jatka myöhemmin
+    app.disconnect()
+    src.set_mode("drive", 0.4)             # lataus pysäytetty, auto kuluttaa 0,4 kW koko yön
+    _offline(src, 8 * 60, step=30.0)
+    kulutus = 0.4 * 8
+    app2 = _app(tmp)
+    app2.connect("demo", sim=src)
+    assert wait_until(lambda: app2.decoder.state.vin and app2.decoder.state.nominal_remaining_kwh, 20)
+    src.set_mode("park")
+    app2.resume_test(tid)
+    src.set_mode("charge", 11.0)
+    _phase(app2, "lepo_loppu", 400)
+    src.set_mode("park")
+    t = _done(app2, tid, 300)
+    cap = t["tulos"]["kapasiteetti"]
+    print(f"Yötauko: kapasiteetti {cap['taysi_kwh']:.2f} ±{cap['epavarmuus_kwh']:.2f}, tauon nettoenergia "
+          f"{cap['katkot_kwh']:.2f} kWh (yön kulutus {kulutus:.1f} kWh), todellinen {src.nfp}")
+    assert cap["valmis"]
+    assert -kulutus - 0.5 < cap["katkot_kwh"] < -kulutus + 0.5, cap["katkot_kwh"]
+    assert abs(cap["taysi_kwh"] - src.nfp) < max(1.5, 1.5 * cap["epavarmuus_kwh"])
+    assert any("kulutus" in h for h in t["tulos"]["huomiot"]), t["tulos"]["huomiot"]
+    app2.disconnect()
+
+
 def test_kapasiteetti_katkot_latauksessa(tmp):
     """Ohjelma suljetaan kesken latauksen ja kone sammuu kesken latauksen: mittaus jatkuu ja tulos pitää."""
     app = _app(tmp)
@@ -339,7 +372,7 @@ def test_kapasiteetti_katkot_latauksessa(tmp):
 
 
 ALL = [test_kuormitustesti_lahtoehdot, test_kapasiteetti_katkot_latauksessa, test_lataus_tauon_aikana, test_ajotesti_kahdessa_osassa, test_pika_ajotesti, test_taysi_akkutesti, test_kuormitustesti,
-       test_pikalataustesti, test_itsepurkaustesti_ja_tauko, test_hylkays]
+       test_pikalataustesti, test_itsepurkaustesti_ja_tauko, test_hylkays, test_yotauko_latauksessa_lammitys]
 
 if __name__ == "__main__":
     only = sys.argv[1:]
