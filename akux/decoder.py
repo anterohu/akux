@@ -52,6 +52,9 @@ KAYTETYT_TUNNISTEET = list(dict.fromkeys(M3_TUNNISTEET + SX_TUNNISTEET))
 ALUSTAT = {
     "m3": "Model 3 / Model Y / Model S ja X 2021–",
     "sx": "Model S 2012–2021 / Model X 2015–2021",
+    "hkmc": "Hyundai ja Kia",
+    "leaf": "Nissan Leaf",
+    "meb": "Volkswagen-konsernin MEB",
 }
 
 TUNNISTE_KUVAUS = {
@@ -91,6 +94,10 @@ MILE_KM = 1.609344
 
 
 def kuvaus(cid: int, platform: str | None = None) -> str | None:
+    from . import polled
+    pm = polled.module(platform)
+    if pm:
+        return pm.KUVAUS.get(cid)
     if platform == "sx":
         return SX_KUVAUS.get(cid) or TUNNISTE_KUVAUS.get(cid)
     return TUNNISTE_KUVAUS.get(cid) or SX_KUVAUS.get(cid)
@@ -138,6 +145,7 @@ class BatteryState:
     battery_odometer_km: float | None = None
     current_check: str | None = None       # virran merkin ja mittakaavan tarkistuksen tila (sx)
     counters_raw: tuple | None = None      # elinkaarilaskurit viestin kenttäjärjestyksessä (kWh)
+    bms_soh_pct: float | None = None       # akunhallinnan ilmoittama kunto (Hyundai, Kia)
     last_update: float = 0.0
 
 
@@ -158,6 +166,7 @@ class TeslaDecoder:
         self._brick_listeners = []
         # Kuuntelijat kutsutaan vasta lukon vapauduttua, jotta lukitusjärjestys ei voi lukita ohjelmaa
         self._pending: list = []
+        self.hk: dict = {}                  # kyselyihin perustuvan alustan asetukset (Hyundai, Kia)
         self._sx_reset()
 
     def _sx_reset(self):
@@ -206,13 +215,33 @@ class TeslaDecoder:
             self._old_nfp_history.clear()
             self._brick_max_mux = -1
             self._brick_seen_mux.clear()
+            self.hk = {}
             self._sx_reset()
 
     @property
     def platform(self) -> str | None:
         return self.state.platform
 
+    def _polled_module(self):
+        p = self.state.platform
+        if p in (None, "m3", "sx"):
+            return None
+        from . import polled
+        return polled.module(p)
+
+    def configure(self, platform: str, **opts):
+        """Kyselyihin perustuva alusta valitaan yhdistettäessä, koska sitä ei voi päätellä kuuntelemalla."""
+        with self.lock:
+            self.state.platform = platform
+            self.hk = dict(opts)
+            if opts.get("cells"):
+                self.state.brick_count = opts["cells"]
+
     def required_ids(self) -> list[int]:
+        from . import polled
+        pm = polled.module(self.state.platform)
+        if pm:
+            return pm.PAKOLLISET
         return SX_PAKOLLISET if self.state.platform == "sx" else PAKOLLISET
 
     def energy_id(self) -> int:
@@ -240,7 +269,10 @@ class TeslaDecoder:
                 s["last"] = t
             if self.state.platform is None and self.total_frames % 20 == 0:
                 self._detect_platform()
-            if self.state.platform == "sx":
+            pm = self._polled_module()
+            if pm:
+                handler = pm.HANDLERS.get(can_id)
+            elif self.state.platform == "sx":
                 handler = self._sx_handlers.get(can_id)
             else:
                 handler = self._handlers.get(can_id)
@@ -667,7 +699,11 @@ class TeslaDecoder:
         out = []
         with self.lock:
             plat = self.state.platform
-            ids = SX_TUNNISTEET if plat == "sx" else M3_TUNNISTEET
+            pm = self._polled_module()
+            if pm:
+                ids = pm.TUNNISTEET
+            else:
+                ids = SX_TUNNISTEET if plat == "sx" else M3_TUNNISTEET
             req = self.required_ids()
             for cid in ids:
                 s = self.seen.get(cid)
@@ -675,7 +711,7 @@ class TeslaDecoder:
                 if s and s["count"] > 1 and s["last"] > s["first"]:
                     rate = (s["count"] - 1) / (s["last"] - s["first"])
                 out.append({
-                    "tunniste": f"0x{cid:03X}",
+                    "tunniste": f"0x{cid:03X}" if cid <= 0x7FF else (getattr(pm, "NAYTTO", {}).get(cid) or f"{cid:04X}"),
                     "kuvaus": kuvaus(cid, plat),
                     "pakollinen": cid in req,
                     "nakyy": bool(s),
@@ -700,4 +736,10 @@ class TeslaDecoder:
             d["power_kw"] = (st.pack_v * st.pack_i / 1000) if st.pack_v is not None and st.pack_i is not None else None
             d["frames"] = self.total_frames
             d["platform_name"] = ALUSTAT.get(st.platform)
+            if self.hk.get("malli_id"):
+                d["malli_id"] = self.hk["malli_id"]
+            _pm = self._polled_module()
+            if _pm:
+                d["kyselyalusta"] = True
+                d["itsepurkaus_ok"] = bool(_pm.ITSEPURKAUS_OK)
             return d

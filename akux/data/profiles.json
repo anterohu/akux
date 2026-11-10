@@ -69,6 +69,26 @@
       "vuotta": 8,
       "km": 192000,
       "sailyvyys_pct": 70
+    },
+    "hyundai": {
+      "vuotta": 8,
+      "km": 160000,
+      "sailyvyys_pct": 70
+    },
+    "kia": {
+      "vuotta": 7,
+      "km": 150000,
+      "sailyvyys_pct": 70
+    },
+    "nissan": {
+      "vuotta": 8,
+      "km": 160000,
+      "sailyvyys_pct": 66
+    },
+    "nissan24": {
+      "vuotta": 5,
+      "km": 100000,
+      "sailyvyys_pct": 66
     }
   },
   "mallit": [
@@ -92,7 +112,8 @@
       "viite_kwh": 55.0,
       "takuu": "vakio",
       "alusta": "m3",
-      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA"
+      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA",
+      "merkki": "Tesla"
     },
     {
       "id": "m3-lr-2019-2020-nca",
@@ -116,7 +137,8 @@
       "viite_kwh": 80.5,
       "takuu": "pitka",
       "alusta": "m3",
-      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA"
+      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA",
+      "merkki": "Tesla"
     },
     {
       "id": "m3-lr-2021-panasonic",
@@ -140,7 +162,8 @@
       "viite_kwh": 82.0,
       "takuu": "pitka",
       "alusta": "m3",
-      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA"
+      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA",
+      "merkki": "Tesla"
     },
     {
       "id": "m3-lr-2021-lg",
@@ -164,7 +187,8 @@
       "viite_kwh": 78.8,
       "takuu": "pitka",
       "alusta": "m3",
-      "kennotyyppi": "LG Energy Solution 2170 -lieriökenno, NMC"
+      "kennotyyppi": "LG Energy Solution 2170 -lieriökenno, NMC",
+      "merkki": "Tesla"
     },
     {
       "id": "m3-srplus-2021-lfp",
@@ -186,7 +210,8 @@
       "viite_kwh": 55.0,
       "takuu": "vakio",
       "alusta": "m3",
-      "kennotyyppi": "CATL prismaattinen kenno, LFP"
+      "kennotyyppi": "CATL prismaattinen kenno, LFP",
+      "merkki": "Tesla"
     },
     {
       "id": "m3-rwd-2022-lfp",
@@ -208,7 +233,8 @@
       "viite_kwh": 60.0,
       "takuu": "vakio",
       "alusta": "m3",
-      "kennotyyppi": "CATL prismaattinen kenno, LFP"
+      "kennotyyppi": "CATL prismaattinen kenno, LFP",
+      "merkki": "Tesla"
     },
     {
       "id": "m3-highland-rwd-lfp",
@@ -232,7 +258,8 @@
       "viite_kwh": 60.0,
       "takuu": "vakio",
       "alusta": "m3",
-      "kennotyyppi": "CATL prismaattinen kenno, LFP"
+      "kennotyyppi": "CATL prismaattinen kenno, LFP",
+      "merkki": "Tesla"
     },
     {
       "id": "m3-highland-lr",
@@ -259,7 +286,8 @@
       "viite_kwh": 82.0,
       "takuu": "pitka",
       "alusta": "m3",
-      "kennotyyppi": "LG Energy Solution 2170 -lieriökenno, NMC"
+      "kennotyyppi": "LG Energy Solution 2170 -lieriökenno, NMC",
+      "merkki": "Tesla"
     },
     {
       "id": "my-lr-nmc",
@@ -289,7 +317,8 @@
       "viite_kwh": 78.8,
       "takuu": "pitka",
       "alusta": "m3",
-      "kennotyyppi": "LG Energy Solution 2170 -lieriökenno, NMC"
+      "kennotyyppi": "LG Energy Solution 2170 -lieriökenno, NMC",
+      "merkki": "Tesla"
     },
     {
       "id": "my-rwd-lfp",
@@ -312,7 +341,8 @@
       "viite_kwh": 62.5,
       "takuu": "vakio",
       "alusta": "m3",
-      "kennotyyppi": "CATL prismaattinen kenno, LFP"
+      "kennotyyppi": "CATL prismaattinen kenno, LFP",
+      "merkki": "Tesla"
     },
     {
       "id": "m3-mr-2019-nca",
@@ -334,7 +364,8 @@
       "viite_kwh": 62.0,
       "takuu": "vakio",
       "alusta": "m3",
-      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA"
+      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA",
+      "merkki": "Tesla"
     },
     {
       "id": "m3-lr-2017-2018-nca",
@@ -358,7 +389,8 @@
       "viite_kwh": 80.5,
       "takuu": "pitka",
       "alusta": "m3",
-      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA"
+      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA",
+      "merkki": "Tesla"
     },
     {
       "id": "my-lr-fremont-nca",
@@ -384,7 +416,8 @@
       "viite_kwh": 81.0,
       "takuu": "pitka",
       "alusta": "m3",
-      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA"
+      "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA",
+      "merkki": "Tesla"
     },
     {
       "id": "my-4680",
@@ -407,7 +440,8 @@
       "viite_kwh": 67.5,
       "takuu": "vakio",
       "alusta": "m3",
-      "kennotyyppi": "Tesla 4680 -lieriökenno, NMC"
+      "kennotyyppi": "Tesla 4680 -lieriökenno, NMC",
+      "merkki": "Tesla"
     },
     {
       "id": "my-juniper-lr",
@@ -435,7 +469,8 @@
       "viite_kwh": 84.0,
       "takuu": "pitka",
       "alusta": "m3",
-      "kennotyyppi": "LG Energy Solution 2170 -lieriökenno, NMC"
+      "kennotyyppi": "LG Energy Solution 2170 -lieriökenno, NMC",
+      "merkki": "Tesla"
     },
     {
       "id": "my-juniper-lfp",
@@ -459,7 +494,8 @@
       "viite_kwh": 62.5,
       "takuu": "vakio",
       "alusta": "m3",
-      "kennotyyppi": "CATL prismaattinen kenno, LFP"
+      "kennotyyppi": "CATL prismaattinen kenno, LFP",
+      "merkki": "Tesla"
     },
     {
       "id": "sx-60",
@@ -487,7 +523,8 @@
       "alusta": "sx",
       "likiarvo": true,
       "kennotyyppi": "Panasonic 18650 -lieriökenno, NCA",
-      "akku_lyhyt": "60 kWh akku"
+      "akku_lyhyt": "60 kWh akku",
+      "merkki": "Tesla"
     },
     {
       "id": "sx-70",
@@ -515,7 +552,8 @@
       "alusta": "sx",
       "likiarvo": true,
       "kennotyyppi": "Panasonic 18650 -lieriökenno, NCA",
-      "akku_lyhyt": "70 kWh akku"
+      "akku_lyhyt": "70 kWh akku",
+      "merkki": "Tesla"
     },
     {
       "id": "sx-75",
@@ -542,7 +580,8 @@
       "alusta": "sx",
       "likiarvo": true,
       "kennotyyppi": "Panasonic 18650 -lieriökenno, NCA",
-      "akku_lyhyt": "75 kWh akku"
+      "akku_lyhyt": "75 kWh akku",
+      "merkki": "Tesla"
     },
     {
       "id": "sx-85",
@@ -571,7 +610,8 @@
       "alusta": "sx",
       "likiarvo": true,
       "kennotyyppi": "Panasonic 18650 -lieriökenno, NCA",
-      "akku_lyhyt": "85 kWh akku"
+      "akku_lyhyt": "85 kWh akku",
+      "merkki": "Tesla"
     },
     {
       "id": "sx-90",
@@ -597,7 +637,8 @@
       "alusta": "sx",
       "likiarvo": true,
       "kennotyyppi": "Panasonic 18650 -lieriökenno, NCA",
-      "akku_lyhyt": "90 kWh akku"
+      "akku_lyhyt": "90 kWh akku",
+      "merkki": "Tesla"
     },
     {
       "id": "sx-100",
@@ -625,7 +666,8 @@
       "alusta": "sx",
       "likiarvo": true,
       "kennotyyppi": "Panasonic 18650 -lieriökenno, NCA",
-      "akku_lyhyt": "100 kWh akku"
+      "akku_lyhyt": "100 kWh akku",
+      "merkki": "Tesla"
     },
     {
       "id": "sx2021-lr",
@@ -653,7 +695,8 @@
       "viite_kwh": 99.0,
       "takuu": "pitka",
       "alusta": "m3",
-      "kennotyyppi": "Panasonic 18650 -lieriökenno, NCA"
+      "kennotyyppi": "Panasonic 18650 -lieriökenno, NCA",
+      "merkki": "Tesla"
     },
     {
       "id": "ct-awd",
@@ -681,7 +724,8 @@
       "takuu": "pitka",
       "alusta": "m3",
       "kokeellinen": true,
-      "kennotyyppi": "Tesla 4680 -lieriökenno, NMC"
+      "kennotyyppi": "Tesla 4680 -lieriökenno, NMC",
+      "merkki": "Tesla"
     },
     {
       "id": "my-rwd-lfp-byd",
@@ -703,7 +747,833 @@
       "sarjakennot": null,
       "viite_kwh": 60.0,
       "takuu": "vakio",
-      "alusta": "m3"
+      "alusta": "m3",
+      "merkki": "Tesla"
+    },
+    {
+      "id": "hy-ioniq-28",
+      "merkki": "Hyundai",
+      "nimi": "Hyundai Ioniq Electric 28 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2016,
+        2017,
+        2018,
+        2019
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 96,
+      "viite_kwh": 28.0,
+      "takuu": "hyundai",
+      "alusta": "hkmc",
+      "kyselyryhma": "ioniq28",
+      "kennotyyppi": "LG Chem, NMC-pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "28,0 kWh"
+    },
+    {
+      "id": "hy-ioniq-38",
+      "merkki": "Hyundai",
+      "nimi": "Hyundai Ioniq Electric 38,3 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2019,
+        2020,
+        2021,
+        2022
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": null,
+      "viite_kwh": 38.3,
+      "takuu": "hyundai",
+      "alusta": "hkmc",
+      "kyselyryhma": "ioniq28",
+      "kennotyyppi": "NMC-pussikenno",
+      "kyselyt_varmistettu": false,
+      "akku_lyhyt": "38,3 kWh"
+    },
+    {
+      "id": "hy-kona-39",
+      "merkki": "Hyundai",
+      "nimi": "Hyundai Kona Electric 39,2 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2018,
+        2019,
+        2020,
+        2021,
+        2022,
+        2023
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": null,
+      "viite_kwh": 39.2,
+      "takuu": "hyundai",
+      "alusta": "hkmc",
+      "kyselyryhma": "kona",
+      "kennotyyppi": "NMC-kenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "39,2 kWh"
+    },
+    {
+      "id": "hy-kona-64",
+      "merkki": "Hyundai",
+      "nimi": "Hyundai Kona Electric 64 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2018,
+        2019,
+        2020,
+        2021,
+        2022,
+        2023
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 98,
+      "viite_kwh": 64.0,
+      "takuu": "hyundai",
+      "alusta": "hkmc",
+      "kyselyryhma": "kona",
+      "kennotyyppi": "LG Chem, NMC-pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "64,0 kWh"
+    },
+    {
+      "id": "kia-eniro-39",
+      "merkki": "Kia",
+      "nimi": "Kia e-Niro 39,2 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2019,
+        2020,
+        2021,
+        2022
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": null,
+      "viite_kwh": 39.2,
+      "takuu": "kia",
+      "alusta": "hkmc",
+      "kyselyryhma": "kona",
+      "kennotyyppi": "NMC-kenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "39,2 kWh"
+    },
+    {
+      "id": "kia-eniro-64",
+      "merkki": "Kia",
+      "nimi": "Kia e-Niro 64 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2018,
+        2019,
+        2020,
+        2021,
+        2022
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 98,
+      "viite_kwh": 64.0,
+      "takuu": "kia",
+      "alusta": "hkmc",
+      "kyselyryhma": "kona",
+      "kennotyyppi": "SK On, NMC-pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "64,0 kWh"
+    },
+    {
+      "id": "kia-esoul-64",
+      "merkki": "Kia",
+      "nimi": "Kia e-Soul 64 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2019,
+        2020,
+        2021,
+        2022
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 98,
+      "viite_kwh": 64.0,
+      "takuu": "kia",
+      "alusta": "hkmc",
+      "kyselyryhma": "kona",
+      "kennotyyppi": "SK On, NMC-pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "64,0 kWh"
+    },
+    {
+      "id": "hy-ioniq5-58",
+      "merkki": "Hyundai",
+      "nimi": "Hyundai Ioniq 5 58 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2021,
+        2022,
+        2023
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 144,
+      "viite_kwh": 58.0,
+      "takuu": "hyundai",
+      "alusta": "hkmc",
+      "kyselyryhma": "egmp",
+      "kennotyyppi": "SK On, NMC-pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "58,0 kWh"
+    },
+    {
+      "id": "hy-ioniq5-72",
+      "merkki": "Hyundai",
+      "nimi": "Hyundai Ioniq 5 72,6 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2021,
+        2022
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 180,
+      "viite_kwh": 72.6,
+      "takuu": "hyundai",
+      "alusta": "hkmc",
+      "kyselyryhma": "egmp",
+      "kennotyyppi": "SK On, NMC-pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "72,6 kWh"
+    },
+    {
+      "id": "hy-ioniq5-77",
+      "merkki": "Hyundai",
+      "nimi": "Hyundai Ioniq 5 77,4 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2022,
+        2023,
+        2024
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 192,
+      "viite_kwh": 77.4,
+      "takuu": "hyundai",
+      "alusta": "hkmc",
+      "kyselyryhma": "egmp",
+      "kennotyyppi": "SK On, NMC-pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "77,4 kWh"
+    },
+    {
+      "id": "hy-ioniq5-84",
+      "merkki": "Hyundai",
+      "nimi": "Hyundai Ioniq 5 84 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2024,
+        2025,
+        2026
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 192,
+      "viite_kwh": 84.0,
+      "takuu": "hyundai",
+      "alusta": "hkmc",
+      "kyselyryhma": "egmp",
+      "kennotyyppi": "SK On, NMC-pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "84,0 kWh"
+    },
+    {
+      "id": "hy-ioniq6-53",
+      "merkki": "Hyundai",
+      "nimi": "Hyundai Ioniq 6 53 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2022,
+        2023,
+        2024
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 132,
+      "viite_kwh": 53.0,
+      "takuu": "hyundai",
+      "alusta": "hkmc",
+      "kyselyryhma": "egmp",
+      "kennotyyppi": "NMC-pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "53,0 kWh"
+    },
+    {
+      "id": "hy-ioniq6-77",
+      "merkki": "Hyundai",
+      "nimi": "Hyundai Ioniq 6 77,4 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2022,
+        2023,
+        2024
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 192,
+      "viite_kwh": 77.4,
+      "takuu": "hyundai",
+      "alusta": "hkmc",
+      "kyselyryhma": "egmp",
+      "kennotyyppi": "SK On, NMC-pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "77,4 kWh"
+    },
+    {
+      "id": "kia-ev6-58",
+      "merkki": "Kia",
+      "nimi": "Kia EV6 58 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2021,
+        2022,
+        2023,
+        2024
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 144,
+      "viite_kwh": 58.0,
+      "takuu": "kia",
+      "alusta": "hkmc",
+      "kyselyryhma": "egmp",
+      "kennotyyppi": "SK On, NMC-pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "58,0 kWh"
+    },
+    {
+      "id": "kia-ev6-77",
+      "merkki": "Kia",
+      "nimi": "Kia EV6 77,4 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2021,
+        2022,
+        2023,
+        2024
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 192,
+      "viite_kwh": 77.4,
+      "takuu": "kia",
+      "alusta": "hkmc",
+      "kyselyryhma": "egmp",
+      "kennotyyppi": "SK On, NMC-pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "77,4 kWh"
+    },
+    {
+      "id": "kia-ev6-84",
+      "merkki": "Kia",
+      "nimi": "Kia EV6 84 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2024,
+        2025,
+        2026
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 192,
+      "viite_kwh": 84.0,
+      "takuu": "kia",
+      "alusta": "hkmc",
+      "kyselyryhma": "egmp",
+      "kennotyyppi": "SK On, NMC-pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "84,0 kWh"
+    },
+    {
+      "id": "nis-leaf-24-ze0",
+      "merkki": "Nissan",
+      "nimi": "Nissan Leaf 24 kWh (2011–2013)",
+      "malli_koodi": "",
+      "vuodet": [
+        2011,
+        2012,
+        2013
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 96,
+      "viite_kwh": 24.0,
+      "viite_ah": 66.2,
+      "takuu": "nissan24",
+      "alusta": "leaf",
+      "kyselyryhma": "aze0",
+      "kennotyyppi": "AESC, LMO-pohjainen pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "24,0 kWh"
+    },
+    {
+      "id": "nis-leaf-24",
+      "merkki": "Nissan",
+      "nimi": "Nissan Leaf 24 kWh (2013–2017)",
+      "malli_koodi": "",
+      "vuodet": [
+        2013,
+        2014,
+        2015,
+        2016,
+        2017
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 96,
+      "viite_kwh": 24.0,
+      "viite_ah": 66.2,
+      "takuu": "nissan24",
+      "alusta": "leaf",
+      "kyselyryhma": "aze0",
+      "kennotyyppi": "AESC, LMO-pohjainen pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "24,0 kWh"
+    },
+    {
+      "id": "nis-leaf-30",
+      "merkki": "Nissan",
+      "nimi": "Nissan Leaf 30 kWh (2016–2017)",
+      "malli_koodi": "",
+      "vuodet": [
+        2016,
+        2017
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 96,
+      "viite_kwh": 30.0,
+      "viite_ah": 79.5,
+      "takuu": "nissan",
+      "alusta": "leaf",
+      "kyselyryhma": "aze0",
+      "kennotyyppi": "AESC, LMO/NMC-pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "30,0 kWh"
+    },
+    {
+      "id": "nis-leaf-40",
+      "merkki": "Nissan",
+      "nimi": "Nissan Leaf 40 kWh (2018–)",
+      "malli_koodi": "",
+      "vuodet": [
+        2018,
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 96,
+      "viite_kwh": 40.0,
+      "viite_ah": 115.0,
+      "takuu": "nissan",
+      "alusta": "leaf",
+      "kyselyryhma": "ze1",
+      "kennotyyppi": "Envision AESC, NMC-pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "40,0 kWh"
+    },
+    {
+      "id": "nis-leaf-62",
+      "merkki": "Nissan",
+      "nimi": "Nissan Leaf e+ 62 kWh (2019–)",
+      "malli_koodi": "",
+      "vuodet": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 96,
+      "viite_kwh": 62.0,
+      "viite_ah": 176.0,
+      "takuu": "nissan",
+      "alusta": "leaf",
+      "kyselyryhma": "ze1",
+      "kennotyyppi": "Envision AESC, NMC-pussikenno",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "62,0 kWh"
+    },
+    {
+      "id": "vw-meb-45",
+      "merkki": "Volkswagen",
+      "nimi": "Volkswagen ID.3 / ID.4 / ID.5 45 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 84,
+      "viite_kwh": 48.0,
+      "netto_kwh": 45,
+      "takuu": "vakio",
+      "alusta": "meb",
+      "kyselyryhma": "meb",
+      "kennotyyppi": "LG Energy Solution / CATL / SK On, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "45 kWh (brutto 48 kWh)"
+    },
+    {
+      "id": "vw-meb-52",
+      "merkki": "Volkswagen",
+      "nimi": "Volkswagen ID.3 / ID.4 / ID.5 52 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 96,
+      "viite_kwh": 55.0,
+      "netto_kwh": 52,
+      "takuu": "vakio",
+      "alusta": "meb",
+      "kyselyryhma": "meb",
+      "kennotyyppi": "LG Energy Solution / CATL / SK On, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "52 kWh (brutto 55 kWh)"
+    },
+    {
+      "id": "vw-meb-58",
+      "merkki": "Volkswagen",
+      "nimi": "Volkswagen ID.3 / ID.4 / ID.5 58 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 108,
+      "viite_kwh": 62.0,
+      "netto_kwh": 58,
+      "takuu": "vakio",
+      "alusta": "meb",
+      "kyselyryhma": "meb",
+      "kennotyyppi": "LG Energy Solution / CATL / SK On, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "58 kWh (brutto 62 kWh)"
+    },
+    {
+      "id": "vw-meb-77",
+      "merkki": "Volkswagen",
+      "nimi": "Volkswagen ID.3 / ID.4 / ID.5 77 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 96,
+      "viite_kwh": 82.0,
+      "netto_kwh": 77,
+      "takuu": "vakio",
+      "alusta": "meb",
+      "kyselyryhma": "meb",
+      "kennotyyppi": "LG Energy Solution / CATL / SK On, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "77 kWh (brutto 82 kWh)"
+    },
+    {
+      "id": "skoda-meb-52",
+      "merkki": "Škoda",
+      "nimi": "Škoda Enyaq 50 (52 kWh)",
+      "malli_koodi": "",
+      "vuodet": [
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 96,
+      "viite_kwh": 55.0,
+      "netto_kwh": 52,
+      "takuu": "vakio",
+      "alusta": "meb",
+      "kyselyryhma": "meb",
+      "kennotyyppi": "LG Energy Solution / CATL / SK On, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "52 kWh (brutto 55 kWh)"
+    },
+    {
+      "id": "skoda-meb-58",
+      "merkki": "Škoda",
+      "nimi": "Škoda Enyaq 60 (58 kWh)",
+      "malli_koodi": "",
+      "vuodet": [
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 108,
+      "viite_kwh": 62.0,
+      "netto_kwh": 58,
+      "takuu": "vakio",
+      "alusta": "meb",
+      "kyselyryhma": "meb",
+      "kennotyyppi": "LG Energy Solution / CATL / SK On, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "58 kWh (brutto 62 kWh)"
+    },
+    {
+      "id": "skoda-meb-77",
+      "merkki": "Škoda",
+      "nimi": "Škoda Enyaq 80 / 85 (77 kWh)",
+      "malli_koodi": "",
+      "vuodet": [
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 96,
+      "viite_kwh": 82.0,
+      "netto_kwh": 77,
+      "takuu": "vakio",
+      "alusta": "meb",
+      "kyselyryhma": "meb",
+      "kennotyyppi": "LG Energy Solution / CATL / SK On, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "77 kWh (brutto 82 kWh)"
+    },
+    {
+      "id": "audi-meb-52",
+      "merkki": "Audi",
+      "nimi": "Audi Q4 35 e-tron (52 kWh)",
+      "malli_koodi": "",
+      "vuodet": [
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 96,
+      "viite_kwh": 55.0,
+      "netto_kwh": 52,
+      "takuu": "vakio",
+      "alusta": "meb",
+      "kyselyryhma": "meb",
+      "kennotyyppi": "LG Energy Solution / CATL / SK On, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "52 kWh (brutto 55 kWh)"
+    },
+    {
+      "id": "audi-meb-77",
+      "merkki": "Audi",
+      "nimi": "Audi Q4 40 / 45 / 50 e-tron (77 kWh)",
+      "malli_koodi": "",
+      "vuodet": [
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 96,
+      "viite_kwh": 82.0,
+      "netto_kwh": 77,
+      "takuu": "vakio",
+      "alusta": "meb",
+      "kyselyryhma": "meb",
+      "kennotyyppi": "LG Energy Solution / CATL / SK On, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "77 kWh (brutto 82 kWh)"
+    },
+    {
+      "id": "cupra-meb-45",
+      "merkki": "Cupra",
+      "nimi": "Cupra Born 45 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 84,
+      "viite_kwh": 48.0,
+      "netto_kwh": 45,
+      "takuu": "vakio",
+      "alusta": "meb",
+      "kyselyryhma": "meb",
+      "kennotyyppi": "LG Energy Solution / CATL / SK On, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "45 kWh (brutto 48 kWh)"
+    },
+    {
+      "id": "cupra-meb-58",
+      "merkki": "Cupra",
+      "nimi": "Cupra Born 58 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 108,
+      "viite_kwh": 62.0,
+      "netto_kwh": 58,
+      "takuu": "vakio",
+      "alusta": "meb",
+      "kyselyryhma": "meb",
+      "kennotyyppi": "LG Energy Solution / CATL / SK On, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "58 kWh (brutto 62 kWh)"
+    },
+    {
+      "id": "cupra-meb-77",
+      "merkki": "Cupra",
+      "nimi": "Cupra Born 77 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 96,
+      "viite_kwh": 82.0,
+      "netto_kwh": 77,
+      "takuu": "vakio",
+      "alusta": "meb",
+      "kyselyryhma": "meb",
+      "kennotyyppi": "LG Energy Solution / CATL / SK On, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "77 kWh (brutto 82 kWh)"
     }
   ]
 }

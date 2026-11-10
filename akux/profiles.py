@@ -53,6 +53,13 @@ def identify(vin_info: dict | None = None, *, bol_kwh: float | None = None,
         by_plat = [m for m in cands if m.get("alusta", "m3") == platform]
         if by_plat:
             cands = by_plat
+    brand = (vin_info or {}).get("merkki") if (vin_info or {}).get("kelvollinen") else None
+    if brand:
+        # Valmistaja tiedetään varmasti VIN:n valmistajatunnuksesta: muiden merkkien pohjia ei koskaan valita
+        cands = [m for m in cands if m.get("merkki", "Tesla") == brand]
+        if not cands:
+            return None, [f"merkkiä {brand} ei tueta"]
+        reasons.append(f"valmistaja {brand}")
     if vin_info and vin_info.get("kelvollinen"):
         mk = vin_info.get("malli_koodi")
         by_model = [m for m in cands if mk and mk in m["malli_koodi"]]
@@ -111,6 +118,9 @@ def identify(vin_info: dict | None = None, *, bol_kwh: float | None = None,
             cands = fits + [m for m in cands if m not in fits]
             reasons.append(f"akunhallinnan täyden akun energia {nfp_kwh:.1f} kWh")
 
+    if brand and brand != "Tesla" and len({m["viite_kwh"] for m in cands}) > 1:
+        # Hyundain ja Kian VIN ei kerro akun kokoa: malli valitaan käsin, ettei väärää viitearvoa käytetä
+        return None, reasons + ["malli ja akun koko valitaan luettelosta"]
     return (cands[0] if cands else None), reasons
 
 
@@ -119,6 +129,10 @@ def connection_guide(malli_koodi: str | None, vuosimalli: int | None = None,
     """Mihin sovitin kytketään ja millainen välikaapeli tarvitaan."""
     mk = (malli_koodi or "").upper()
     y = vuosimalli or 0
+    from . import polled
+    pm = polled.module(platform)
+    if pm:
+        return dict(pm.OHJE)
     if mk in ("3", "Y"):
         if mk == "3" and y >= 2024 or mk == "Y" and y >= 2025:
             return {"liitin": "Diagnostiikkaliitin, uudistettu malli",

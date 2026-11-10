@@ -23,8 +23,50 @@ from test_testityypit import _app, _done, _phase, wait_until  # noqa: E402
 HERE = Path(__file__).resolve().parent
 
 
+def _hk(car):
+    from akux import profiles
+    m = profiles.get(ESITTELYAUTOT[car].get("malli_id"))
+    from akux import polled
+    return m if polled.for_model(m) else None
+
+
 def _sim(car, **kw):
+    m = _hk(car)
+    if m:
+        from akux import polled
+        s = polled.for_model(m).simulator(m, **{**ESITTELYAUTOT[car]["opts"], **kw})
+        s.malli_id = m["id"]
+        return s
     return BatterySimulator(**{**ESITTELYAUTOT[car]["opts"], **kw})
+
+
+def check_hk_decoding(car):
+    """Hyundai/Kia: akunhallinnan vastauksista luetut arvot vastaavat simuloidun auton todellisia arvoja."""
+    from akux.app import App
+    with _tf.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        app = App(tmp)
+        src = _sim(car, soc=0.55, accel=1)
+        src.set_mode("park")
+        app.connect("demo", sim=src)
+        assert wait_until(lambda: app.decoder.state.brick_count == src.n and
+                          len(app.decoder.state.bricks) == src.n and app.decoder.state.odometer_km, 20)
+        st = app.decoder.state
+        with app.decoder.lock:
+            soc_true = sum(src._cell_socs()) / src.n * 100
+            vs = src._volts(src.current)
+            w = {"jännite (V)": abs(st.pack_v - src._pack_voltage(src.current)),
+                 "virta (A)": abs(st.pack_i - src.current),
+                 "varaustila (%)": abs(st.soc_avg - soc_true),
+                 "kunto (%)": abs(st.nfp_kwh / st.bol_kwh * 100 - src.nfp / src.bol * 100),
+                 "latauslaskuri (kWh)": abs(st.total_charge_kwh - src.total_chg) if st.total_charge_kwh is not None else 0.0,
+                 "lämpötila (°C)": abs((st.temp_max + st.temp_min) / 2 - src.temp),
+                 "kennojännite (V)": max(abs(st.bricks[k + 1] - vs[k]) for k in range(src.n))}
+        app.disconnect()
+    lim = {"jännite (V)": 1.5, "virta (A)": 1.0, "varaustila (%)": 0.6, "kunto (%)": 0.06,
+           "latauslaskuri (kWh)": 0.06, "kennojännite (V)": 0.03, "lämpötila (°C)": 1.0}
+    for k, v in w.items():
+        assert v <= lim[k], f"{car}: {k} poikkeaa {v}"
+    return w
 
 
 # ----------------------------------------------------------------------
@@ -198,8 +240,12 @@ def run_types(car, tmp):
     _pdf_check(app, tid, ["Kapasiteettimittaus", src.vin])
     app.disconnect()
 
-    # Ajotesti
-    src = _sim(car, soc=0.95, accel=500)
+    # Ajotesti. Simuloitu aika kulkee nopeutettuna. Jos autossa ei ole elinkaaren energialaskureita (Nissan
+    # Leaf), energia lasketaan jännitteestä ja virrasta; silloin nopeutus pidetään pienenä, jotta näytteitä
+    # tulee tiheästi myös kuormitetulla testikoneella (oikeassa autossa useita kertoja sekunnissa).
+    from akux import polled
+    _pm = polled.for_model(_hk(car))
+    src = _sim(car, soc=0.95, accel=60 if _pm and not _pm.ELINKAARILASKURIT else 500)
     tid = _start(app, src, "ajotesti")
     _phase(app, "ajo", 90)
     src.set_mode("drive", 20.0)
@@ -250,7 +296,9 @@ def run_types(car, tmp):
     _pdf_check(app, tid, ["Pikalataustesti", "Latausteho"])
     app.disconnect()
 
-    check_self_discharge(app, car)
+    from akux import polled
+    if not _hk(car) or polled.for_model(_hk(car)).ITSEPURKAUS_OK:
+        check_self_discharge(app, car)
 
     # Täysi akkutesti
     src = _sim(car, soc=0.95, accel=500)
@@ -276,12 +324,27 @@ def run_types(car, tmp):
     app.disconnect()
 
 
+# Jatkuvassa integraatiossa koko testisarja ajetaan näillä autoilla (yksi kustakin alustasta ja kemiasta);
+# muilla autoilla tarkistetaan datan luku. Kaikki autot: python tests/test_autot_ja_kemiat.py --kaikki
+CI_AUTOT = ["m3-lr", "m3-lfp", "my-lr", "ms-85", "kona-64", "leaf-40", "id3-58"]
+
 if __name__ == "__main__":
-    cars = sys.argv[1:] or list(ESITTELYAUTOT)
+    args = sys.argv[1:]
+    if args == ["--ci"]:
+        for car in ESITTELYAUTOT:
+            if car not in CI_AUTOT and _hk(car):
+                w = check_hk_decoding(car)
+                print(f"OK datan luku {car}: " + ", ".join(f"{k} ±{v:.4g}" for k, v in w.items()))
+        args = CI_AUTOT
+    cars = list(ESITTELYAUTOT) if not args or args == ["--kaikki"] else args
     for car in cars:
         t0 = time.time()
         variants = [{}]
-        if ESITTELYAUTOT[car]["opts"].get("platform") == "sx":
+        if _hk(car):
+            w = check_hk_decoding(car)
+            print(f"OK datan luku {car}: " + ", ".join(f"{k} ±{v:.4g}" for k, v in w.items()))
+            variants = []
+        elif ESITTELYAUTOT[car]["opts"].get("platform") == "sx":
             variants += [{"sx_counter_swap": True}, {"sx_current_sign": -1}, {"energy_format": "sx11"},
                          {"sx_counter_swap": True, "sx_current_sign": -1}]
         elif car == "m3-lr":

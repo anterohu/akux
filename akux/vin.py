@@ -81,6 +81,19 @@ def check_digit_ok(vin: str) -> bool | None:
     return vin[8] == expected
 
 
+# Muut tuetut merkit: valmistajatunnus (WMI) -> (merkki, valmistusmaa)
+MUUT_VALMISTAJAT = {
+    "KMH": ("Hyundai", "Etelä-Korea"), "TMA": ("Hyundai", "Tšekki"),
+    "KNA": ("Kia", "Etelä-Korea"), "KNC": ("Kia", "Etelä-Korea"), "KND": ("Kia", "Etelä-Korea"),
+    "KNE": ("Kia", "Etelä-Korea"), "U5Y": ("Kia", "Slovakia"), "U6Y": ("Kia", "Slovakia"),
+    "SJN": ("Nissan", "Iso-Britannia"), "JN1": ("Nissan", "Japani"), "1N4": ("Nissan", "Yhdysvallat"),
+    "WVW": ("Volkswagen", "Saksa"), "WVG": ("Volkswagen", "Saksa"), "1V2": ("Volkswagen", "Yhdysvallat"),
+    "TMB": ("Škoda", "Tšekki"), "WAU": ("Audi", "Saksa"), "VSS": ("Cupra", "Espanja"),
+}
+# Eurooppalaisissa Nissanin valmistenumeroissa 10. merkki ei ole vuosimalli
+VUOSI_EI_VIN = {"SJN"}
+
+
 def decode(vin: str) -> dict:
     vin = normalize(vin)
     out = {"vin": vin, "kelvollinen": False, "virheet": []}
@@ -92,8 +105,14 @@ def decode(vin: str) -> dict:
         return out
     wmi = vin[:3]
     valm = VALMISTAJAT.get(wmi)
+    if not valm and wmi in MUUT_VALMISTAJAT:
+        merkki, maa = MUUT_VALMISTAJAT[wmi]
+        out.update(kelvollinen=True, valmistaja=merkki, merkki=merkki, malli=None, malli_koodi=None,
+                   akkutyyppi=None, akku_koodi=None, voimalinja=None, veto=None, vuosimalli=None if wmi in VUOSI_EI_VIN else VUODET.get(vin[9]),
+                   tehdas=maa, sarjanumero=vin[11:], tarkistusmerkki=check_digit_ok(vin))
+        return out
     if not valm:
-        out["virheet"].append(f"Valmistajatunnus {wmi} ei ole Teslan tunnus.")
+        out["virheet"].append(f"Valmistajatunnusta {wmi} ei tunneta. AKVERI tukee Teslan, Hyundain, Kian, Nissanin ja Volkswagen-konsernin MEB-alustan sähköautoja.")
         return out
     out["kelvollinen"] = True
     out["valmistaja"] = valm[0]

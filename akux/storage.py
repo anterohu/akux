@@ -76,6 +76,7 @@ OLETUSASETUKSET = {
     "mittaaja": "",
     "logo": "",
     "portti": "",
+    "yhteys_malli": "",
     "baud": 0,
     "lepo_alku_min": 30,
     "lepo_loppu_min": 30,

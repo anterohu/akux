@@ -121,18 +121,24 @@ def spread_by_soc(samples: list[dict], chem: str | None) -> dict | None:
     return {"sarjat": out, "jyrkat": jyrkka, "alueet": alueet}
 
 
-def classify_cells(cs: dict | None, chem: str | None) -> None:
-    """Luokittelee kennoryhmien jännite-eron ja poikkeavat ryhmät akkukemian ja varaustilan mukaan."""
+def classify_cells(cs: dict | None, chem: str | None, res_mv: float | None = None) -> None:
+    """Luokittelee kennoryhmien jännite-eron ja poikkeavat ryhmät akkukemian ja varaustilan mukaan.
+
+    res_mv on akunhallinnan ilmoittaman kennojännitteen tarkkuus. Karkealla tarkkuudella (Hyundai, Kia:
+    20 mV) yhden portaan ero voi syntyä pyöristyksestä, joten luokitus tehdään yhden portaan verran pienemmästä
+    erosta, eikä yhden portaan poikkeamaa merkitä poikkeavaksi."""
     if not cs:
         return
     alue = ero_alue(cs.get("soc"), chem)
     rajat = ero_rajat(cs.get("soc"), chem)
-    cs["luokka"] = delta_class(cs["ero_mv"], cs.get("soc"), chem)
+    cs["luokka"] = delta_class(max(0.0, cs["ero_mv"] - (res_mv or 0.0)), cs.get("soc"), chem)
     cs["alue"] = alue
     cs["rajat_mv"] = list(rajat)
+    if res_mv:
+        cs["resoluutio_mv"] = res_mv
     # Poikkeavaksi merkitään ryhmä, joka eroaa mediaanista yli puolet hyvän rajasta (15 tai 25 mV)
     # tai yli nelinkertaisen tavanomaisen hajonnan verran.
-    cs["poikkeama_raja_mv"] = rajat[1] / 2
+    cs["poikkeama_raja_mv"] = max(rajat[1] / 2, 1.5 * (res_mv or 0.0))
     cs["selite"] = ALUE_SELITE.get(alue)
     vals = [(k + 1, v) for k, v in enumerate(cs.get("jannitteet") or []) if v]
     if len(vals) >= 2:
@@ -220,8 +226,42 @@ def reference_capacity(vehicle: dict, bms_bol: float | None, model: dict | None)
     return None, "Ei tiedossa"
 
 
+MERKKI_GEN = {"Tesla": "Teslan", "Hyundai": "Hyundain", "Kia": "Kian", "Nissan": "Nissanin",
+              "Volkswagen": "Volkswagenin", "Škoda": "Škodan", "Audi": "Audin", "Cupra": "Cupran"}
+
+
+def _resolution(platform):
+    """Kennojännitteen tarkkuus akunhallinnan tiedoissa (mV), jos se on karkeampi kuin Teslan."""
+    from . import polled
+    pm = polled.module(platform)
+    return getattr(pm, "RESOLUUTIO_MV", None) if pm else None
+
+
+def _brand_texts(obj, gen: str):
+    """Korvaa Teslan nimen tulosten teksteissä auton merkillä (genetiivi)."""
+    if isinstance(obj, str):
+        return obj.replace("Teslan ", f"{gen} ")
+    if isinstance(obj, list):
+        return [_brand_texts(x, gen) for x in obj]
+    if isinstance(obj, dict):
+        return {k: (v if k == "meta" else _brand_texts(v, gen)) for k, v in obj.items()}
+    return obj
+
+
 def _platform_notes(model, platform, ref_src, last) -> list[str]:
     out = []
+    from . import polled
+    pm = polled.module(platform)
+    if pm:
+        gen = MERKKI_GEN.get((model or {}).get("merkki"), "Auton")
+        if getattr(pm, "SOH_HUOM", None):
+            out.append(pm.SOH_HUOM.format(gen=gen))
+        if pm.RESOLUUTIO_MV and pm.RESOLUUTIO_MV > 1:
+            out.append(f"Akunhallinta ilmoittaa kennojännitteet {pm.RESOLUUTIO_MV:.0f} mV:n tarkkuudella, joten "
+                       "kennojen jännite-ero on arvioitu tämä tarkkuus huomioiden.")
+        if (model or {}).get("kyselyt_varmistettu") is False:
+            out.append("Tämän mallin akkutietojen kyselyt on varmistettu vain lähimmältä sisarmallilta. "
+                       "Tulos on kokeellinen.")
     if ref_src.startswith("Mallitaulukko") and (platform == "sx" or (model or {}).get("likiarvo")):
         out.append("Tämän mallin akunhallinta ei ilmoita akun alkuperäistä energiaa. Kunto on laskettu mallitaulukon "
                    "likiarvosta. Tarkempi tulos saadaan, kun auton tietoihin syötetään akun alkuperäinen kapasiteetti.")
@@ -295,6 +335,9 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
     brick_count = last.get("brick_count")
     model = profiles.get((vehicle or {}).get("malli_id"))
     reasons = ["valittu käsin"] if model else []
+    if not model and last.get("malli_id"):
+        model = profiles.get(last["malli_id"])
+        reasons = ["valittu yhdistettäessä"] if model else []
     platform = last.get("platform")
     nfp_now = last.get("nfp_kwh")
     if model and platform and model.get("alusta", "m3") != platform:
@@ -331,7 +374,9 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
             "alusta": platform,
             "alusta_nimi": last.get("platform_name"),
             "akun_matkamittari_km": last.get("battery_odometer_km"),
-            "kokeellinen": bool((model or {}).get("kokeellinen")),
+            "kokeellinen": bool((model or {}).get("kokeellinen")) or (model or {}).get("kyselyt_varmistettu") is False,
+            "merkki": (model or {}).get("merkki") or ("Tesla" if platform in (None, "m3", "sx") else None),
+            "kenno_resoluutio_mv": _resolution(platform),
         },
         "viite": {"kwh": ref_kwh, "lahde": ref_src},
         "huomiot": list(meta.get("huomiot", [])) + _platform_notes(model, platform, ref_src, last),
@@ -446,6 +491,9 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
     ext.assessments(res)
     res["kapasiteetit"] = _gross_net(res, ref_kwh, buffer)
     res["tarkiste"] = test.get("tarkiste")
+    brand = res["ajoneuvo"].get("merkki") or "Tesla"
+    if brand != "Tesla":
+        res = _brand_texts(res, MERKKI_GEN.get(brand, f"{brand}in"))
     return res
 
 
@@ -718,8 +766,9 @@ def _analyze_capacity(res, snaps, samples, meta, chem_key, ref_kwh, nfp, buffer)
 # ----------------------------------------------------------------------
 def _summarize(res):
     chem = res["ajoneuvo"].get("kemia")
-    classify_cells(res.get("kennot"), chem)
-    classify_cells(res.get("kennot_matala"), chem)
+    rmv = res["ajoneuvo"].get("kenno_resoluutio_mv")
+    classify_cells(res.get("kennot"), chem, rmv)
+    classify_cells(res.get("kennot_matala"), chem, rmv)
     ar = res["arviot"]
     cap = res.get("kapasiteetti") or {}
     bms = res.get("bms") or {}
@@ -743,7 +792,9 @@ def _summarize(res):
         summary["kunto_luokka"] = luokka
         ar.append({"nimi": "Akun kunto (SOH)", "arvo": f"{fmt(soh)} %", "luokka": luokka,
                    "kuvaus": f"Nykyinen kapasiteetti suhteessa alkuperäiseen ({fmt(ref)} kWh)."})
-        exp = expected_loss_pct(km, ((res["ajoneuvo"].get("vin_tiedot") or {}).get("malli_koodi")))
+        # Vertailukäyrä perustuu Teslan julkaisemaan aineistoon, joten sitä käytetään vain Teslalle
+        exp = expected_loss_pct(km, ((res["ajoneuvo"].get("vin_tiedot") or {}).get("malli_koodi"))) \
+            if res["ajoneuvo"].get("merkki", "Tesla") == "Tesla" else None
         if exp is not None and km and km > 5000:
             actual_loss = 100 - soh
             diff = actual_loss - exp

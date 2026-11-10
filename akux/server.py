@@ -205,6 +205,8 @@ class Api:
         """Alkuperäinen kapasiteetti reaaliaikaisen kunnon laskemiseen. Sama järjestys kuin raportissa:
         akunhallinta, aiempi mittaus tai ilmoitettu arvo, mallitaulukko."""
         if snap.get("bol_kwh"):
+            if snap.get("platform") not in (None, "m3", "sx"):
+                return snap["bol_kwh"], "mallin alkuperäinen kapasiteetti"
             return snap["bol_kwh"], "Teslan akunhallinta"
         key = (snap.get("vin"), (vehicle or {}).get("malli_id"), snap.get("brick_count"), snap.get("platform"))
         cache = getattr(self, "_ref_cache", None)
@@ -219,7 +221,7 @@ class Api:
                                              platform=snap.get("platform"), nfp_kwh=snap.get("nfp_kwh"))
         kwh, src = reference_capacity(vehicle or {}, None, model)
         label = ("mallin alkuperäinen kapasiteetti (likiarvo)" if src.startswith("Mallitaulukko") else
-                 "ilmoitettu" if src.startswith("Käyttäjän") else "Teslan akunhallinta, aiempi mittaus")
+                 "ilmoitettu" if src.startswith("Käyttäjän") else "akunhallinta, aiempi mittaus")
         out = (kwh, label if kwh else None)
         self._ref_cache = (key, out)
         return out
@@ -302,8 +304,8 @@ class Api:
                     import serial  # noqa: F401
                 except ImportError:
                     raise ApiError("Sovittimen yhteysosa puuttuu ohjelmasta. Asenna ohjelma uudelleen.")
-            self.app.connect("obdlink", port=port, baud=baud)
-            self.app.storage.save_settings({"portti": port})
+            self.app.connect("obdlink", port=port, baud=baud, malli_id=body.get("malli_id") or None)
+            self.app.storage.save_settings({"portti": port, "yhteys_malli": body.get("malli_id") or ""})
         return {"ok": True}
 
     def katkaise(self, q, body):
@@ -340,6 +342,9 @@ class Api:
                 raise ApiError(" ".join(info["virheet"]))
         if "vuosimalli" in body:
             data["vuosimalli"] = int(body["vuosimalli"]) if body["vuosimalli"] else None
+        dec = self.app.decoder
+        if not data.get("malli_id") and data.get("vin") and data["vin"] == dec.state.vin and dec.hk.get("malli_id"):
+            data["malli_id"] = dec.hk["malli_id"]     # kyselyihin vastaava auto: malli valittiin yhdistettäessä
         if not data.get("malli_id") and data.get("vin"):
             _vi = vinmod.decode(data["vin"])
             m, _ = profiles.identify(_vi, platform=_vi.get("alusta_arvio"))
@@ -354,7 +359,7 @@ class Api:
             raise ApiError("Ajoneuvo tällä valmistenumerolla on jo tallennettu.")
         if not data.get("nimi"):
             m = profiles.get(data.get("malli_id"))
-            data["nimi"] = (body.get("rekisteri") or "") or (m["nimi"] if m else "Tesla")
+            data["nimi"] = (body.get("rekisteri") or "") or (m["nimi"] if m else (vinmod.decode(data["vin"]).get("merkki") if data.get("vin") else None) or "Tesla")
         opitut = {}
         if body.get("viite_kayttaja"):
             opitut["viite_kayttaja"] = _num(body["viite_kayttaja"])
@@ -392,8 +397,10 @@ class Api:
     def vin(self, q, body):
         info = vinmod.decode(body.get("vin", ""))
         model, reasons = profiles.identify(info, platform=info.get("alusta_arvio")) if info["kelvollinen"] else (None, [])
-        guide = profiles.connection_guide(info.get("malli_koodi"), info.get("vuosimalli"),
-                                          (model or {}).get("alusta")) if info["kelvollinen"] else None
+        from . import polled
+        _pb = polled.for_brand(info.get("merkki"))
+        plat = (model or {}).get("alusta") or (_pb.PLATFORM if _pb else None)
+        guide = profiles.connection_guide(info.get("malli_koodi"), info.get("vuosimalli"), plat) if info["kelvollinen"] else None
         return {"tiedot": info, "malli": model, "perusteet": reasons, "liitanta": guide}
 
     def _guide_text(self) -> str:

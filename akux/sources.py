@@ -303,3 +303,146 @@ class ObdLinkSource(Source):
         except Exception:  # noqa: BLE001
             pass
         self.status = "Ei yhteyttä"
+
+
+# ----------------------------------------------------------------------
+_ISOTP_LINE = re.compile(r"^([0-9A-F]):")
+
+
+def parse_isotp(text: str) -> bytes | None:
+    """ELM/STN-sovittimen vastaus (otsikot pois, automaattinen muotoilu päällä) tavuiksi.
+
+    Monikehyksinen vastaus tulee muodossa "03E" + "0:..." + "1:...", yksikehyksinen yhtenä rivinä.
+    """
+    total = None
+    parts = []
+    for raw in text.replace("\n", "\r").split("\r"):
+        line = raw.strip().replace(" ", "").upper()
+        if not line or line.startswith("SEARCHING") or line == "OK":
+            continue
+        if any(x in line for x in ("NODATA", "ERROR", "STOPPED", "UNABLE", "?")):
+            return None
+        m = _ISOTP_LINE.match(line)
+        if m:
+            parts.append(line[2:])
+        elif len(line) == 3 and total is None and not parts and re.fullmatch(r"[0-9A-F]{3}", line):
+            total = int(line, 16)
+        elif re.fullmatch(r"[0-9A-F]+", line):
+            parts.append(line)
+    hexs = "".join(parts)
+    if not hexs or len(hexs) % 2:
+        return None
+    data = bytes.fromhex(hexs)
+    return data[:total] if total else data
+
+
+class PolledSource(ObdLinkSource):
+    """Kyselyihin perustuva lukutapa (Hyundai, Kia): sovitin kysyy tiedot akunhallinnalta vuorotellen.
+
+    Vastaukset välitetään tulkitsijalle virtuaalitunnisteella. Kyselyt ovat lukukyselyitä (palvelut 21, 22 ja
+    OBD-standardin 09), jotka eivät muuta auton asetuksia.
+    """
+    name = "OBDLink"
+    scan_supported = False
+
+    def __init__(self, port: str, baud: int | None = None, *, loop: list, rare: list, rare_every: float = 60.0,
+                 rx: dict | None = None, protocol: str = "6"):
+        super().__init__(port, baud)
+        self.loop, self.rare, self.rare_every = loop, rare, rare_every
+        self.rx = rx or {}                  # kyselyosoite -> vastausosoite (oletus: osoite + 8, None: mikä tahansa)
+        self.protocol = protocol            # 6 = 11-bittiset tunnisteet, 7 = 29-bittiset (MEB)
+        self.max_gap = 8.0
+        self._hdr = None
+
+    def _init_adapter(self):
+        self._cmd("ATZ", 3.0)
+        for c in ("ATE0", "ATL0", "ATS0", "ATH0", "ATD0", f"ATSP{self.protocol}", "ATCAF1", "ATAL", "ATST32"):
+            self._cmd(c)
+        ident = self._cmd("STI")
+        self.stn = "STN" in ident or "OBDLink" in ident
+        if not self.stn:
+            raise UnsupportedAdapter(
+                f"Sovitin ({self._cmd('ATI') or 'tuntematon'}) ei ole OBDLink. AKVERI toimii OBDLink-sovittimilla: "
+                "EX ja SX (USB) sekä MX+ ja LX (Bluetooth).")
+        self.info = {"sovitin": ident or self._cmd("ATI"), "portti": self.port, "nopeus": self.baud,
+                     "lukutapa": "kyselyt"}
+        self._hdr = None
+
+    def request(self, header: str, cmd: str) -> bytes | None:
+        if header != self._hdr:
+            self._cmd(f"ATSH{header}")
+            if header == "7DF" or (header in self.rx and self.rx[header] is None):
+                self._cmd("ATAR")           # yleiskysely: vastaus mistä tahansa ohjainlaitteesta
+                self._cmd("ATFCSM0")        # sovittimen oma vuonohjaus
+            else:
+                rx = self.rx.get(header) or f"{int(header, 16) + 8:03X}"
+                self._cmd(f"ATCRA{rx}")
+                # Monikehyksisen vastauksen vuonohjaus lähetetään samalle ohjainlaitteelle (Nissan: 79B -> 7BB)
+                self._cmd(f"ATFCSH{header}")
+                self._cmd("ATFCSD300000")
+                self._cmd("ATFCSM1")
+            self._hdr = header
+        data = parse_isotp(self._cmd(cmd, 2.0))
+        if not data:
+            return None
+        sid = int(cmd[:2], 16)
+        if data[0] != sid + 0x40:
+            return None
+        echo = 2 if sid in (0x21, 0x09) else 3
+        if bytes.fromhex(cmd[2:]) != data[1:1 + len(cmd[2:]) // 2]:
+            return None
+        return data[echo:]
+
+    def _run(self):
+        while not self._stop.is_set():
+            try:
+                self.status = "Yhdistetään sovittimeen"
+                self._open()
+                self._init_adapter()
+                self.error = None
+                last_ok = time.time()
+                next_rare = 0.0
+                while not self._stop.is_set():
+                    jobs = list(self.loop)
+                    if time.time() >= next_rare:
+                        jobs = list(self.rare) + jobs
+                        next_rare = time.time() + self.rare_every
+                    for header, cmd, cid in jobs:
+                        if self._stop.is_set():
+                            break
+                        data = self.request(header, cmd)
+                        now = time.time()
+                        if data is not None and self._cb:
+                            last_ok = now
+                            self.status = "Luetaan akunhallintaa"
+                            self._cb(now, cid, data)
+                    if time.time() - last_ok > 5:
+                        self.status = "Auto ei vastaa – onko auto päällä tai latauksessa?"
+                        self._stop.wait(2)
+            except UnsupportedAdapter as e:
+                self.error = str(e)
+                self.status = "Sovitinta ei tueta"
+                try:
+                    self.ser.close()
+                except Exception:  # noqa: BLE001
+                    pass
+                self._stop.wait(3600)
+            except AdapterUnavailable as e:
+                self.error = str(e)
+                self.status = "Odotetaan sovitinta"
+                self._stop.wait(2)
+            except Exception as e:  # noqa: BLE001
+                self.error = str(e)
+                self.status = "Yhteys katkesi, yritetään uudelleen"
+                try:
+                    if self.ser:
+                        self.ser.close()
+                except Exception:  # noqa: BLE001
+                    pass
+                self._stop.wait(3)
+        try:
+            if self.ser:
+                self.ser.close()
+        except Exception:  # noqa: BLE001
+            pass
+        self.status = "Ei yhteyttä"

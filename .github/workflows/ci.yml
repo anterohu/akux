@@ -36,6 +36,8 @@ jobs:
         run: python -u tests/test_reunatapaukset.py
       - name: Sovitin
         run: python tests/test_obdlink.py
+      - name: Hyundain ja Kian kyselylukija
+        run: python tests/test_kyselylukija.py
       - name: Ylläpito
         run: python tests/test_yllapito.py
       - name: Android-silta
@@ -58,7 +60,7 @@ jobs:
       - name: Kaikki testityypit, tauko ja jatko
         run: python tests/test_testityypit.py
       - name: Datan luku ja tarkkuus kaikilla autoilla ja kemioilla
-        run: python tests/test_autot_ja_kemiat.py
+        run: python tests/test_autot_ja_kemiat.py --ci
 
   windows:
     name: Windows-sovellus

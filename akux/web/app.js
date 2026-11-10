@@ -16,6 +16,10 @@ const MALLIRYHMAT = [
   ["Model S ja Model X 2021–", m => m.alusta !== "sx" && /[SX]/.test(m.malli_koodi)],
   ["Model S 2012–2021 ja Model X 2015–2021", m => m.alusta === "sx"],
   ["Cybertruck", m => m.malli_koodi === "C"],
+  ["Hyundai", m => m.merkki === "Hyundai"],
+  ["Kia", m => m.merkki === "Kia"],
+  ["Nissan", m => m.merkki === "Nissan"],
+  ["Volkswagen-konserni (MEB)", m => m.alusta === "meb"],
 ];
 const cellsTxt = c => (Array.isArray(c) ? c.join(" tai ") : (c || ""));
 const guideHtml = (g, card = false) => `${card ? "<h2>Kytkentä autoon</h2>" : `<h3 style="margin:14px 0 6px">Kytkentä autoon</h3>`}<div class="small"><b>${esc(g.liitin)}.</b> ${esc(g.ohje)}</div>${g.varmistettu ? "" : `<div class="small muted" style="margin-top:6px">Tätä kytkentää ei ole vielä varmistettu AKVERIlla. Tarkista väylä ensimmäisellä kytkentäkerralla Yleiskuvan kohdasta Kartoita väylä.</div>`}`;
@@ -188,6 +192,14 @@ views.yleiskuva = {
     if (!y.kaynnissa) {
       let ports = { portit: [], pyserial: true };
       try { ports = await api("/api/portit"); } catch (e) { /* */ }
+      let hkOpts = "";
+      try {
+        const { mallit } = await api("/api/mallit");
+        const hk = mallit.filter(m => m.merkki && m.merkki !== "Tesla");
+        const brands = [...new Set(hk.map(m => m.merkki))];
+        hkOpts = brands.map(b => `<optgroup label="${esc(b)}">${hk.filter(m => m.merkki === b).map(m =>
+          `<option value="${esc(m.id)}">${esc(m.nimi)}${m.kyselyt_varmistettu === false ? " (kokeellinen)" : ""}</option>`).join("")}</optgroup>`).join("");
+      } catch (e) { /* */ }
       const opts = ports.portit.map(p => `<option value="${esc(p.laite)}">${esc(p.laite)} – ${esc(p.kuvaus)}${p.todennakoinen ? " (OBDLink)" : ""}</option>`).join("");
       c.innerHTML = `
         <h2>Yhdistä</h2>
@@ -195,6 +207,8 @@ views.yleiskuva = {
         ${ports.pyserial && !ports.portit.length ? `<div class="notice warn"><b>Sovitinta ei löytynyt.</b> Tarkista, että OBDLink on kytketty USB-kaapelilla. Bluetooth-mallit (MX+, LX) näkyvät listassa, kun sovitin on ensin paritettu ${ANDROID ? "puhelimen" : "Windowsin"} Bluetooth-asetuksista. ${ports.windows ? "Windows asentaa sovittimen ajurin yleensä itse ensimmäisellä kytkentäkerralla, kun tietokone on verkossa. Odota hetki ja paina Päivitä portit. Jos sovitin ei vieläkään näy, asenna FTDI:n VCP-ajuri osoitteesta <b>ftdichip.com/drivers/vcp-drivers</b>." : ""}</div>` : ""}
         <div class="grid g2">
           <div>
+            <label class="f"><span>Auto</span>
+              <select id="connModel"><option value="">Tesla (tunnistetaan automaattisesti)</option>${hkOpts}</select></label>
             <label class="f"><span>${ANDROID ? "OBDLink-sovitin" : "OBDLink-sovittimen portti"}</span>
               <select id="port">${opts || `<option value="">Sovitinta ei löytynyt</option>`}</select></label>
             <div class="row"><button class="btn primary" id="bConnect" ${opts ? "" : "disabled"}>Yhdistä autoon</button>
@@ -204,7 +218,10 @@ views.yleiskuva = {
           <div>
             <label class="f"><span>Esittelytila ilman autoa</span></label>
             <select id="demoCar"><option value="m3-lr">Model 3 Long Range 2020 (NCA)</option><option value="m3-lfp">Model 3 SR+ 2020, LFP-akku</option>
-              <option value="my-lr">Model Y Long Range 2022 (NMC)</option><option value="ms-85">Model S 85 2015</option></select>
+              <option value="my-lr">Model Y Long Range 2022 (NMC)</option><option value="ms-85">Model S 85 2015</option>
+              <option value="kona-64">Hyundai Kona Electric 64 kWh</option><option value="ioniq-28">Hyundai Ioniq Electric 28 kWh</option>
+              <option value="ev6-77">Kia EV6 77,4 kWh</option><option value="leaf-40">Nissan Leaf 40 kWh</option>
+              <option value="leaf-24">Nissan Leaf 24 kWh</option><option value="id3-58">Volkswagen ID.3 58 kWh</option></select>
             <p class="small muted" style="margin-top:8px">Esittelytilassa voit kokeilla kaikkia toimintoja ja nähdä esimerkkiraportin ilman autoa. Aika kulkee nopeutettuna.</p>
             <div class="row"><button class="btn" id="bDemo">Käynnistä esittelytila</button>
               <button class="btn" id="bEx">Esimerkkiraportit</button></div>
@@ -212,10 +229,14 @@ views.yleiskuva = {
         </div>`;
       const sel = $("#port");
       if (S && sel && ports.portit.length) {
-        api("/api/asetukset").then(s => { if (s.portti && [...sel.options].some(o => o.value === s.portti)) sel.value = s.portti; });
+        api("/api/asetukset").then(s => {
+          if (s.portti && [...sel.options].some(o => o.value === s.portti)) sel.value = s.portti;
+          const cm = $("#connModel");
+          if (cm && s.yhteys_malli && [...cm.options].some(o => o.value === s.yhteys_malli)) cm.value = s.yhteys_malli;
+        });
       }
       $("#bRefresh").onclick = () => { this.connRendered = null; this.renderConnCard(); };
-      $("#bConnect").onclick = () => act(() => api("/api/yhdista", { method: "POST", body: { tyyppi: "obdlink", portti: $("#port").value } }), "Yhdistetään…").then(poll);
+      $("#bConnect").onclick = () => act(() => api("/api/yhdista", { method: "POST", body: { tyyppi: "obdlink", portti: $("#port").value, malli_id: $("#connModel").value } }), "Yhdistetään…").then(poll);
       $("#bEx").onclick = () => act(() => api("/api/esimerkit", { method: "POST", body: {} }), "Esimerkkiautot ovat käytettävissä").then(() => (location.hash = "#/mittaukset"));
       $("#bDemo").onclick = () => act(() => api("/api/yhdista", { method: "POST", body: { tyyppi: "demo", soc: 12, nopeutus: 60, auto: $("#demoCar").value } }), "Esittelytila käynnistetty").then(poll);
     } else {
@@ -277,7 +298,7 @@ views.yleiskuva = {
       stat("Akun jännite", L.pack_v != null ? n(L.pack_v) : "–", "V", L.pack_i != null ? `Virta ${n(L.pack_i)} A` : ""),
       stat("Teho", L.power_kw != null ? n(Math.abs(L.power_kw)) : "–", "kW", L.power_kw == null ? "" : (L.power_kw < -0.3 ? "Lataus" : (L.power_kw > 0.3 ? "Purku" : "Levossa"))),
       stat("Akun lämpötila", L.temp_min != null ? `${n(L.temp_min)}–${n(L.temp_max)}` : "–", "°C", ""),
-      stat("Täyden akun energia", L.nfp_kwh != null ? n(L.nfp_kwh) : "–", "kWh", "Teslan akunhallinta"),
+      stat("Täyden akun energia", L.nfp_kwh != null ? n(L.nfp_kwh) : "–", "kWh", L.kyselyalusta ? "Akunhallinnan kuntoarviosta" : "Teslan akunhallinta"),
       stat("Akun kunto", soh != null ? n(soh) : "–", "%", L.viite_kwh ? `Uutena ${n(L.viite_kwh)} kWh, ${esc(L.viite_lahde || "")}` : "Alkuperäistä kapasiteettia ei tiedetä"),
       stat("Kennoryhmien ero", L.brick_delta_mv != null ? n(L.brick_delta_mv, 0) : "–", "mV", L.bricks_seen ? `${L.bricks_seen}/${L.brick_count || "–"} ryhmää luettu` : ""),
       stat("Mittarilukema", L.odometer_km != null ? n(L.odometer_km, 0) : "–", "km", L.vin || ""),
@@ -459,7 +480,7 @@ views.mittaus = {
       </div>
       <div class="card">
         <h2>2. Valitse mittaus</h2>
-        ${TESTIRYHMAT(s).map(([g, items]) => `<h3 class="grp">${g}</h3><div class="choice">${items.map(([k, txt, d]) =>
+        ${TESTIRYHMAT(s).map(([g, items]) => [g, items.filter(([k]) => !(k === "itsepurkaus" && S.live && S.live.itsepurkaus_ok === false))]).map(([g, items]) => `<h3 class="grp">${g}</h3><div class="choice">${items.map(([k, txt, d]) =>
           `<button data-t="${k}"><div class="ttl">${tyyppi(k)}</div><div class="small muted">${esc(txt)}</div><div class="dur">${esc(d)}</div></button>`).join("")}</div>`).join("")}
       </div>
       <div class="card">
@@ -547,7 +568,13 @@ views.mittaus = {
     $("#mSub").textContent = tyyppi(m.tyyppi) + ` · kesto ${dur(m.kesto_s)}` + (m.osat > 1 ? ` · osa ${m.osat}` : "");
     const idx = m.vaiheet.findIndex(v => v.id === m.vaihe);
     $("#aSteps").innerHTML = m.vaiheet.map((v, i) => `<div class="s ${i < idx ? "done" : (i === idx ? "now" : "")}">${i + 1}. ${esc(v.nimi)}</div>`).join("");
-    const [ttl, txt] = PHASE_TEXT[m.vaihe] || ["", ""];
+    let [ttl, txt] = PHASE_TEXT[m.vaihe] || ["", ""];
+    if (S.live && S.live.kyselyalusta) {
+      // Muut merkit: akunhallinta vastaa vain, kun auto on päällä tai latautuu
+      txt = txt.replace(/,? ?esimerkiksi ilmastointi päällä tai Leiriytymistila käytössä,?/, "").replace(" Tesla-sovelluksessa tai auton näytöllä", " auton näytöllä tai sovelluksessa");
+      if (/^(lepo_|kuorma_lepo|itse_loppu|keruu)/.test(m.vaihe))
+        txt += " Pidä auto käynnistettynä (READY tai virta päällä) tämän vaiheen ajan; muuten akunhallinta ei vastaa kyselyihin. Ilmastointi kannattaa sammuttaa, jotta akun virta pysyy pienenä.";
+    }
     $("#aTitle").textContent = ttl;
     $("#aText").textContent = txt;
     let prog = "";
@@ -661,7 +688,7 @@ views.autot = {
             <label class="f"><span>Väri</span><input name="vari" value="${esc(v ? v.vari || "" : "")}"></label>
           </div>
           <label class="f"><span>Mallipohja</span><select name="malli_id"><option value="">Tunnista automaattisesti</option>
-            ${MALLIRYHMAT.map(([nimi, f]) => `<optgroup label="${nimi}">${mallit.filter(f).map(m => `<option value="${m.id}" ${v && v.malli_id === m.id ? "selected" : ""}>${esc(m.nimi)}</option>`).join("")}</optgroup>`).join("")}</select></label>
+            ${MALLIRYHMAT.map(([nimi, f]) => `<optgroup label="${nimi}">${mallit.filter(f).map(m => `<option value="${m.id}" ${(v ? v.malli_id === m.id : (S && S.live && S.live.malli_id === m.id)) ? "selected" : ""}>${esc(m.nimi)}</option>`).join("")}</optgroup>`).join("")}</select></label>
           <label class="f"><span>Alkuperäinen kapasiteetti (kWh), jos tiedossa</span><input name="viite_kayttaja" inputmode="decimal" value="${esc(v && v.opitut && v.opitut.viite_kayttaja ? String(v.opitut.viite_kayttaja).replace(".", ",") : "")}" placeholder="Luetaan auton akunhallinnasta"></label>
           <label class="f"><span>Lisätiedot</span><textarea name="lisatiedot">${esc(v ? v.lisatiedot || "" : "")}</textarea></label>
           <div class="row"><button class="btn primary" id="vSave">${v ? "Tallenna" : "Lisää auto"}</button><a class="btn" href="#/autot${v ? "/" + v.id : ""}">Peruuta</a></div>
@@ -675,12 +702,12 @@ views.autot = {
       const r = await api("/api/vin", { method: "POST", body: { vin: val } });
       const t = r.tiedot;
       if (!t.kelvollinen) { $("#vInfo").innerHTML = `<div class="notice warn">${esc(t.virheet.join(" "))}</div>`; return; }
-      $("#vInfo").innerHTML = `<dl class="kv"><dt>Valmistaja</dt><dd>${esc(t.valmistaja)}</dd><dt>Malli</dt><dd>${esc(t.malli)}</dd>
+      $("#vInfo").innerHTML = `<dl class="kv"><dt>Valmistaja</dt><dd>${esc(t.valmistaja)}</dd><dt>Malli</dt><dd>${esc(t.malli || "Valitse alta")}</dd>
         <dt>Vuosimalli</dt><dd>${esc(t.vuosimalli || "–")}</dd><dt>Tehdas</dt><dd>${esc(t.tehdas || "–")}</dd>
         <dt>Voimalinja</dt><dd>${esc(t.voimalinja || "–")}</dd><dt>Akku</dt><dd>${esc(t.akkutyyppi || "–")}</dd></dl>
         ${t.huomautus ? `<div class="notice warn" style="margin-top:14px">${esc(t.huomautus)}</div>` : ""}
         ${r.malli ? `<div class="notice" style="margin-top:14px">Todennäköinen mallipohja: <b>${esc(r.malli.nimi)}</b>. Viitekapasiteetti ${n(r.malli.viite_kwh)} kWh${r.malli.likiarvo ? " (likiarvo)" : ""}, ${esc(r.malli.kemia)}${cellsTxt(r.malli.sarjakennot) ? ", " + cellsTxt(r.malli.sarjakennot) + " kennoryhmää" : ""}.
-          <div class="small muted">Peruste: ${esc(r.perusteet.join(", "))}. ${r.malli.alusta === "sx" ? "Tämän mallin akunhallinta ei ilmoita alkuperäistä kapasiteettia. Syötä se alle, jos tiedät sen." : "Ensimmäinen mittaus varmistaa tiedot auton akunhallinnasta."}</div></div>` : ""}
+          <div class="small muted">Peruste: ${esc(r.perusteet.join(", "))}. ${r.malli.alusta === "sx" ? "Tämän mallin akunhallinta ei ilmoita alkuperäistä kapasiteettia. Syötä se alle, jos tiedät sen." : "Ensimmäinen mittaus varmistaa tiedot auton akunhallinnasta."}</div></div>` : (t.merkki && t.merkki !== "Tesla" ? `<div class="notice" style="margin-top:14px">Valmistenumerosta ei voi päätellä mallia ja akun kokoa. <b>Valitse malli alta</b> rekisteriotteen tai myyntitietojen mukaan.</div>` : "")}
         ${r.liitanta ? guideHtml(r.liitanta) : ""}`;
       const yr = $("[name=vuosimalli]");
       if (!yr.value && t.vuosimalli) yr.value = t.vuosimalli;
@@ -1028,7 +1055,7 @@ views.yllapito = {
         <dt>Ohjelma</dt><dd>${esc(info.nimi)} ${esc(info.versio)}</dd>
         <dt>Tietojen sijainti</dt><dd style="word-break:break-all">${ANDROID ? "Sovelluksen oma tallennustila (AKVERI)" : esc(info.datakansio)}</dd>
         <dt>Järjestelmä</dt><dd>${esc(info.jarjestelma)}</dd></dl>
-        <p class="small muted" style="margin-top:12px">${ANDROID ? "Tiedot säilyvät sovelluksen omassa tallennustilassa. Raportit ja varmuuskopiot tallentuvat myös Lataukset/AKVERI-kansioon, kun avaat ne. " : ""}Viestimäärittelyt perustuvat Tesla-omistajien yhteisön ylläpitämään avoimeen aineistoon. Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä. AKVERI ei ole Teslan tekemä eikä hyväksymä.</p></div>`;
+        <p class="small muted" style="margin-top:12px">${ANDROID ? "Tiedot säilyvät sovelluksen omassa tallennustilassa. Raportit ja varmuuskopiot tallentuvat myös Lataukset/AKVERI-kansioon, kun avaat ne. " : ""}Viestimäärittelyt perustuvat Tesla-omistajien yhteisön ylläpitämään avoimeen aineistoon. Muiden merkkien kyselyt perustuvat avoimiin aineistoihin (OBD-PIDs-for-HKMC-EVs, evDash, Open Vehicle Monitoring System, Battery-Emulator ja py-nissan-leaf-obd-ble). Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä; Hyundai, Ioniq ja Kona Hyundai Motor Companyn; Kia, EV6, e-Niro ja e-Soul Kia Corporationin; Nissan ja Leaf Nissan Motor Co:n; Volkswagen, ID.3, ID.4 ja ID.5 Volkswagen AG:n; Škoda ja Enyaq Škoda Auto a.s:n; Audi ja Q4 e-tron Audi AG:n sekä Cupra ja Born SEAT S.A:n tavaramerkkejä. AKVERI ei ole minkään autonvalmistajan tekemä eikä hyväksymä.</p></div>`;
 
     $("#qRun").onclick = async () => {
       const b = $("#qRun");

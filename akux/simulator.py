@@ -35,6 +35,24 @@ ESITTELYAUTOT = {
     "ms-85": {"nimi": "Model S 85 2015 (NCA, vanha viestiarkkitehtuuri)",
               "opts": {"platform": "sx", "nfp_kwh": 74.2, "bol_kwh": 81.5, "energy_format": "sx10",
                        "vin": "5YJSA1E20FF123456"}},
+    "kona-64": {"nimi": "Hyundai Kona Electric 64 kWh 2020 (NMC)", "malli_id": "hy-kona-64",
+                "opts": {"chem": "NMC", "cells": 98, "nfp_kwh": 60.2, "bol_kwh": 64.0, "weak_cell": 40,
+                         "vin": "KMHK581GFLU123456"}},
+    "ioniq-28": {"nimi": "Hyundai Ioniq Electric 28 kWh 2018 (NMC)", "malli_id": "hy-ioniq-28",
+                 "opts": {"chem": "NMC", "cells": 96, "nfp_kwh": 25.9, "bol_kwh": 28.0, "weak_cell": 12,
+                          "vin": "KMHC851HFJU123456"}},
+    "ev6-77": {"nimi": "Kia EV6 77,4 kWh 2022 (NMC, 800 V)", "malli_id": "kia-ev6-77",
+               "opts": {"chem": "NMC", "cells": 192, "nfp_kwh": 74.3, "bol_kwh": 77.4, "weak_cell": 150,
+                        "vin": "KNACC81GFN5123456"}},
+    "leaf-40": {"nimi": "Nissan Leaf 40 kWh 2019 (NMC)", "malli_id": "nis-leaf-40",
+                "opts": {"chem": "NMC", "cells": 96, "nfp_kwh": 36.4, "bol_kwh": 40.0, "weak_cell": 57,
+                         "vin": "SJNFAAZE1U6012345"}},
+    "leaf-24": {"nimi": "Nissan Leaf 24 kWh 2015 (LMO)", "malli_id": "nis-leaf-24",
+                "opts": {"chem": "NMC", "cells": 96, "nfp_kwh": 19.1, "bol_kwh": 24.0, "weak_cell": 23,
+                         "vin": "SJNFAAZE0U0123456"}},
+    "id3-58": {"nimi": "Volkswagen ID.3 Pro 58 kWh 2021 (NMC)", "malli_id": "vw-meb-58",
+               "opts": {"chem": "NMC", "cells": 108, "nfp_kwh": 57.0, "bol_kwh": 62.0, "weak_cell": 77,
+                        "vin": "WVWZZZE1ZMP012345"}},
 }
 
 
@@ -354,7 +372,9 @@ class BatterySimulator(Source):
     # -- ajosilmukka ----------------------------------------------------
     def _run(self):
         self.status = "Esittelytila käynnissä"
-        self.info = {"sovitin": "Simuloitu " + getattr(self, "car_name", "Model 3 Long Range 2020"),
+        self.info = {"sovitin": "Simuloitu " + getattr(self, "car_name", {"hkmc": "Hyundai Kona Electric", "leaf": "Nissan Leaf",
+                                                                     "meb": "Volkswagen ID.3"}.get(
+                                                               self.platform, "Model 3 Long Range 2020")),
                      "portti": "-", "suodatus": True}
         tick = 0.1
         while not self._stop.is_set():
@@ -382,3 +402,111 @@ class BatterySimulator(Source):
             spent = time.time() - t0
             self._stop.wait(max(0.0, tick - spent))
         self.status = "Ei yhteyttä"
+
+
+class HkmcSimulator(BatterySimulator):
+    """Hyundai ja Kia: akunhallinta vastaa kyselyihin (simuloitu vastaus samassa muodossa kuin oikea auto)."""
+
+    def __init__(self, *, ryhma: str, **kw):
+        kw.setdefault("platform", "hkmc")
+        super().__init__(**kw)
+        self.ryhma = ryhma
+        self.r_pack = 0.072 * self.n / 96
+        self.r_cell = [self.r_pack / self.n * (1 + self.rng.gauss(0, 0.05)) for _ in range(self.n)]
+        self._page = 0
+
+    def _volts(self, cur):
+        return [self._ocv(s) - cur * r for s, r in zip(self._cell_socs(), self.r_cell)]
+
+    def _hv_frame(self, pack_v, cur):
+        from . import hkmc
+        vs = self._volts(cur)
+        hi = max(range(self.n), key=lambda k: vs[k])
+        lo = min(range(self.n), key=lambda k: vs[k])
+        soc = sum(self._cell_socs()) / self.n * 100
+        return hkmc.P_MAIN, hkmc.encode_main(
+            soc=soc, v=pack_v, i=cur, t_max=self.temp + 0.4, t_min=self.temp - 0.4,
+            c_max=vs[hi], c_max_no=hi + 1, c_min=vs[lo], c_min_no=lo + 1,
+            cec=self.total_chg, ced=self.total_dis, charging=self.current < -0.5)
+
+    def _frames(self, t):
+        from . import hkmc
+        vs = self._volts(self.current)
+        out = []
+        g = hkmc.RYHMAT[self.ryhma]
+        pages = g["sivut"] if self.ryhma != "egmp" else min(6, -(-self.n // 32))
+        for k in range(pages):
+            chunk = vs[k * 32:(k + 1) * 32]
+            if chunk:
+                out.append((hkmc.P_CELLS[k], hkmc.encode_cells(chunk)))
+        soc = sum(self._cell_socs()) / self.n * 100
+        extra = vs[96:98] if g["lisakennot"] else ()
+        out.append((hkmc.P_STATUS, hkmc.encode_status(soh=self.nfp / self.bol * 100, soc_disp=min(100.0, soc),
+                                                      extra=extra)))
+        self._page += 1
+        if self._page % 20 == 1:
+            out.append((hkmc.P_VIN, b"\x01" + self.vin.encode("ascii")))
+            out.append((hkmc.P_ODO, hkmc.encode_odo(self.odo)))
+        return out
+
+
+class LeafSimulator(HkmcSimulator):
+    """Nissan Leaf: akunhallinta (LBC) vastaa ryhmäkyselyihin; 96 kennoa, kennojännitteet 1 mV:n tarkkuudella."""
+
+    def __init__(self, *, ze1: bool = True, ref_ah: float | None = None, raw_sign: int = -1, **kw):
+        kw.setdefault("platform", "leaf")
+        super().__init__(ryhma="kona", **kw)
+        self.ze1, self.raw_sign = ze1, raw_sign
+        self.ref_ah = ref_ah or self.bol * 1000 / (96 * 3.7)
+
+    def _hv_frame(self, pack_v, cur):
+        from . import leaf
+        soc = sum(self._cell_socs()) / self.n * 100
+        return leaf.L_MAIN, leaf.encode_main(soc=soc, v=pack_v, i=cur, ah=self.ref_ah * self.nfp / self.bol,
+                                             ze1=self.ze1, sign=self.raw_sign)
+
+    def _frames(self, t):
+        from . import leaf
+        vs = self._volts(self.current)
+        out = [(leaf.L_CELLS, leaf.encode_cells(vs, self._pack_voltage(self.current))),
+               (leaf.L_TEMP, leaf.encode_temps([self.temp + 0.4, self.temp - 0.4, None, self.temp]))]
+        if self.ze1:
+            out.append((leaf.L_SOH, leaf.encode_soh(self.nfp / self.bol * 100)))
+        self._page += 1
+        if self._page % 20 == 1:
+            out.append((leaf.L_VIN, leaf.encode_vin(self.vin)))
+            out.append((leaf.L_ODO, leaf.encode_odo(self.odo)))
+        return out
+
+
+class MebSimulator(HkmcSimulator):
+    """Volkswagen-konsernin MEB: jokainen arvo ja kenno kysytään omalla kyselyllään."""
+
+    def __init__(self, **kw):
+        kw.setdefault("platform", "meb")
+        super().__init__(ryhma="kona", **kw)
+
+    def _hv_frame(self, pack_v, cur):
+        from . import meb
+        cb = self._cb
+        if cb:
+            cb(self.sim_t, meb.M_V, meb.encode(meb.M_V, v=pack_v))
+        return meb.M_I, meb.encode(meb.M_I, i=cur)
+
+    def _frames(self, t):
+        from . import meb
+        vs = self._volts(self.current)
+        soc = sum(self._cell_socs()) / self.n * 100
+        out = [(meb.M_CELL0 + k, meb.encode(meb.M_CELL0 + k, v=v)) for k, v in enumerate(vs)]
+        if self.n < meb.MAX_CELLS:
+            out.append((meb.M_CELL0 + self.n, meb.encode(meb.M_CELL0 + self.n, v=None)))
+        out += [(meb.M_SOC, meb.encode(meb.M_SOC, soc=soc)),
+                (meb.M_TMAX, meb.encode(meb.M_TMAX, c=self.temp + 0.4)),
+                (meb.M_TMIN, meb.encode(meb.M_TMIN, c=self.temp - 0.4))]
+        self._page += 1
+        if self._page % 20 == 1:
+            out += [(meb.M_VIN, meb.encode(meb.M_VIN, vin=self.vin)),
+                    (meb.M_ODO, meb.encode(meb.M_ODO, km=self.odo)),
+                    (meb.M_LIFE, meb.encode(meb.M_LIFE, chg=self.total_chg, dis=self.total_dis)),
+                    (meb.M_SOH, meb.encode(meb.M_SOH, soh=self.nfp / self.bol * 100))]
+        return out

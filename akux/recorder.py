@@ -76,6 +76,11 @@ def _reg_add(acc: list, win: list):
     acc[3] += sum((x[2] - mv) ** 2 for x in win)
 
 
+
+def _soc_ui(st):
+    """Näytön varaustila; jos auto ei ilmoita sitä (Nissan Leaf), akunhallinnan varaustila."""
+    return st.soc_ui if st.soc_ui is not None else st.soc_avg
+
 class Recorder:
     def __init__(self, app):
         self.app = app
@@ -147,6 +152,12 @@ class Recorder:
             if not self.app.source or not self.app.source.running:
                 raise RuntimeError("Yhdistä ensin sovittimeen tai esittelytilaan.")
             st = self.app.storage
+            from . import polled
+            _pm = polled.module(self.app.decoder.platform)
+            if tyyppi == ITSEPURKAUS and _pm and not _pm.ITSEPURKAUS_OK:
+                raise RuntimeError("Itsepurkaustestiä ei voi tehdä tälle autolle: akunhallinta ilmoittaa "
+                                   f"kennojännitteet {_pm.RESOLUUTIO_MV:.0f} mV:n tarkkuudella, mutta "
+                                   "itsepurkautumisen havaitseminen vaatii alle 1 mV:n tarkkuuden.")
             if tyyppi == KUORMITUS:
                 virheet = self.kuormitus_ehdot()
                 if virheet:
@@ -170,7 +181,7 @@ class Recorder:
                 self.brick_acc = {}
             if tyyppi == KUORMITUS:
                 d = self.app.decoder.state
-                self.marks["lahtoehdot"] = {"soc": d.soc_ui, "t_min": d.temp_min, "t_max": d.temp_max}
+                self.marks["lahtoehdot"] = {"soc": _soc_ui(d), "t_min": d.temp_min, "t_max": d.temp_max}
             self.app.decoder.add_hv_listener(self._on_hv)
             self.app.decoder.add_brick_listener(self._on_brick)
             self._snapshot(now, "alku")
@@ -526,6 +537,10 @@ class Recorder:
                 self.idle_since = None
             done = bool(st.full_charge_complete) and ch_t > 120
             soc = st.soc_avg or 0
+            if st.platform not in (None, "m3", "sx"):
+                # Kyselyihin vastaavien autojen akunhallinnan varaustila voi jäädä täydessä akussa alle 100 %;
+                # näytön arvo on 100 %
+                soc = max(soc, st.soc_ui or 0)
             if self.idle_since and t - self.idle_since >= 300 and soc >= 97.0:
                 done = True
             if self.idle_since and t - self.idle_since >= 600 and soc < 97.0 and "tauko" not in self.marks:
@@ -823,7 +838,8 @@ class Recorder:
             # Täysi: akunhallinta ilmoitti latauksen valmiiksi, tai (viestissä ei ole valmis-tietoa, kuten
             # Model S/X:n 10-bittisessä muodossa) lataus loppui itsestään yli 97 %:n varauksessa
             "taysi": bool(st.full_charge_complete) or bool(
-                (st.soc_avg or 0) >= 97.0 and self.idle_since and t - self.idle_since >= 300),
+                max(st.soc_avg or 0, (st.soc_ui or 0) if st.platform not in (None, "m3", "sx") else 0) >= 97.0
+                and self.idle_since and t - self.idle_since >= 300),
             "t_min": st.temp_min, "t_max": st.temp_max,
             "laskurit": st.counters_raw,
             "e_neg": self.ch_e_neg, "e_pos": self.ch_e_pos, "ah_neg": self.ch_ah_neg,
@@ -1056,7 +1072,7 @@ class Recorder:
         """Kuormitustestin lähtöehdot. Palauttaa täyttymättömät ehdot; tyhjä lista, kun testin voi aloittaa."""
         st = self.app.decoder.state
         out = []
-        soc, tmin, tmax = st.soc_ui, st.temp_min, st.temp_max
+        soc, tmin, tmax = _soc_ui(st), st.temp_min, st.temp_max
         if soc is None:
             out.append("varaustilaa ei ole vielä saatu autosta")
         elif not KUORMA_SOC[0] <= soc <= KUORMA_SOC[1]:
@@ -1089,33 +1105,33 @@ class Recorder:
         else:
             add("Akun lämpötila", None, "ei tietoa")
         if self.tyyppi == KAPASITEETTI and self.vaihe in ("lepo_alku", "odota_lataus"):
-            soc = st.soc_ui
+            soc = _soc_ui(st)
             lim = s["kapasiteetti_lahto_soc_max"]
             if soc is not None:
                 ok = soc <= lim
                 add("Lähtövaraus", ok, f"{fmt(soc)} %",
                     "" if ok else f"Tarkin tulos saadaan, kun latauksen alussa varaus on enintään {lim} %.")
-        if self.tyyppi in (AJO, TAYSI) and self.vaihe == "lepo_ajo_alku" and st.soc_ui is not None:
-            ok = st.soc_ui >= 80
-            add("Lähtövaraus", ok, f"{fmt(st.soc_ui)} %",
+        if self.tyyppi in (AJO, TAYSI) and self.vaihe == "lepo_ajo_alku" and _soc_ui(st) is not None:
+            ok = _soc_ui(st) >= 80
+            add("Lähtövaraus", ok, f"{fmt(_soc_ui(st))} %",
                 "" if ok else "Tarkin tulos saadaan, kun ajo aloitetaan vähintään 80 %:n varauksesta.")
-        if self.tyyppi == ITSEPURKAUS and self.vaihe == "lepo_itse_alku" and st.soc_ui is not None:
+        if self.tyyppi == ITSEPURKAUS and self.vaihe == "lepo_itse_alku" and _soc_ui(st) is not None:
             v = self.app.storage.vehicle(self.vehicle_id) or {}
             if (profiles.get(v.get("malli_id")) or {}).get("kemia") == "LFP" or \
                     (v.get("opitut") or {}).get("kemia") == "LFP":
-                ok = st.soc_ui >= 90
-                add("Lähtövaraus", ok, f"{fmt(st.soc_ui)} %",
+                ok = _soc_ui(st) >= 90
+                add("Lähtövaraus", ok, f"{fmt(_soc_ui(st))} %",
                     "" if ok else "LFP-akun itsepurkautuminen voidaan mitata luotettavasti vain yli 90 %:n "
                                   "varauksessa. Lataa akku täyteen ennen testiä.")
-        if self.tyyppi == KUORMITUS and st.soc_ui is not None:
-            ok = KUORMA_SOC[0] <= st.soc_ui <= KUORMA_SOC[1]
-            add("Varaus", ok, f"{fmt(st.soc_ui)} %", "" if ok else "Kuormitustesti tehdään 40–80 %:n varauksessa.")
+        if self.tyyppi == KUORMITUS and _soc_ui(st) is not None:
+            ok = KUORMA_SOC[0] <= _soc_ui(st) <= KUORMA_SOC[1]
+            add("Varaus", ok, f"{fmt(_soc_ui(st))} %", "" if ok else "Kuormitustesti tehdään 40–80 %:n varauksessa.")
         if self.tyyppi == KUORMITUS and tmin is not None and tmax is not None:
             ok = tmax - tmin < KUORMA_LAMPOERO
             add("Akun lämpötilaero", ok, f"{fmt(tmax - tmin)} °C", "" if ok else "Lämpötilaeron pitää olla alle 2 °C.")
-        if self.tyyppi == PIKALATAUS and self.vaihe == "odota_pikalataus" and st.soc_ui is not None:
-            ok = st.soc_ui <= 30
-            add("Lähtövaraus", ok, f"{fmt(st.soc_ui)} %",
+        if self.tyyppi == PIKALATAUS and self.vaihe == "odota_pikalataus" and _soc_ui(st) is not None:
+            ok = _soc_ui(st) <= 30
+            add("Lähtövaraus", ok, f"{fmt(_soc_ui(st))} %",
                 "" if ok else "Latauskäyrä saadaan kattavimmin, kun lataus aloitetaan alle 30 %:n varauksesta.")
         if st.pack_i is not None:
             add("Akun virta", abs(st.pack_i) < LEPO_VIRTA_A if self.vaihe in (

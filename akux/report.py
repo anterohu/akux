@@ -65,7 +65,12 @@ ST = {
 }
 
 
+_BRAND = {"gen": "Teslan"}       # raportin auton merkki genetiivissä (asetetaan raporttia muodostettaessa)
+
+
 def P(text, style="body"):
+    if _BRAND["gen"] != "Teslan" and isinstance(text, str):
+        text = text.replace("Teslan ", _BRAND["gen"] + " ")
     return Paragraph(text, ST[style] if isinstance(style, str) else style)
 
 
@@ -690,9 +695,14 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     samples = storage.samples(tid)
     events = storage.events(tid)
     veh = r["ajoneuvo"]
+    from .analysis import MERKKI_GEN
+    brand = veh.get("merkki") or "Tesla"
+    _BRAND["gen"] = MERKKI_GEN.get(brand, f"{brand}in")
     vi = veh.get("vin_tiedot") or {}
     cap = r.get("kapasiteetti") or {}
     bms = r.get("bms") or {}
+    from . import polled as _polled_mod
+    _polled = _polled_mod.module(veh.get("alusta"))
     summ = r["yhteenveto"]
     tyyppi = r["tyyppi"]
     is_cap = tyyppi in ("kapasiteetti", "taysi")
@@ -742,12 +752,12 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     liite = s.get("tekninen_liite", True) is not False
 
     # ---------------- Sivu 1: yhteenveto -------------------------------
-    model_name = veh.get("malli") or (vi.get("malli") and f"Tesla {vi['malli']}") or "Tesla"
+    model_name = veh.get("malli") or (vi.get("malli") and f"Tesla {vi['malli']}") or brand
     import re as _re
     base_name = _re.sub(r"\s*\([^)]*\d{4}[^)]*\)\s*$", "", model_name)     # mallipohjan vuosiväli pois
-    sub = f"Tesla {base_name}" if not base_name.startswith("Tesla") else base_name
+    sub = base_name if brand != "Tesla" or base_name.startswith("Tesla") else f"Tesla {base_name}"
     _prof = profiles.get(veh.get("malli_id")) or {}
-    if _prof.get("akku_lyhyt") and vi.get("malli"):
+    if _prof.get("akku_lyhyt") and vi.get("malli") and brand == "Tesla":
         sub = f"Tesla {vi['malli']}  ·  {_prof['akku_lyhyt']}"
     year = vehicle.get("vuosimalli") or vi.get("vuosimalli")
     reg = (vehicle.get("rekisteri") or "").strip()
@@ -801,7 +811,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         items = [("BRUTTO", f"{fmt(kwh)} kWh" if kwh else "–", f"uutena {fmt(r['viite']['kwh'])} kWh"),
                  ("NETTO", f"{fmt(_kk0['netto_nyt'])} kWh" if _kk0.get("netto_nyt") else "–",
                   f"suojavara {fmt(_kk0.get('puskuri_kwh'), 1)} kWh" if _kk0.get("puskuri_kwh") is not None else ""),
-                 ("JÄNNITE-ERO", f"{fmt(cs['ero_mv'], 0)} mV" if cs else "–",
+                 ("JÄNNITE-ERO", (f"alle {fmt(veh['kenno_resoluutio_mv'], 0)} mV" if cs and veh.get("kenno_resoluutio_mv") and cs["ero_mv"] < veh["kenno_resoluutio_mv"] else f"{fmt(cs['ero_mv'], 0)} mV") if cs else "–",
                   f"{cs['lkm']} kennoryhmää" if cs else "")]
         E.append(SohBand(soh, CW, caption, summ.get("kunto_luokka"), items))
         E.append(Spacer(1, 3 * mm))
@@ -815,9 +825,17 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     kw = CW / 3
     kpis.append(kpi("KAPASITEETTI NYT (BRUTTO)", f"{fmt(kwh)} kWh" if kwh else "–",
                     (f"±{fmt(unc)} kWh  ·  " if unc else "") + f"uutena {fmt(r['viite']['kwh'])} kWh"))
-    kpis.append(kpi("KÄYTETTÄVÄ ENERGIA (NETTO)", f"{fmt(_kk['netto_nyt'])} kWh" if _kk.get("netto_nyt") else "–",
-                    f"Suojavara {fmt(_kk['puskuri_kwh'], 1)} kWh" if _kk.get("puskuri_kwh") is not None else ""))
-    kpis.append(kpi("KENNORYHMIEN JÄNNITE-ERO", f"{fmt(cs['ero_mv'], 0)} mV" if cs else "–",
+    if not _kk.get("netto_nyt") and _polled and bms.get("nfp_kwh") and r["viite"].get("kwh"):
+        # Kyselyihin vastaavat autot eivät ilmoita suojavaraa; näytetään akunhallinnan oma kuntoarvio
+        kpis.append(kpi("AKUNHALLINNAN KUNTOARVIO", f"{fmt(bms['nfp_kwh'] / r['viite']['kwh'] * 100)} %",
+                        f"{_BRAND['gen']} akunhallinta"))
+    else:
+        kpis.append(kpi("KÄYTETTÄVÄ ENERGIA (NETTO)", f"{fmt(_kk['netto_nyt'])} kWh" if _kk.get("netto_nyt") else "–",
+                        f"Suojavara {fmt(_kk['puskuri_kwh'], 1)} kWh" if _kk.get("puskuri_kwh") is not None else ""))
+    _res = veh.get("kenno_resoluutio_mv")
+    _ero_txt = (f"alle {fmt(_res, 0)} mV" if cs and _res and cs["ero_mv"] < _res else
+                f"{fmt(cs['ero_mv'], 0)} mV" if cs else "–")
+    kpis.append(kpi("KENNORYHMIEN JÄNNITE-ERO", _ero_txt,
                     f"{cs['luokka']}  ·  {cs['lkm']} kennoryhmää" if cs else "Ei mitattu"))
     kt = Table([kpis], colWidths=[kw, kw, kw], hAlign="LEFT") if style_ != "c" else Spacer(1, 0)
     if style_ != "c":
@@ -1459,10 +1477,13 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     add("Alkuperäinen energia", f"{fmt(r['viite']['kwh'])} kWh" if r["viite"]["kwh"] else "–", r["viite"]["lahde"])
     if bms.get("soh_pct"):
         add("Kunto akunhallinnan mukaan", f"{fmt(bms['soh_pct'])} %", "Täyden akun energia / alkuperäinen energia")
-    add("Suojavara", f"{fmt(bms.get('puskuri_kwh'), 2)} kWh" if bms.get("puskuri_kwh") is not None else "–",
-        "Energia, jota ei näytetä käyttäjälle")
-    add("Käytettävä energia", f"{fmt(bms.get('kaytettava_kwh'))} kWh" if bms.get("kaytettava_kwh") else "–",
-        "Täyden akun energia vähennettynä suojavaralla")
+    if _polled:
+        add("Suojavara", "Ei ilmoiteta", f"{_BRAND['gen']} akunhallinta ei ilmoita suojavaraa")
+    else:
+        add("Suojavara", f"{fmt(bms.get('puskuri_kwh'), 2)} kWh" if bms.get("puskuri_kwh") is not None else "–",
+            "Energia, jota ei näytetä käyttäjälle")
+        add("Käytettävä energia", f"{fmt(bms.get('kaytettava_kwh'))} kWh" if bms.get("kaytettava_kwh") else "–",
+            "Täyden akun energia vähennettynä suojavaralla")
     add("Varaustila (näytöllä)", f"{fmt(bms.get('soc_ui'))} %" if bms.get("soc_ui") is not None else "–",
         "Mittauksen lopussa")
     add("Varaustila (kennojen keskiarvo)", f"{fmt(bms.get('soc_avg'))} %" if bms.get("soc_avg") is not None else "–",
@@ -1491,11 +1512,14 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     A.append(origin_box)
     A.append(Spacer(1, 5 * mm))
     meth = [
-        ("Tiedonkeruu", "Tiedot luettiin auton CAN-väylältä diagnostiikkaliitännän kautta. Ohjelma ainoastaan kuuntelee "
+        ("Tiedonkeruu", ("Tiedot luettiin auton akunhallinnalta diagnostiikkaliitännän kautta. Ohjelma lähettää "
+         "akunhallinnalle vain lukukyselyjä eikä muuta auton asetuksia. Kyselyt ja vastausten sisältö perustuvat "
+         f"{_polled.LAHDE}.") if _polled else (
+         "Tiedot luettiin auton CAN-väylältä diagnostiikkaliitännän kautta. Ohjelma ainoastaan kuuntelee "
          "väylää eikä lähetä autolle viestejä tai muuta sen asetuksia. Viestien sisältö puretaan avoimien, "
          "Tesla-omistajien yhteisön ylläpitämien viestimäärittelyjen mukaisesti" + (
              " (Model S 2012–2021 / Model X 2015–2021: Open Vehicle Monitoring System ja Battery-Emulator)."
-             if veh.get("alusta") == "sx" else " (Model 3 DBC ja Battery-Emulator).")),
+             if veh.get("alusta") == "sx" else " (Model 3 DBC ja Battery-Emulator)."))),
         ("Alkuperäinen kapasiteetti", "Akun alkuperäinen energia luetaan ensisijaisesti akunhallinnasta, joka "
          "tallentaa sen akun valmistuksen yhteydessä. Jos arvoa ei saada, käytetään käyttäjän ilmoittamaa arvoa "
          "tai mallitaulukon likiarvoa, joka valitaan valmistenumeron (vuosimalli, tehdas, voimalinja) ja "
@@ -1555,7 +1579,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
              "jännitelukemien hajonnasta ja näytteiden määrästä, joten mittauskohinaa ei tulkita vuodoksi."),
         ]
     meth += [
-        ("Kennoryhmät", "Kennoryhmien jännitteet luetaan akunhallinnasta 0,1 mV:n tarkkuudella. Poikkeavaksi "
+        ("Kennoryhmät", f"Kennoryhmien jännitteet luetaan akunhallinnasta {fmt(veh['kenno_resoluutio_mv'], 0) + ' mV' if veh.get('kenno_resoluutio_mv') else '0,1 mV'}:n tarkkuudella. Poikkeavaksi "
          "merkitään ryhmä, jonka jännite eroaa mediaanista yli puolet hyvän rajasta tai yli nelinkertaisesti "
          "tavanomaisen hajonnan verran. Jännite-eron luokat levossa: alle 15 mV erinomainen, alle 30 mV hyvä, "
          "alle 50 mV tyydyttävä. Raja-arvot perustuvat käytettyjen sähköautojen akkutestien aineistoon (Generational, "
@@ -1568,9 +1592,9 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         ("Kunnon luokitus", "Vähintään 90 % erinomainen, 80–90 % hyvä, 70–80 % heikentynyt (luokat AVILOOn käytännön "
          "mukaan). "
          "Teslan akkutakuu kattaa kapasiteetin laskun alle 70 %:n takuuaikana."),
-        ("Vertailu ajomäärään", "Vertailukäyrä perustuu Teslan vaikuttavuusraportissa (Impact Report 2023) "
-         "julkaistuun keskiarvoon, jonka mukaan Model 3- ja Model Y -akkujen kapasiteetti on alentunut noin "
-         "15 % ja Model S- ja Model X -akkujen noin 12 % noin 320 000 km:n jälkeen."),
+        *([("Vertailu ajomäärään", "Vertailukäyrä perustuu Teslan vaikuttavuusraportissa (Impact Report 2023) "
+            "julkaistuun keskiarvoon, jonka mukaan Model 3- ja Model Y -akkujen kapasiteetti on alentunut noin "
+            "15 % ja Model S- ja Model X -akkujen noin 12 % noin 320 000 km:n jälkeen.")] if brand == "Tesla" else []),
         ("Tietojen eheys", "Kaikki mittauksen aikana vastaanotetut viestit tallennetaan muuttamattomina "
          "raakadatatiedostoon. Tiedoston SHA-256-tarkiste on alla. Tarkisteen avulla voidaan todentaa, että "
          "raportti on laskettu juuri tästä aineistosta."),

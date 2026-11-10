@@ -9,7 +9,8 @@ import time
 from .decoder import TeslaDecoder
 from .notify import Notifier
 from .recorder import Recorder
-from .sources import ObdLinkSource
+from . import profiles
+from .sources import ObdLinkSource, PolledSource
 from .simulator import BatterySimulator
 from .storage import Storage
 
@@ -88,16 +89,41 @@ class App:
                 src = opts.pop("sim")          # testit: sama simuloitu auto uudelleen
             elif kind == "demo":
                 from .simulator import ESITTELYAUTOT
+                from . import polled
                 car = ESITTELYAUTOT.get(opts.pop("auto", None) or "m3-lr", ESITTELYAUTOT["m3-lr"])
-                src = BatterySimulator(**{**car["opts"], **opts})
+                model = profiles.get(car.get("malli_id"))
+                pm = polled.for_model(model)
+                if pm:
+                    src = pm.simulator(model, **{**car["opts"], **opts})
+                else:
+                    src = BatterySimulator(**{**car["opts"], **opts})
                 src.car_name = car["nimi"]
+                src.malli_id = car.get("malli_id")
             else:
                 if not port:
                     raise ValueError("Valitse sovittimen portti.")
-                src = ObdLinkSource(port, baud or None)
+                from . import polled
+                model = profiles.get(opts.get("malli_id"))
+                pm = polled.for_model(model)
+                if pm:
+                    loop, rare = pm.requests_for(model)
+                    src = PolledSource(port, baud or None, loop=loop, rare=rare, rx=pm.RX,
+                                       protocol=getattr(pm, "PROTOKOLLA", "6"))
+                else:
+                    src = ObdLinkSource(port, baud or None)
+                src.malli_id = opts.get("malli_id")
+            self._configure_platform(getattr(src, "malli_id", None))
             self.source = src
             src.start(self._on_frame)
             return src
+
+    def _configure_platform(self, malli_id):
+        """Kyselyihin perustuvan auton (Hyundai, Kia) tiedot asetetaan tulkitsijalle yhdistettäessä."""
+        from . import polled
+        model = profiles.get(malli_id)
+        pm = polled.for_model(model)
+        if pm:
+            self.decoder.configure(pm.PLATFORM, **pm.decoder_opts(model))
 
     def disconnect(self):
         with self.lock:

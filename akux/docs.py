@@ -5,7 +5,7 @@ OHJE = [
     {
         "id": "aloitus", "otsikko": "Aloitus",
         "osat": [
-            ("p", "AKVERI lukee Teslan ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta ja kokoaa tiedot "
+            ("p", "AKVERI lukee sähköauton ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta ja kokoaa tiedot "
                   "raportiksi, jonka voi antaa ostajalle, asiakkaalle tai pitää itsellä. Kaikki mittausarvot ovat "
                   "auton akunhallinnan luovuttamia. AKVERI ei käytä omia antureitaan eikä muuta arvoja."),
             ("ul", [
@@ -14,6 +14,10 @@ OHJE = [
                 "Model S ja 2015–2021 Model X käyttävät omaa viestirakennettaan, jonka AKVERI tunnistaa itse. Niiden "
                 "akunhallinta ei ilmoita akun alkuperäistä kapasiteettia, joten se kannattaa syöttää auton tietoihin.",
                 "<b>Cybertruck</b>: auto tunnistetaan, mutta mittaus on kokeellinen.",
+                "<b>Hyundai ja Kia</b>: Ioniq Electric, Kona Electric, e-Niro, e-Soul, Ioniq 5, Ioniq 6 ja EV6.",
+                "<b>Nissan Leaf</b>: 24, 30, 40 ja 62 kWh.",
+                "<b>Volkswagen-konsernin MEB-alusta</b>: Volkswagen ID.3, ID.4 ja ID.5, Škoda Enyaq, Audi Q4 e-tron "
+                "ja Cupra Born. Katso kohta <b>Muut merkit</b>.",
             ]),
             ("ol", [
                 "Avaa <b>Asetukset</b> ja täytä yrityksen tiedot, mittaajan nimi ja logo. Tiedot näkyvät jokaisessa raportissa.",
@@ -66,6 +70,66 @@ OHJE = [
             ]),
             ("p", "Ensimmäisellä kytkentäkerralla Windows asentaa sovittimen ajurin itse, kun tietokone on verkossa. "
                   "Jos sovitin ei näy listassa, odota hetki ja paina <b>Päivitä portit</b>."),
+        ],
+    },
+    {
+        "id": "hyundai_kia", "otsikko": "Muut merkit: Hyundai, Kia, Nissan ja MEB",
+        "osat": [
+            ("p", "Teslan akunhallinta lähettää tietonsa väylälle jatkuvasti. Muiden merkkien akunhallinta vastaa "
+                  "vain kyselyihin, joten AKVERI kysyy tiedot jatkuvasti vuorotellen. Kyselyt ovat "
+                  "pelkkiä lukupyyntöjä; ne eivät muuta auton asetuksia. Kaikissa alla olevissa autoissa sovitin "
+                  "kytketään suoraan kuljettajan jalkatilan OBD-II-liitäntään, ja auton malli valitaan Yleiskuvan "
+                  "Yhdistä-kohdan Auto-luettelosta ennen yhdistämistä."),
+            ("ul", [
+                "<b>Tuetut mallit:</b> Hyundai Ioniq Electric 28 kWh, Kona Electric 39 ja 64 kWh, Kia e-Niro 39 ja "
+                "64 kWh, e-Soul 64 kWh sekä E-GMP-alustan Ioniq 5, Ioniq 6 ja Kia EV6. Ioniq Electric 38 kWh, "
+                "Kona 39 kWh ja e-Niro 39 kWh on merkitty kokeellisiksi, koska niiden kennomäärää tai kyselyjä ei "
+                "ole varmistettu.",
+                "<b>Kytkentä:</b> sovitin kytketään suoraan kuljettajan jalkatilan OBD-II-liitäntään. Välikaapelia ei tarvita.",
+                "<b>Mallin valinta:</b> valitse Yleiskuvan Yhdistä-kohdan Auto-luettelosta auton malli ennen "
+                "yhdistämistä. Valmistenumerosta ei voi päätellä akun kokoa, joten malli valitaan myös auton tiedoissa.",
+                "<b>Auton on oltava päällä:</b> akunhallinta vastaa vain, kun auto on käynnistetty (READY tai virta "
+                "päällä) tai latautuu. Kun mittaus pyytää lepojakson loppuarvoja, käynnistä auto hetkeksi.",
+            ]),
+            ("p", "<b>Erot Teslaan raportissa:</b>"),
+            ("ul", [
+                "Akunhallinta ilmoittaa oman kuntoarvionsa (SOH) prosentteina, ei täyden akun energiaa. AKVERI laskee "
+                "akunhallinnan energia-arvion kuntoarviosta ja mallin alkuperäisestä kapasiteetista. Mitattu "
+                "kapasiteetti (kapasiteettimittaus, ajotesti) on tästä riippumaton.",
+                "Suojavaraa ei ilmoiteta, joten raportissa näytetään käytettävän energian sijaan akunhallinnan kuntoarvio.",
+                "Kennojännitteet ilmoitetaan 20 mV:n tarkkuudella (Teslassa 1 mV). Pienet jännite-erot eivät "
+                "erotu, ja kennoluokituksen raja on suhteutettu tähän tarkkuuteen.",
+                "Itsepurkaustestiä ei voi tehdä, koska 20 mV:n tarkkuus ei riitä itsepurkautumisen havaitsemiseen.",
+                "Ajomäärään perustuvaa vertailua ei tehdä; se perustuu Teslan julkaisemaan aineistoon.",
+            ]),
+            ("p", "<b>Nissan Leaf:</b>"),
+            ("ul", [
+                "Akunhallinta ilmoittaa kennojännitteet 1 mV:n tarkkuudella, joten itsepurkaustesti on mahdollinen.",
+                "Akunhallinta ilmoittaa jäljellä olevan kapasiteetin ampeeritunteina ja 40 ja 62 kWh:n akuissa myös "
+                "kuntoprosenttina. 24 ja 30 kWh:n akuissa kunto lasketaan ampeeritunneista ja uuden akun "
+                "ampeerituntimäärästä (likiarvo).",
+                "Elinkaaren energialaskureita ei ole. Kapasiteettimittaus perustuu jännitteen ja virran mittaukseen.",
+                "Virran suuntaa ei ole yksiselitteisesti dokumentoitu, joten AKVERI varmistaa sen varaustilan "
+                "muutoksesta (noin 0,5 %-yksikköä ajoa tai latausta). Jos ensimmäinen tulkinta on väärä, mittauksen "
+                "lataus- tai ajovaihe alkaa vasta, kun suunta on varmistunut.",
+                "24 ja 30 kWh:n akkujen kennokemia (LMO-pohjainen) poikkeaa NMC-kennoista. Lepojännitteeseen perustuvat "
+                "arviot ovat näissä likimääräisiä.",
+            ]),
+            ("p", "<b>Volkswagen-konsernin MEB (ID.3, ID.4, ID.5, Enyaq, Q4 e-tron, Born):</b>"),
+            ("ul", [
+                "Kennojännitteet 1 mV:n tarkkuudella; kennot luetaan yksi kerrallaan, joten koko akun kennokierros "
+                "kestää noin 10 sekuntia.",
+                "Akunhallinta ilmoittaa varaustilan 0,4 %:n portain. Kapasiteettimittaus perustuu energian mittaukseen, "
+                "joten porrastus vaikuttaa tulokseen vain vähän.",
+                "Akunhallinnan kuntoarvio (SOH) on vain uudemmissa ohjelmistoversioissa. Muuten käytetään akun "
+                "suurinta energiasisältöä.",
+                "Kennomäärä (84, 96 tai 108) tarkistetaan autosta ensimmäisellä kennokierroksella.",
+                "ID.7 ja 86 kWh:n akku eivät ole vielä mukana.",
+            ]),
+            ("note", "Kyselyt ja arvojen sijainnit perustuvat avoimiin, laajasti käytettyihin aineistoihin "
+                     "(OBD-PIDs-for-HKMC-EVs, evDash, Open Vehicle Monitoring System, Battery-Emulator ja "
+                     "py-nissan-leaf-obd-ble). AKVERIlla niitä ei ole vielä todennettu oikealla autolla, joten vertaa "
+                     "ensimmäisiä mittauksia auton omaan näyttöön."),
         ],
     },
     {
@@ -313,8 +377,8 @@ SANASTO = [
     ("Akun kunto (SOH)", "Akun nykyinen kapasiteetti prosentteina alkuperäisestä kapasiteetista."),
     ("Kapasiteetti", "Energiamäärä, jonka täysi akku sisältää, kilowattitunteina (kWh). Raportissa kapasiteetti on bruttoarvo."),
     ("Käytettävä energia", "Sama kuin nettokapasiteetti: kapasiteetti vähennettynä suojavaralla. Tämä energia on ajossa käytettävissä."),
-    ("Suojavara", "Akunhallinnan varaama energia, jota ei anneta käyttöön. Se suojaa akkua syväpurkaukselta. Teslan termi on energy buffer."),
-    ("Kennoryhmä", "Rinnan kytkettyjen kennojen ryhmä. Teslan akuissa on tavallisesti 84, 96 tai 106 sarjaan kytkettyä ryhmää."),
+    ("Suojavara", "Akunhallinnan varaama energia, jota ei anneta käyttöön. Se suojaa akkua syväpurkaukselta."),
+    ("Kennoryhmä", "Rinnan kytkettyjen kennojen ryhmä, muiden merkkien akuissa usein yksittäinen kenno tai rinnakkain kytketty kennopari. Sähköauton akussa on tavallisesti 84–192 sarjaan kytkettyä ryhmää."),
     ("Jännite-ero", "Suurimman ja pienimmän kennoryhmän jännitteen ero. Pieni ero kertoo tasaisesti varautuneesta akusta."),
     ("Lepojännite", "Kennon jännite, kun akusta ei ole hetkeen otettu eikä siihen ole ladattu virtaa."),
     ("Akunhallinta (BMS)", "Akun ohjausjärjestelmä, joka valvoo kennoja ja laskee akun varaustilan ja energian."),
