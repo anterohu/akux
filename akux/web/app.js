@@ -21,6 +21,17 @@ const MALLIRYHMAT = [
   ["Nissan", m => m.merkki === "Nissan"],
   ["Volkswagen-konserni (MEB)", m => m.alusta === "meb"],
 ];
+const MERKIT = ["Tesla", "Hyundai", "Kia", "Nissan", "Volkswagen", "Škoda", "Audi", "Cupra"];
+const merkki = m => (m && m.merkki) || "Tesla";
+// Mallivalikon sisältö merkin mukaan; Teslan mallit ryhmitellään mallisarjoittain
+function malliOptions(mallit, brand, selected) {
+  const opt = m => `<option value="${m.id}" ${m.id === selected ? "selected" : ""}>${esc(m.nimi)}${m.kyselyt_varmistettu === false ? " (kokeellinen)" : ""}</option>`;
+  const list = mallit.filter(m => merkki(m) === brand);
+  const first = `<option value="">${brand === "Tesla" ? "Tunnista automaattisesti" : "Valitse malli"}</option>`;
+  if (brand === "Tesla")
+    return first + MALLIRYHMAT.slice(0, 5).map(([nimi, f]) => `<optgroup label="${nimi}">${list.filter(f).map(opt).join("")}</optgroup>`).join("");
+  return first + list.map(opt).join("");
+}
 const cellsTxt = c => (Array.isArray(c) ? c.join(" tai ") : (c || ""));
 const guideHtml = (g, card = false) => `${card ? "<h2>Kytkentä autoon</h2>" : `<h3 style="margin:14px 0 6px">Kytkentä autoon</h3>`}<div class="small"><b>${esc(g.liitin)}.</b> ${esc(g.ohje)}</div>${g.varmistettu ? "" : `<div class="small muted" style="margin-top:6px">Tätä kytkentää ei ole vielä varmistettu AKVERIlla. Tarkista väylä ensimmäisellä kytkentäkerralla Yleiskuvan kohdasta Kartoita väylä.</div>`}`;
 function esc(s) {
@@ -673,6 +684,8 @@ views.autot = {
   async renderForm(v) {
     const { mallit } = await api("/api/mallit");
     const live = S && S.live && S.live.vin && !S.auto_tunnettu ? S.live.vin : "";
+    const sel0 = v ? v.malli_id || "" : (S && S.live && S.live.malli_id) || "";
+    const brand0 = merkki(mallit.find(m => m.id === sel0)) || "Tesla";
     const bk = v ? { html: `<a class="back" href="#/autot/${v.id}">← ${esc(v.nimi)}</a>` } : backLink("#/autot", "Autot");
     view.innerHTML = `${bk.html}<div class="head"><div><h1>${v ? "Muokkaa autoa" : "Lisää auto"}</h1><div class="muted">Malli tunnistetaan valmistenumerosta. Tarkentuneet tiedot tallentuvat autolle ensimmäisen mittauksen jälkeen.</div></div></div>
       <div class="grid g2">
@@ -680,21 +693,30 @@ views.autot = {
           <label class="f"><span>Valmistenumero (VIN)</span><div class="row" style="flex-wrap:nowrap"><input name="vin" value="${esc(v ? v.vin || "" : live)}" maxlength="17" style="text-transform:uppercase">
             ${S && S.live && S.live.vin ? `<button class="btn sm" id="vRead" type="button">Lue autosta</button>` : ""}</div></label>
           <div class="grid g2">
-            <label class="f"><span>Nimi</span><input name="nimi" value="${esc(v ? v.nimi : "")}" placeholder="Esimerkiksi Asiakkaan Model Y"></label>
+            <label class="f"><span>Nimi</span><input name="nimi" value="${esc(v ? v.nimi : "")}" placeholder="Esimerkiksi asiakkaan auto"></label>
             <label class="f"><span>Rekisterinumero</span><input name="rekisteri" value="${esc(v ? v.rekisteri || "" : "")}"></label>
             <label class="f"><span>Omistaja tai tilaaja</span><input name="omistaja" value="${esc(v ? v.omistaja || "" : "")}"></label>
             <label class="f"><span>Vuosimalli</span><input name="vuosimalli" inputmode="numeric" value="${esc(v ? v.vuosimalli || "" : "")}"></label>
             <label class="f"><span>Käyttöönottopäivä</span><input name="kayttoonotto" value="${esc(v ? v.kayttoonotto || "" : "")}" placeholder="pp.kk.vvvv"><small class="muted">Rekisteriotteesta. Tarvitaan akkutakuun laskemiseen.</small></label>
             <label class="f"><span>Väri</span><input name="vari" value="${esc(v ? v.vari || "" : "")}"></label>
           </div>
-          <label class="f"><span>Mallipohja</span><select name="malli_id"><option value="">Tunnista automaattisesti</option>
-            ${MALLIRYHMAT.map(([nimi, f]) => `<optgroup label="${nimi}">${mallit.filter(f).map(m => `<option value="${m.id}" ${(v ? v.malli_id === m.id : (S && S.live && S.live.malli_id === m.id)) ? "selected" : ""}>${esc(m.nimi)}</option>`).join("")}</optgroup>`).join("")}</select></label>
+          <div class="grid g2">
+            <label class="f"><span>Merkki</span><select id="vBrand">${MERKIT.map(b => `<option ${b === brand0 ? "selected" : ""}>${esc(b)}</option>`).join("")}</select></label>
+            <label class="f"><span>Malli ja akku</span><select name="malli_id" id="vModel">${malliOptions(mallit, brand0, sel0)}</select></label>
+          </div>
           <label class="f"><span>Alkuperäinen kapasiteetti (kWh), jos tiedossa</span><input name="viite_kayttaja" inputmode="decimal" value="${esc(v && v.opitut && v.opitut.viite_kayttaja ? String(v.opitut.viite_kayttaja).replace(".", ",") : "")}" placeholder="Luetaan auton akunhallinnasta"></label>
           <label class="f"><span>Lisätiedot</span><textarea name="lisatiedot">${esc(v ? v.lisatiedot || "" : "")}</textarea></label>
           <div class="row"><button class="btn primary" id="vSave">${v ? "Tallenna" : "Lisää auto"}</button><a class="btn" href="#/autot${v ? "/" + v.id : ""}">Peruuta</a></div>
         </div>
         <div class="card"><h2>Tunnistus</h2><div id="vInfo" class="small muted">Syötä valmistenumero.</div></div>
       </div>`;
+    const brandSel = $("#vBrand"), modelSel = $("#vModel");
+    const setBrand = (b, keep) => {
+      if (!MERKIT.includes(b)) return;
+      brandSel.value = b;
+      modelSel.innerHTML = malliOptions(mallit, b, keep ? modelSel.value : "");
+    };
+    brandSel.onchange = () => setBrand(brandSel.value, false);
     const vinInput = $("[name=vin]");
     const decode = async () => {
       const val = vinInput.value.trim();
@@ -709,6 +731,9 @@ views.autot = {
         ${r.malli ? `<div class="notice" style="margin-top:14px">Todennäköinen mallipohja: <b>${esc(r.malli.nimi)}</b>. Viitekapasiteetti ${n(r.malli.viite_kwh)} kWh${r.malli.likiarvo ? " (likiarvo)" : ""}, ${esc(r.malli.kemia)}${cellsTxt(r.malli.sarjakennot) ? ", " + cellsTxt(r.malli.sarjakennot) + " kennoryhmää" : ""}.
           <div class="small muted">Peruste: ${esc(r.perusteet.join(", "))}. ${r.malli.alusta === "sx" ? "Tämän mallin akunhallinta ei ilmoita alkuperäistä kapasiteettia. Syötä se alle, jos tiedät sen." : "Ensimmäinen mittaus varmistaa tiedot auton akunhallinnasta."}</div></div>` : (t.merkki && t.merkki !== "Tesla" ? `<div class="notice" style="margin-top:14px">Valmistenumerosta ei voi päätellä mallia ja akun kokoa. <b>Valitse malli alta</b> rekisteriotteen tai myyntitietojen mukaan.</div>` : "")}
         ${r.liitanta ? guideHtml(r.liitanta) : ""}`;
+      // Merkki päätellään valmistenumerosta
+      const vb = t.merkki || (t.kelvollinen ? "Tesla" : null);
+      if (vb && vb !== brandSel.value) setBrand(vb, false);
       const yr = $("[name=vuosimalli]");
       if (!yr.value && t.vuosimalli) yr.value = t.vuosimalli;
     };

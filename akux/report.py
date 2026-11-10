@@ -799,7 +799,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         return cell
 
     if soh is not None:
-        lahde_txt = {"Akunhallinnan arvio": "Teslan akunhallinta"}.get(summ.get("kunto_lahde"),
+        lahde_txt = {"Akunhallinnan arvio": f"{_BRAND['gen']} akunhallinta"}.get(summ.get("kunto_lahde"),
                                                                     summ.get("kunto_lahde") or "")
         cap_pct = summ.get("epavarmuus_pct") if summ.get("kunto_lahde") != "Akunhallinnan arvio" else None
         caption = lahde_txt + (f"  ·  ±{fmt(cap_pct)} %-yks." if cap_pct else "")
@@ -857,7 +857,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         tesla.append(f"kunto <b>{fmt(bms['soh_pct'])} %</b>")
     src_line = "Kaikki mittausarvot ovat auton oman akunhallinnan luovuttamia."
     if tesla:
-        src_line = "Teslan akunhallinta: " + ", ".join(tesla) + ". " + src_line
+        src_line = f"{_BRAND['gen']} akunhallinta: " + ", ".join(tesla) + ". " + src_line
     E.append(P(src_line, "small"))
     E.append(Spacer(1, 4 * mm))
     if summ.get("tulkinta"):
@@ -938,8 +938,8 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
                          "Akkuun mennyt energia mitattu akun omasta jännitteestä ja virrasta"),
         "taysi": ("Purku ajamalla ja lataus täyteen",
                   "Kapasiteetti mitattu sekä ajossa että latauksessa"),
-        "ajotesti": ("Purkumittaus ajon aikana", "Akusta otettu energia Teslan elinkaaren energialaskureista"),
-        "pika_ajo": ("Lyhyt purkumittaus ajon aikana", "Akusta otettu energia Teslan elinkaaren energialaskureista"),
+        "ajotesti": ("Purkumittaus ajon aikana", f"Akusta otettu energia {_BRAND['gen']} elinkaaren energialaskureista"),
+        "pika_ajo": ("Lyhyt purkumittaus ajon aikana", f"Akusta otettu energia {_BRAND['gen']} elinkaaren energialaskureista"),
         "kuormitus": ("Kuormitus kiihdytyksillä", "Kennoryhmien jännite ja akun virta samanaikaisesti"),
         "pikalataus": ("Pikalataus tasavirtalaturilla", "Latausteho, varaustila ja kennoryhmien jännitteet"),
         "itsepurkaus": ("Seisonta yön yli", "Kennoryhmien lepojännitteet seisonnan alussa ja lopussa"),
@@ -995,7 +995,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         origin += ("Kapasiteettimittauksen tulos perustuu akunhallinnan jännite- ja virtamittauksiin, ja se on "
                    "tarkistettu akunhallinnan omasta latauslaskurista. ")
     if purku.get("valmis"):
-        origin += ("Purkumittauksen tulos perustuu Teslan elinkaaren energialaskureihin ja akunhallinnan "
+        origin += (f"Purkumittauksen tulos perustuu {_BRAND['gen']} elinkaaren energialaskureihin ja akunhallinnan "
                    "varaustilaan. ")
     if is_cap or purku.get("valmis") or kuorma or dc or itse:
         origin += "Menetelmä on kuvattu menetelmäsivulla. "
@@ -1042,7 +1042,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
             def add_d(n, v, p=""):
                 rows_d.append([P(n, "cell"), P(v, "cellb"), P(p, "small")])
             add("Varaustila latauksen alussa ja lopussa", f"{fmt(cap['soc_alku'])} % → {fmt(cap['soc_loppu'])} %",
-                "Teslan akunhallinta" + ("; lataus valmis" if cap.get("taysi") else ""))
+                f"{_BRAND['gen']} akunhallinta" + ("; lataus valmis" if cap.get("taysi") else ""))
             add("Akkuun ladattu energia", f"{fmt(cap['e_napa_kwh'], 1)} kWh",
                 f"Latauksen kesto {_dur(cap.get('lataus_kesto_s'))}")
             add("Akun kokonaiskapasiteetti", f"{fmt(cap['taysi_kwh'], 1)} kWh",
@@ -1051,12 +1051,12 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
                 add("Käytettävissä oleva energia", f"{fmt(cap['kaytettava_kwh'], 1)} kWh",
                     f"Suojavara {fmt(bms.get('puskuri_kwh'))} kWh vähennetty")
             if bms.get("nfp_kwh"):
-                add("Teslan akunhallinnan ilmoittama", f"{fmt(bms['nfp_kwh'], 1)} kWh",
+                add(f"{_BRAND['gen']} akunhallinnan ilmoittama", f"{fmt(bms['nfp_kwh'], 1)} kWh",
                     f"Ero mitattuun {fmt(cap.get('ero_bms_pct'))} %")
             add_d("Akkuun mennyt energia navoilta", f"{fmt(cap['e_napa_kwh'], 2)} kWh",
-                  "Teslan latauslaskuri" if cap.get("laskuri_kaytetty") else "Akunhallinnan jännite ja virta, ∫ U · I dt")
+                  f"{_BRAND['gen']} latauslaskuri" if cap.get("laskuri_kaytetty") else "Akunhallinnan jännite ja virta, ∫ U · I dt")
             if cap.get("laskuri_kwh") and not cap.get("laskuri_kaytetty"):
-                add_d("Teslan latauslaskuri samalta ajalta", f"{fmt(cap['laskuri_kwh'], 2)} kWh",
+                add_d(f"{_BRAND['gen']} latauslaskuri samalta ajalta", f"{fmt(cap['laskuri_kwh'], 2)} kWh",
                       f"Vertailu: ero {fmt(cap.get('laskuri_ero_pct'))} %")
             add_d("Latauksen keskiteho akkuun", f"{fmt(cap.get('keskiteho_kw'))} kW", "")
             add_d("Akun sisäinen resistanssi", f"{fmt(cap['r_ohm'] * 1000, 0)} mΩ" if cap.get("r_ohm") else "–",
@@ -1118,7 +1118,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         E.append(PageBreak())
         E.append(P("Purkumittaus ajossa", "h2"))
         osat = purku.get("osat") or 1
-        E.append(P("Ajossa akusta otettu energia on luettu Teslan energialaskureista ja varaustila akunhallinnasta "
+        E.append(P(f"Ajossa akusta otettu energia on luettu {_BRAND['gen']} energialaskureista ja varaustila akunhallinnasta "
                    "levossa ennen ajoa ja sen jälkeen." + (
                        f" Mittaus koottiin {osat} ajokerrasta." if osat > 1 else ""), "body"))
         E.append(Spacer(1, 4 * mm))
@@ -1139,21 +1139,21 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         def addp_d(n, v, p=""):
             rows_d.append([P(n, "cell"), P(v, "cellb"), P(p, "small")])
         addp("Varaustila ennen ajoa ja sen jälkeen", f"{fmt(purku['soc_alku'])} % → {fmt(purku['soc_loppu'])} %",
-             "Teslan akunhallinta, levossa")
+             f"{_BRAND['gen']} akunhallinta, levossa")
         if purku.get("matka_km"):
             addp("Ajettu matka", f"{fmt(purku['matka_km'], 0)} km",
                  f"Keskikulutus {fmt(purku['kulutus_wh_km'], 0)} Wh/km" if purku.get("kulutus_wh_km") else "")
-        addp("Akusta otettu energia", f"{fmt(purku['netto_kwh'], 1)} kWh", "Teslan energialaskurit")
+        addp("Akusta otettu energia", f"{fmt(purku['netto_kwh'], 1)} kWh", f"{_BRAND['gen']} energialaskurit")
         pk_ok = not purku.get("hylatty") and tyyppi != "pika_ajo"
         addp("Akun kokonaiskapasiteetti", f"{fmt(purku['taysi_kwh'], 1)} kWh",
              f"Mittaustarkkuus ±{fmt(purku['epavarmuus_kwh'])} kWh", strong=pk_ok)
         if bms.get("nfp_kwh") and purku.get("ero_bms_pct") is not None:
-            addp("Teslan akunhallinnan ilmoittama", f"{fmt(bms['nfp_kwh'], 1)} kWh",
+            addp(f"{_BRAND['gen']} akunhallinnan ilmoittama", f"{fmt(bms['nfp_kwh'], 1)} kWh",
                  f"Ero mitattuun {fmt(purku['ero_bms_pct'])} %")
         if purku.get("purku_kwh") is not None:
-            addp_d("Akusta otettu energia", f"{fmt(purku['purku_kwh'], 2)} kWh", "Teslan elinkaaren purkulaskuri")
+            addp_d("Akusta otettu energia", f"{fmt(purku['purku_kwh'], 2)} kWh", f"{_BRAND['gen']} elinkaaren purkulaskuri")
             addp_d("Jarrutuksissa palautunut energia", f"{fmt(purku['palautus_kwh'], 2)} kWh",
-                   "Teslan elinkaaren latauslaskuri")
+                   f"{_BRAND['gen']} elinkaaren latauslaskuri")
         addp_d("Nettoenergia navoilta", f"{fmt(purku['netto_kwh'], 2)} kWh", purku.get("lahde") or "")
         addp_d("Sisäiset häviöt ajossa", f"{fmt(purku['haviot_kwh'], 2)} kWh",
                f"R · ∫ I² dt, R = {fmt(purku.get('r_kaytetty_mohm'), 0)} mΩ")
@@ -1164,7 +1164,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         E.append(result_table(rows, hl))
         if tyyppi == "pika_ajo":
             E.append(Spacer(1, 2 * mm))
-            E.append(P("Pika-ajotesti tarkistaa Teslan akunhallinnan ilmoittaman kapasiteetin. Lyhyen ajon tulosta "
+            E.append(P(f"Pika-ajotesti tarkistaa {_BRAND['gen']} akunhallinnan ilmoittaman kapasiteetin. Lyhyen ajon tulosta "
                        "ei käytetä akun kuntoprosenttina.", "small"))
         A.append(P("Purkumittauksen vaiheet", "h2"))
         A.append(_table(rows_d, [66 * mm, 30 * mm, CW - 96 * mm]))
@@ -1311,7 +1311,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         addi("Poikkeavat ryhmät", ", ".join(str(p["nro"]) for p in itse.get("poikkeavat", [])) or "Ei havaittu", "")
         if itse.get("seisonta_w") is not None:
             addi("Auton energiankulutus seisonnassa", f"{fmt(itse['seisonta_w'], 0)} W",
-                 f"{fmt(itse['seisonta_kwh'], 2)} kWh, Teslan energialaskurit")
+                 f"{fmt(itse['seisonta_kwh'], 2)} kWh, {_BRAND['gen']} energialaskurit")
         addi("Luokka", itse.get("luokka") or "Ei arvioitu", "" if itse.get("luokka") else "Mittaus ei ollut riittävän tarkka")
         E.append(KeepTogether(_table(rows, [66 * mm, 40 * mm, CW - 106 * mm])))
 
@@ -1544,7 +1544,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         ]
     if purku.get("valmis"):
         meth += [
-            ("Purkumittaus", "Ajon aikana akusta otettu energia luetaan Teslan elinkaaren energialaskureista, "
+            ("Purkumittaus", f"Ajon aikana akusta otettu energia luetaan {_BRAND['gen']} elinkaaren energialaskureista, "
              "joista vähennetään jarrutuksissa akkuun palautunut energia. Akun sisäiset häviöt (R · ∫ I² dt) "
              "lisätään, jolloin saadaan akusta purkautunut energia. Varaustilan muutos luetaan akunhallinnasta "
              "levossa ennen ajoa ja sen jälkeen. Ampeerituntikapasiteetti ja akkukemian lepojännitekäyrä antavat "
@@ -1591,7 +1591,8 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
          "todista tasapainoa, ja luokaksi annetaan enintään hyvä."),
         ("Kunnon luokitus", "Vähintään 90 % erinomainen, 80–90 % hyvä, 70–80 % heikentynyt (luokat AVILOOn käytännön "
          "mukaan). "
-         "Teslan akkutakuu kattaa kapasiteetin laskun alle 70 %:n takuuaikana."),
+         + (f"{_BRAND['gen']} akkutakuu kattaa kapasiteetin laskun alle {(r.get('takuu') or {}).get('sailyvyys_pct') or 70} %:n "
+            "takuuaikana.")),
         *([("Vertailu ajomäärään", "Vertailukäyrä perustuu Teslan vaikuttavuusraportissa (Impact Report 2023) "
             "julkaistuun keskiarvoon, jonka mukaan Model 3- ja Model Y -akkujen kapasiteetti on alentunut noin "
             "15 % ja Model S- ja Model X -akkujen noin 12 % noin 320 000 km:n jälkeen.")] if brand == "Tesla" else []),

@@ -24,6 +24,8 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -42,7 +44,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private lateinit var web: WebView
-    private lateinit var splash: TextView
+    private lateinit var splash: LinearLayout
+    private lateinit var splashText: TextView
     private var fileCallback: ValueCallback<Array<Uri>>? = null
 
     private val pickFile = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -76,12 +79,23 @@ class MainActivity : ComponentActivity() {
 
         val root = FrameLayout(this)
         web = WebView(this)
-        splash = TextView(this).apply {
-            text = "AKVERI käynnistyy…"
-            textSize = 18f
+        // Aloitusnäkymä: logo ja nimi, kunnes ohjelma on valmis
+        val dp = resources.displayMetrics.density
+        splashText = TextView(this).apply {
+            text = "AKVERI"
+            textSize = 24f
+            letterSpacing = 0.14f
             setTextColor(Color.parseColor("#1B2430"))
-            setBackgroundColor(Color.parseColor("#F3F4F6"))
             gravity = Gravity.CENTER
+            setPadding(0, (14 * dp).toInt(), 0, 0)
+        }
+        splash = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setBackgroundColor(Color.parseColor("#F3F4F6"))
+            addView(ImageView(this@MainActivity).apply { setImageResource(R.mipmap.ic_launcher) },
+                LinearLayout.LayoutParams((96 * dp).toInt(), (96 * dp).toInt()))
+            addView(splashText, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
         root.addView(web, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         root.addView(splash, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -150,7 +164,11 @@ class MainActivity : ComponentActivity() {
                 }
                 Thread.sleep(400)
             }
-            runOnUiThread { splash.text = "AKVERI ei käynnistynyt. Sulje sovellus ja avaa se uudelleen." }
+            runOnUiThread {
+                splashText.textSize = 16f
+                splashText.letterSpacing = 0f
+                splashText.text = "AKVERI ei käynnistynyt. Sulje sovellus ja avaa se uudelleen."
+            }
         }
     }
 

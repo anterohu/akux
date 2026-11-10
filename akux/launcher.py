@@ -79,10 +79,16 @@ def open_window(url: str):
 
 
 LATAUS_HTML = """<!doctype html><html lang="fi"><head><meta charset="utf-8"><title>AKVERI</title>
-<style>html,body{height:100%;margin:0;font-family:Segoe UI,system-ui,sans-serif;background:#F5F6F8;color:#1B2430}
-body{display:flex;align-items:center;justify-content:center}div{text-align:center}b{font-size:20px}
-p{color:#6B7480;font-size:13px}@media(prefers-color-scheme:dark){html,body{background:#12171E;color:#E6E9EE}}</style>
-</head><body><div><b>AKVERI</b><p>Käynnistetään…</p></div></body></html>"""
+<style>html,body{height:100%;margin:0;font-family:Segoe UI,system-ui,sans-serif;background:#F5F6F8;color:#1F4E79}
+body{display:flex;align-items:center;justify-content:center}div{text-align:center}
+b{display:block;margin-top:14px;font-size:24px;letter-spacing:.14em;color:#1B2430}
+@media(prefers-color-scheme:dark){html,body{background:#12171E;color:#8FB8E0}b{color:#E6E9EE}}</style>
+</head><body><div><svg viewBox="0 0 100 100" width="84" height="84" aria-hidden="true">
+<circle cx="50" cy="50" r="46.5" fill="#fff" stroke="currentColor" stroke-width="6"/>
+<circle cx="50" cy="50" r="37" fill="none" stroke="currentColor" stroke-opacity=".38" stroke-width="1.8" stroke-dasharray="2 4"/>
+<path d="M33 71 L50 28 L67 71" fill="none" stroke="#1F4E79" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="40.5" y1="57" x2="59.5" y2="57" stroke="#6CC193" stroke-width="7.5" stroke-linecap="round"/></svg>
+<b>AKVERI</b></div></body></html>"""
 
 
 def _webview():

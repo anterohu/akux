@@ -163,6 +163,11 @@ def _pdf_check(app, tid, must):
     assert not bad, f"raportissa virheellisiä merkkijonoja: {bad}"
     for m in must:
         assert m in txt, f"raportista puuttuu: {m}"
+    merkki = ((app.storage.test(tid) or {}).get("tulos") or {}).get("ajoneuvo", {}).get("merkki") or "Tesla"
+    if merkki != "Tesla":
+        # muiden merkkien raportissa ei saa mainita Teslaa
+        hits = [txt[max(0, m.start() - 40):m.end() + 30].replace("\n", " ") for m in re.finditer("Tesla", txt)]
+        assert not hits, f"{merkki}-raportissa mainitaan Tesla: {hits}"
     return p, txt
 
 
