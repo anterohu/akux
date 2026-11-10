@@ -300,8 +300,9 @@ def test_yotauko_latauksessa_lammitys(tmp):
     app.recorder.pause()                   # Jatka myöhemmin
     app.disconnect()
     src.set_mode("drive", 0.4)             # lataus pysäytetty, auto kuluttaa 0,4 kW koko yön
+    c0 = src.total_dis - src.total_chg
     _offline(src, 8 * 60, step=30.0)
-    kulutus = 0.4 * 8
+    kulutus = (src.total_dis - src.total_chg) - c0      # yön todellinen nettokulutus (noin 2,6 kWh)
     app2 = _app(tmp)
     app2.connect("demo", sim=src)
     assert wait_until(lambda: app2.decoder.state.vin and app2.decoder.state.nominal_remaining_kwh, 20)
@@ -313,9 +314,10 @@ def test_yotauko_latauksessa_lammitys(tmp):
     t = _done(app2, tid, 300)
     cap = t["tulos"]["kapasiteetti"]
     print(f"Yötauko: kapasiteetti {cap['taysi_kwh']:.2f} ±{cap['epavarmuus_kwh']:.2f}, tauon nettoenergia "
-          f"{cap['katkot_kwh']:.2f} kWh (yön kulutus {kulutus:.1f} kWh), todellinen {src.nfp}")
+          f"{cap['katkot_kwh']:.2f} kWh (yön kulutus {kulutus:.2f} kWh), todellinen {src.nfp}")
     assert cap["valmis"]
-    assert -kulutus - 0.5 < cap["katkot_kwh"] < -kulutus + 0.5, cap["katkot_kwh"]
+    assert kulutus > 2.0
+    assert abs(cap["katkot_kwh"] + kulutus) < 0.15, (cap["katkot_kwh"], kulutus)
     assert abs(cap["taysi_kwh"] - src.nfp) < max(1.5, 1.5 * cap["epavarmuus_kwh"])
     assert any("kulutus" in h for h in t["tulos"]["huomiot"]), t["tulos"]["huomiot"]
     app2.disconnect()

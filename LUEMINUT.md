@@ -1,8 +1,10 @@
-# AKVERI 1.7
+# AKVERI 1.8
 
-AKVERI lukee Teslan ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta OBDLink-sovittimella ja tekee tuloksista selkeän ja yksityiskohtaisen PDF-raportin ostajalle, asiakkaalle tai omaan käyttöön. Kaikki mittausarvot ovat auton akunhallinnan luovuttamia.
+AKVERI lukee sähköauton ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta OBDLink-sovittimella ja tekee tuloksista selkeän ja yksityiskohtaisen PDF-raportin ostajalle, asiakkaalle tai omaan käyttöön. Kaikki mittausarvot ovat auton akunhallinnan luovuttamia.
 
 Tuetut autot: Model 3 ja Model Y (kaikki vuosimallit ja akkutyypit), Model S ja Model X (2012 alkaen; vuosien 2012–2021 vanhempi viestirakenne tunnistetaan automaattisesti) sekä Cybertruck kokeellisesti. Model S/X- ja Cybertruck-tukea ei ole vielä varmistettu oikealla autolla.
+
+Muut merkit (versiosta 1.8 alkaen): Hyundai Ioniq Electric, Kona Electric, Ioniq 5 ja Ioniq 6, Kia e-Niro, e-Soul ja EV6, Nissan Leaf (24, 30, 40 ja 62 kWh) sekä Volkswagen-konsernin MEB-alustan autot (Volkswagen ID.3, ID.4 ja ID.5, Škoda Enyaq, Audi Q4 e-tron ja Cupra Born). Näiden autojen akunhallinta vastaa vain kyselyihin, joten auton on oltava mittauksen aikana päällä tai latauksessa. Muiden merkkien tukea ei ole vielä varmistettu oikealla autolla. Erot Teslaan on kuvattu ohjelman ohjeissa kohdassa Muut merkit.
 
 ## Asennus
 
@@ -34,7 +36,7 @@ Mittaustiedosto sisältää kaiken: auton tiedot, mittausnäytteet, kennoryhmien
   - *Paikallaan:* pikatarkastus (1–3 min), kapasiteettimittaus latauksen aikana (8–14 h) ja itsepurkaustesti (yön yli).
   - *Ajossa:* täysi akkutesti (purku ajossa ja lataus täyteen), ajotesti, pika-ajotesti ja kuormitustesti.
   - *Pikalaturilla:* pikalataustesti.
-  - Ajotestit ja itsepurkaustesti voi jättää **jatkettavaksi myöhemmin** ja jatkaa ohjelman uudelleenkäynnistyksen jälkeen. Jos autoa ladataan tauon aikana, se havaitaan Teslan latauslaskurista.
+  - Ajotestit ja itsepurkaustesti voi jättää **jatkettavaksi myöhemmin** ja jatkaa ohjelman uudelleenkäynnistyksen jälkeen. Jos autoa ladataan tauon aikana, se havaitaan latauslaskurista. Latausvaiheen tauon aikana akkuun mennyt tai siitä kulunut energia (esimerkiksi lämmitys) luetaan auton elinkaaren energialaskureista.
   - Raportti näyttää mitatun kunnon vain, kun epävarmuus on enintään ±3 %-yksikköä ja mittauksen laatu riittää. Muuten näytetään Teslan akunhallinnan ilmoittama arvo ja syy.
 - **Esimerkkiautot:** Autot-sivulta saa kolme esimerkkiautoa, joissa on valmiit raportit kaikista mittaustyypeistä, joten ohjelmaa voi tutkia ilman autoa.
 - **Autot:** ohjelma tunnistaa auton valmistenumerosta ja oppii akun tiedot ensimmäisessä mittauksessa. Mittaus estetään, jos kytketty auto ei ole sama kuin valittu.
@@ -106,7 +108,10 @@ Android hyväksyy päivityksen vain, jos se on allekirjoitettu samalla avaimella
 - CAN-viestien määrittelyt: Tesla Model 3 DBC, https://github.com/joshwardell/model3dbc (MIT-lisenssi).
 - Model S 2012–2021 / Model X 2015–2021: Open Vehicle Monitoring System, https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3 (MIT-lisenssi), ja Battery-Emulatorin TESLA-LEGACY-BATTERY.
 - Uudemman ohjelmistoversion energiaviestin rakenne: Battery-Emulator, https://github.com/dalathegreat/Battery-Emulator.
+- Hyundai ja Kia: OBD-PIDs-for-HKMC-EVs, https://github.com/JejuSoul/OBD-PIDs-for-HKMC-EVs, ja evDash, https://github.com/nickn17/evDash (MIT-lisenssi).
+- Nissan Leaf: Open Vehicle Monitoring System (vehicle_nissanleaf), Battery-Emulator ja py-nissan-leaf-obd-ble, https://github.com/pbutterworth/py-nissan-leaf-obd-ble.
+- Volkswagen-konsernin MEB: evDash (CarVWID3) ja Battery-Emulator.
 - OBD-liitännän kolmannen osapuolen CAN-väylä: Tesla, huoltodokumentti CD-20-17-001.
 - Fontti Inter, SIL Open Font License 1.1 (`akux/data/fonts/LISENSSI-Inter.txt`).
 
-Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä. AKVERI ei ole Teslan tekemä eikä hyväksymä.
+Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä. Hyundai, Kia, Nissan, Volkswagen, Škoda, Audi ja Cupra sekä niiden mallinimet ovat omistajiensa tavaramerkkejä. AKVERI ei ole minkään autonvalmistajan tekemä eikä hyväksymä.
