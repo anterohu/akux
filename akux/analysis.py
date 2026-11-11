@@ -213,11 +213,37 @@ def _snap(snaps, *names):
     return None
 
 
-def reference_capacity(vehicle: dict, bms_bol: float | None, model: dict | None) -> tuple[float | None, str]:
+# Akunhallinnan alkuperäisen energian suurin sallittu poikkeama mallin ilmoittamasta kapasiteetista. Teslan
+# akunhallinnan arvo poikkeaa mallitaulukon pyöristetystä arvosta tyypillisesti 1–4 %; yli 15 %:n poikkeama
+# tarkoittaa, että arvo kuuluu toiseen akkukokoon (esimerkiksi ohjelmistovirhe tai vaihdettu ohjain).
+BOL_MAX_POIKKEAMA = 0.15
+
+
+def _ilman_vuosia(nimi: str) -> str:
+    """Mallipohjan nimi ilman loppuun merkittyä vuosiväliä."""
+    import re
+    return re.sub(r"\s*\([^)]*\)\s*$", "", nimi)
+
+
+def bol_sopii(bol: float | None, model: dict | None, nfp: float | None = None) -> bool:
+    """Onko akunhallinnan ilmoittama alkuperäinen energia mahdollinen tälle akulle."""
+    if not bol or not (30 <= bol <= 150):
+        return False
+    if nfp and bol < nfp * 0.97:
+        return False                       # akku ei voi olla nyt selvästi suurempi kuin uutena
+    if model and model.get("viite_kwh") and not model.get("likiarvo"):
+        if nfp and nfp > model["viite_kwh"] * 1.05:
+            return True                    # akku on suurempi kuin valittu malli: malli on väärä, ei akunhallinta
+        return abs(bol / model["viite_kwh"] - 1) <= BOL_MAX_POIKKEAMA
+    return True
+
+
+def reference_capacity(vehicle: dict, bms_bol: float | None, model: dict | None,
+                       nfp: float | None = None) -> tuple[float | None, str]:
     learned = (vehicle or {}).get("opitut", {})
-    if bms_bol and 30 <= bms_bol <= 150:
+    if bol_sopii(bms_bol, model, nfp):
         return bms_bol, "Auton akunhallinta"
-    if learned.get("bol_kwh"):
+    if learned.get("bol_kwh") and bol_sopii(learned["bol_kwh"], model, nfp):
         return learned["bol_kwh"], "Auton akunhallinta (aiempi mittaus)"
     if learned.get("viite_kayttaja"):
         return float(learned["viite_kayttaja"]), "Käyttäjän ilmoittama"
@@ -348,8 +374,16 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
         model, reasons = profiles.identify(vin_info, bol_kwh=bol, brick_count=brick_count,
                                            cell_v_max=last.get("cell_v_max"), soc=last.get("soc_avg"),
                                            platform=platform, nfp_kwh=nfp_now)
+        if model and bol and not bol_sopii(bol, model, nfp_now):
+            # Akunhallinnan alkuperäinen energia ei sovi tunnistettuun malliin: tunnistetaan ilman sitä
+            model, reasons = profiles.identify(vin_info, bol_kwh=None, brick_count=brick_count,
+                                               cell_v_max=last.get("cell_v_max"), soc=last.get("soc_avg"),
+                                               platform=platform, nfp_kwh=nfp_now)
     chem_key = (model or {}).get("kemia", "NCA")
-    ref_kwh, ref_src = reference_capacity(vehicle, bol, model)
+    ref_kwh, ref_src = reference_capacity(vehicle, bol, model, nfp_now)
+    bol_hylatty = None
+    if bol and ref_src != "Auton akunhallinta" and not bol_sopii(bol, model, nfp_now):
+        bol_hylatty = bol
     odo = test.get("mittarilukema") or last.get("odometer_km")
 
     res: dict = {
@@ -378,8 +412,12 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
             "merkki": (model or {}).get("merkki") or ("Tesla" if platform in (None, "m3", "sx") else None),
             "kenno_resoluutio_mv": _resolution(platform),
         },
-        "viite": {"kwh": ref_kwh, "lahde": ref_src},
-        "huomiot": list(meta.get("huomiot", [])) + _platform_notes(model, platform, ref_src, last),
+        "viite": {"kwh": ref_kwh, "lahde": ref_src, "hylatty_bol_kwh": bol_hylatty},
+        "huomiot": list(meta.get("huomiot", [])) + _platform_notes(model, platform, ref_src, last) + (
+            [f"Akunhallinnan ilmoittama alkuperäinen energia ({fmt(bol_hylatty)} kWh) ei sovi tämän mallin akkuun "
+             f"({_ilman_vuosia((model or {}).get('nimi') or 'tunnistettu malli')}), "
+             f"joten sitä ei käytetä. Akun kunto on laskettu mallin ilmoitetusta kapasiteetista "
+             f"({fmt((model or {}).get('viite_kwh'))} kWh)."] if bol_hylatty else []),
         "meta": meta,
         "arviot": [],
     }

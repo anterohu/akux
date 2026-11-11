@@ -757,7 +757,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     base_name = _re.sub(r"\s*\([^)]*\d{4}[^)]*\)\s*$", "", model_name)     # mallipohjan vuosiväli pois
     sub = base_name if brand != "Tesla" or base_name.startswith("Tesla") else f"Tesla {base_name}"
     _prof = profiles.get(veh.get("malli_id")) or {}
-    if _prof.get("akku_lyhyt") and vi.get("malli") and brand == "Tesla":
+    if _prof.get("akku_lyhyt") and vi.get("malli") and brand == "Tesla" and _prof.get("alusta") == "sx":
         sub = f"Tesla {vi['malli']}  ·  {_prof['akku_lyhyt']}"
     year = vehicle.get("vuosimalli") or vi.get("vuosimalli")
     reg = (vehicle.get("rekisteri") or "").strip()

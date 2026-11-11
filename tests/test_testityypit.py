@@ -323,6 +323,37 @@ def test_yotauko_latauksessa_lammitys(tmp):
     app2.disconnect()
 
 
+def test_virheellinen_alkuperainen_energia(tmp):
+    """LFP-auto (Model 3 SR+ LFP, 106 kennoryhmää), jonka akunhallinta ilmoittaa alkuperäiseksi energiaksi
+    76,9 kWh (mittaus 2026-00009). Arvo ei sovi 55 kWh:n LFP-akkuun, joten sitä ei käytetä, ja kunto lasketaan
+    mallin kapasiteetista. Väärä arvo ei myöskään saa jäädä autolle opituksi."""
+    from akux import analysis
+    app = _app(tmp)
+    src = BatterySimulator(chem="LFP", cells=106, nfp_kwh=51.4, bol_kwh=76.9, soc=0.15, accel=300,
+                           weak_cell=None, vin="LRW3E7FA4LC110444")
+    tid = _start(app, src, "kapasiteetti")
+    assert abs(app.decoder.state.bol_kwh - 76.9) < 0.05
+    src.set_mode("charge", 11.0)
+    _phase(app, "lepo_loppu", 400)
+    src.set_mode("park")
+    t = _done(app, tid, 300)
+    r = t["tulos"]
+    assert r["ajoneuvo"]["malli_id"] == "m3-srplus-2021-lfp", r["ajoneuvo"]["malli_id"]
+    assert r["viite"]["kwh"] == 55.0 and r["viite"]["hylatty_bol_kwh"] == 76.9, r["viite"]
+    assert any("76,9 kWh" in h and "ei sovi" in h for h in r["huomiot"]), r["huomiot"]
+    soh = r["kapasiteetti"]["soh_pct"]
+    assert 90 < soh < 97, soh                       # 51,4 / 55,0 ≈ 93 %, ei 67 %
+    v = app.storage.vehicle(t["vehicle_id"])
+    assert (v.get("opitut") or {}).get("bol_kwh") != 76.9, v.get("opitut")
+    # Vanhalla versiolla tehty mittaus: väärä arvo on jo opittu autolle. Uudelleenlaskenta korjaa tuloksen.
+    app.storage.update_vehicle(v["id"], {"opitut": {**(v.get("opitut") or {}), "bol_kwh": 76.9}})
+    r2 = analysis.reanalyze(app.storage, tid)
+    assert r2["viite"]["kwh"] == 55.0 and 90 < r2["kapasiteetti"]["soh_pct"] < 97, r2["viite"]
+    _report(app, tid)
+    print(f"Väärä alkuperäinen energia hylätty: kunto {soh:.1f} %")
+    app.disconnect()
+
+
 def test_kapasiteetti_katkot_latauksessa(tmp):
     """Ohjelma suljetaan kesken latauksen ja kone sammuu kesken latauksen: mittaus jatkuu ja tulos pitää."""
     app = _app(tmp)
@@ -374,7 +405,7 @@ def test_kapasiteetti_katkot_latauksessa(tmp):
 
 
 ALL = [test_kuormitustesti_lahtoehdot, test_kapasiteetti_katkot_latauksessa, test_lataus_tauon_aikana, test_ajotesti_kahdessa_osassa, test_pika_ajotesti, test_taysi_akkutesti, test_kuormitustesti,
-       test_pikalataustesti, test_itsepurkaustesti_ja_tauko, test_hylkays, test_yotauko_latauksessa_lammitys]
+       test_pikalataustesti, test_itsepurkaustesti_ja_tauko, test_hylkays, test_yotauko_latauksessa_lammitys, test_virheellinen_alkuperainen_energia]
 
 if __name__ == "__main__":
     only = sys.argv[1:]

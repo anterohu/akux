@@ -94,7 +94,7 @@
   "mallit": [
     {
       "id": "m3-srplus-2019-nca",
-      "nimi": "Model 3 Standard Range Plus (2019–2020)",
+      "nimi": "Model 3 Standard Range Plus 55 kWh (2019–2020)",
       "malli_koodi": "3",
       "vuodet": [
         2019,
@@ -113,11 +113,12 @@
       "takuu": "vakio",
       "alusta": "m3",
       "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "55 kWh akku"
     },
     {
       "id": "m3-lr-2019-2020-nca",
-      "nimi": "Model 3 Long Range / Performance (2019–2020)",
+      "nimi": "Model 3 Long Range / Performance 80,5 kWh (2019–2020)",
       "malli_koodi": "3",
       "vuodet": [
         2019,
@@ -138,11 +139,12 @@
       "takuu": "pitka",
       "alusta": "m3",
       "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "80,5 kWh akku"
     },
     {
       "id": "m3-lr-2021-panasonic",
-      "nimi": "Model 3 Long Range / Performance (2021–2023, Fremont)",
+      "nimi": "Model 3 Long Range / Performance 82 kWh (2021–2023, Fremont)",
       "malli_koodi": "3",
       "vuodet": [
         2021,
@@ -163,11 +165,12 @@
       "takuu": "pitka",
       "alusta": "m3",
       "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "82 kWh akku"
     },
     {
       "id": "m3-lr-2021-lg",
-      "nimi": "Model 3 Long Range / Performance (2021–2023, Shanghai)",
+      "nimi": "Model 3 Long Range / Performance 78,8 kWh (2021–2023, Shanghai)",
       "malli_koodi": "3",
       "vuodet": [
         2021,
@@ -188,11 +191,12 @@
       "takuu": "pitka",
       "alusta": "m3",
       "kennotyyppi": "LG Energy Solution 2170 -lieriökenno, NMC",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "78,8 kWh akku"
     },
     {
       "id": "m3-srplus-2021-lfp",
-      "nimi": "Model 3 Standard Range Plus LFP (2020–2021, Shanghai)",
+      "nimi": "Model 3 Standard Range Plus LFP 55 kWh (2020–2021, Shanghai)",
       "malli_koodi": "3",
       "vuodet": [
         2020,
@@ -211,11 +215,12 @@
       "takuu": "vakio",
       "alusta": "m3",
       "kennotyyppi": "CATL prismaattinen kenno, LFP",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "55 kWh akku"
     },
     {
       "id": "m3-rwd-2022-lfp",
-      "nimi": "Model 3 RWD LFP (2022–2023)",
+      "nimi": "Model 3 RWD LFP 60 kWh (2022–2023)",
       "malli_koodi": "3",
       "vuodet": [
         2022,
@@ -234,11 +239,12 @@
       "takuu": "vakio",
       "alusta": "m3",
       "kennotyyppi": "CATL prismaattinen kenno, LFP",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "60 kWh akku"
     },
     {
       "id": "m3-highland-rwd-lfp",
-      "nimi": "Model 3 RWD LFP (2024–)",
+      "nimi": "Model 3 RWD LFP 60 kWh (2024–)",
       "malli_koodi": "3",
       "vuodet": [
         2024,
@@ -259,11 +265,12 @@
       "takuu": "vakio",
       "alusta": "m3",
       "kennotyyppi": "CATL prismaattinen kenno, LFP",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "60 kWh akku"
     },
     {
       "id": "m3-highland-lr",
-      "nimi": "Model 3 Long Range / Performance (2024–)",
+      "nimi": "Model 3 Long Range / Performance 82 kWh (2024–)",
       "malli_koodi": "3",
       "vuodet": [
         2024,
@@ -287,11 +294,12 @@
       "takuu": "pitka",
       "alusta": "m3",
       "kennotyyppi": "LG Energy Solution 2170 -lieriökenno, NMC",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "82 kWh akku"
     },
     {
       "id": "my-lr-nmc",
-      "nimi": "Model Y Long Range / Performance (2021–)",
+      "nimi": "Model Y Long Range / Performance 78,8 kWh (2021–)",
       "malli_koodi": "Y",
       "vuodet": [
         2021,
@@ -318,11 +326,12 @@
       "takuu": "pitka",
       "alusta": "m3",
       "kennotyyppi": "LG Energy Solution 2170 -lieriökenno, NMC",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "78,8 kWh akku"
     },
     {
       "id": "my-rwd-lfp",
-      "nimi": "Model Y RWD LFP (2022–2024, Shanghai)",
+      "nimi": "Model Y RWD LFP 62,5 kWh (2022–2024, Shanghai)",
       "malli_koodi": "Y",
       "vuodet": [
         2022,
@@ -342,11 +351,12 @@
       "takuu": "vakio",
       "alusta": "m3",
       "kennotyyppi": "CATL prismaattinen kenno, LFP",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "62,5 kWh akku"
     },
     {
       "id": "m3-mr-2019-nca",
-      "nimi": "Model 3 Mid Range (2018–2019)",
+      "nimi": "Model 3 Mid Range 62 kWh (2018–2019)",
       "malli_koodi": "3",
       "vuodet": [
         2018,
@@ -365,11 +375,12 @@
       "takuu": "vakio",
       "alusta": "m3",
       "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "62 kWh akku"
     },
     {
       "id": "m3-lr-2017-2018-nca",
-      "nimi": "Model 3 Long Range (2017–2018)",
+      "nimi": "Model 3 Long Range 80,5 kWh (2017–2018)",
       "malli_koodi": "3",
       "vuodet": [
         2017,
@@ -390,11 +401,12 @@
       "takuu": "pitka",
       "alusta": "m3",
       "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "80,5 kWh akku"
     },
     {
       "id": "my-lr-fremont-nca",
-      "nimi": "Model Y Long Range / Performance (2020–2024, Fremont)",
+      "nimi": "Model Y Long Range / Performance 81 kWh (2020–2024, Fremont)",
       "malli_koodi": "Y",
       "vuodet": [
         2020,
@@ -417,11 +429,12 @@
       "takuu": "pitka",
       "alusta": "m3",
       "kennotyyppi": "Panasonic 2170 -lieriökenno, NCA",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "81 kWh akku"
     },
     {
       "id": "my-4680",
-      "nimi": "Model Y AWD 4680-kennoilla (2022–2024, Austin)",
+      "nimi": "Model Y AWD 4680-kennoilla 67,5 kWh (2022–2024, Austin)",
       "malli_koodi": "Y",
       "vuodet": [
         2022,
@@ -441,11 +454,12 @@
       "takuu": "vakio",
       "alusta": "m3",
       "kennotyyppi": "Tesla 4680 -lieriökenno, NMC",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "67,5 kWh akku"
     },
     {
       "id": "my-juniper-lr",
-      "nimi": "Model Y Long Range / Performance (2025–)",
+      "nimi": "Model Y Long Range / Performance 84 kWh (2025–)",
       "malli_koodi": "Y",
       "vuodet": [
         2025,
@@ -470,11 +484,12 @@
       "takuu": "pitka",
       "alusta": "m3",
       "kennotyyppi": "LG Energy Solution 2170 -lieriökenno, NMC",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "84 kWh akku"
     },
     {
       "id": "my-juniper-lfp",
-      "nimi": "Model Y RWD / Standard LFP (2025–)",
+      "nimi": "Model Y RWD / Standard LFP 62,5 kWh (2025–)",
       "malli_koodi": "Y",
       "vuodet": [
         2025,
@@ -495,7 +510,8 @@
       "takuu": "vakio",
       "alusta": "m3",
       "kennotyyppi": "CATL prismaattinen kenno, LFP",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "62,5 kWh akku"
     },
     {
       "id": "sx-60",
@@ -671,7 +687,7 @@
     },
     {
       "id": "sx2021-lr",
-      "nimi": "Model S / Model X Long Range ja Plaid (2021–)",
+      "nimi": "Model S / Model X Long Range ja Plaid 99 kWh (2021–)",
       "malli_koodi": "SX",
       "vuodet": [
         2021,
@@ -696,11 +712,12 @@
       "takuu": "pitka",
       "alusta": "m3",
       "kennotyyppi": "Panasonic 18650 -lieriökenno, NCA",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "99 kWh akku"
     },
     {
       "id": "ct-awd",
-      "nimi": "Cybertruck (2023–)",
+      "nimi": "Cybertruck 123 kWh (2023–)",
       "malli_koodi": "C",
       "vuodet": [
         2023,
@@ -725,11 +742,12 @@
       "alusta": "m3",
       "kokeellinen": true,
       "kennotyyppi": "Tesla 4680 -lieriökenno, NMC",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "123 kWh akku"
     },
     {
       "id": "my-rwd-lfp-byd",
-      "nimi": "Model Y RWD LFP (2023–2024, Berliini)",
+      "nimi": "Model Y RWD LFP 60 kWh (2023–2024, Berliini)",
       "malli_koodi": "Y",
       "vuodet": [
         2023,
@@ -748,7 +766,8 @@
       "viite_kwh": 60.0,
       "takuu": "vakio",
       "alusta": "m3",
-      "merkki": "Tesla"
+      "merkki": "Tesla",
+      "akku_lyhyt": "60 kWh akku"
     },
     {
       "id": "hy-ioniq-28",
