@@ -232,7 +232,9 @@ views.yleiskuva = {
               <option value="my-lr">Model Y Long Range 2022 (NMC)</option><option value="ms-85">Model S 85 2015</option>
               <option value="kona-64">Hyundai Kona Electric 64 kWh</option><option value="ioniq-28">Hyundai Ioniq Electric 28 kWh</option>
               <option value="ev6-77">Kia EV6 77,4 kWh</option><option value="leaf-40">Nissan Leaf 40 kWh</option>
-              <option value="leaf-24">Nissan Leaf 24 kWh</option><option value="id3-58">Volkswagen ID.3 58 kWh</option></select>
+              <option value="leaf-24">Nissan Leaf 24 kWh</option><option value="id3-58">Volkswagen ID.3 58 kWh</option>
+              <option value="enyaq-77">Škoda Enyaq 77 kWh</option><option value="q4-77">Audi Q4 e-tron 77 kWh</option>
+              <option value="born-58">Cupra Born 58 kWh</option></select>
             <p class="small muted" style="margin-top:8px">Esittelytilassa voit kokeilla kaikkia toimintoja ja nähdä esimerkkiraportin ilman autoa. Aika kulkee nopeutettuna.</p>
             <div class="row"><button class="btn" id="bDemo">Käynnistä esittelytila</button>
               <button class="btn" id="bEx">Esimerkkiraportit</button></div>
@@ -667,7 +669,7 @@ views.autot = {
     const hasEx = ajoneuvot.some(v => v.opitut && v.opitut.esimerkki);
     view.innerHTML = `<div class="head"><div><h1>Autot</h1><div class="muted">Tallennetut autot ja niiden mittaushistoria</div></div>
       <div class="row"><button class="btn" id="vEx">${hasEx ? "Poista esimerkkiautot" : "Lisää esimerkkiautot"}</button><a class="btn primary" href="#/autot/uusi">Lisää auto</a></div></div>
-      ${hasEx ? "" : `<p class="small muted" style="margin:-8px 0 16px">Esimerkkiautoissa (Model 3 LFP, Model Y ja Model S) on valmiit raportit kaikista mittaustyypeistä, joten näet heti, miltä kaikki näyttää.</p>`}
+      ${hasEx ? "" : `<p class="small muted" style="margin:-8px 0 16px">Esimerkkiautoissa (kolme Teslaa ja yksi auto kustakin muusta tuetusta merkistä) on valmiit raportit kaikista mittaustyypeistä, joten näet heti, miltä kaikki näyttää.</p>`}
       <div class="card" id="vList"></div>`;
     $("#vEx").onclick = () => hasEx
       ? (confirm("Poistetaanko esimerkkiautot ja niiden mittaukset? Omiin autoihisi ei kosketa.") &&

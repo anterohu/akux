@@ -811,7 +811,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         items = [("BRUTTO", f"{fmt(kwh)} kWh" if kwh else "–", f"uutena {fmt(r['viite']['kwh'])} kWh"),
                  ("NETTO", f"{fmt(_kk0['netto_nyt'])} kWh" if _kk0.get("netto_nyt") else "–",
                   f"suojavara {fmt(_kk0.get('puskuri_kwh'), 1)} kWh" if _kk0.get("puskuri_kwh") is not None else ""),
-                 ("JÄNNITE-ERO", (f"alle {fmt(veh['kenno_resoluutio_mv'], 0)} mV" if cs and veh.get("kenno_resoluutio_mv") and cs["ero_mv"] < veh["kenno_resoluutio_mv"] else f"{fmt(cs['ero_mv'], 0)} mV") if cs else "–",
+                 ("JÄNNITE-ERO", (f"alle {fmt(veh['kenno_resoluutio_mv'], 0)} mV" if cs and (veh.get("kenno_resoluutio_mv") or 0) > 1 and cs["ero_mv"] < veh["kenno_resoluutio_mv"] else f"{fmt(cs['ero_mv'], 0)} mV") if cs else "–",
                   f"{cs['lkm']} kennoryhmää" if cs else "")]
         E.append(SohBand(soh, CW, caption, summ.get("kunto_luokka"), items))
         E.append(Spacer(1, 3 * mm))
@@ -833,7 +833,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         kpis.append(kpi("KÄYTETTÄVÄ ENERGIA (NETTO)", f"{fmt(_kk['netto_nyt'])} kWh" if _kk.get("netto_nyt") else "–",
                         f"Suojavara {fmt(_kk['puskuri_kwh'], 1)} kWh" if _kk.get("puskuri_kwh") is not None else ""))
     _res = veh.get("kenno_resoluutio_mv")
-    _ero_txt = (f"alle {fmt(_res, 0)} mV" if cs and _res and cs["ero_mv"] < _res else
+    _ero_txt = (f"alle {fmt(_res, 0)} mV" if cs and (_res or 0) > 1 and cs["ero_mv"] < _res else
                 f"{fmt(cs['ero_mv'], 0)} mV" if cs else "–")
     kpis.append(kpi("KENNORYHMIEN JÄNNITE-ERO", _ero_txt,
                     f"{cs['luokka']}  ·  {cs['lkm']} kennoryhmää" if cs else "Ei mitattu"))
@@ -848,16 +848,17 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     ]))
     E.append(kt)
     E.append(Spacer(1, 2.2 * mm))
-    tesla = []
-    if bms.get("nfp_kwh"):
-        tesla.append(f"täyden akun energia <b>{fmt(bms['nfp_kwh'])} kWh</b>")
-    if r["viite"]["lahde"].startswith("Auton akunhallinta") and r["viite"]["kwh"]:
-        tesla.append(f"alkuperäinen energia <b>{fmt(r['viite']['kwh'])} kWh</b>")
-    if bms.get("soh_pct") and r["viite"]["lahde"].startswith("Auton akunhallinta"):
-        tesla.append(f"kunto <b>{fmt(bms['soh_pct'])} %</b>")
     src_line = "Kaikki mittausarvot ovat auton oman akunhallinnan luovuttamia."
-    if tesla:
-        src_line = f"{_BRAND['gen']} akunhallinta: " + ", ".join(tesla) + ". " + src_line
+    _pt = next((x for x in (r.get("paatulos"), r.get("yhdistetty"), r.get("kapasiteetti"), r.get("purku"))
+                if x and x.get("valmis") and x.get("ero_bms_pct") is not None), None)
+    if bms.get("nfp_kwh") and _pt:
+        from .analysis import bms_vertailu
+        _, _lause = bms_vertailu(_pt["ero_bms_pct"], _pt.get("epavarmuus_kwh"), _pt.get("taysi_kwh"))
+        src_line = (f"Vertailu: {_BRAND['gen']} akunhallinnan oma arvio täyden akun energiasta "
+                    f"<b>{fmt(bms['nfp_kwh'])} kWh</b> {_lause} (ero {fmt(_pt['ero_bms_pct'])} %). " + src_line)
+    elif bms.get("nfp_kwh"):
+        src_line = (f"{_BRAND['gen']} akunhallinnan oma arvio täyden akun energiasta "
+                    f"<b>{fmt(bms['nfp_kwh'])} kWh</b>. " + src_line)
     E.append(P(src_line, "small"))
     E.append(Spacer(1, 4 * mm))
     if summ.get("tulkinta"):
@@ -1051,8 +1052,8 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
                 add("Käytettävissä oleva energia", f"{fmt(cap['kaytettava_kwh'], 1)} kWh",
                     f"Suojavara {fmt(bms.get('puskuri_kwh'))} kWh vähennetty")
             if bms.get("nfp_kwh"):
-                add(f"{_BRAND['gen']} akunhallinnan ilmoittama", f"{fmt(bms['nfp_kwh'], 1)} kWh",
-                    f"Ero mitattuun {fmt(cap.get('ero_bms_pct'))} %")
+                add("Vertailu: akunhallinnan oma arvio", f"{fmt(bms['nfp_kwh'], 1)} kWh",
+                    f"Ero mitattuun {fmt(cap.get('ero_bms_pct'))} %; ei vaikuta tulokseen")
             add_d("Akkuun mennyt energia navoilta", f"{fmt(cap['e_napa_kwh'], 2)} kWh",
                   f"{_BRAND['gen']} latauslaskuri" if cap.get("laskuri_kaytetty") else "Akunhallinnan jännite ja virta, ∫ U · I dt")
             if cap.get("laskuri_kwh") and not cap.get("laskuri_kaytetty"):
@@ -1148,8 +1149,8 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         addp("Akun kokonaiskapasiteetti", f"{fmt(purku['taysi_kwh'], 1)} kWh",
              f"Mittaustarkkuus ±{fmt(purku['epavarmuus_kwh'])} kWh", strong=pk_ok)
         if bms.get("nfp_kwh") and purku.get("ero_bms_pct") is not None:
-            addp(f"{_BRAND['gen']} akunhallinnan ilmoittama", f"{fmt(bms['nfp_kwh'], 1)} kWh",
-                 f"Ero mitattuun {fmt(purku['ero_bms_pct'])} %")
+            addp("Vertailu: akunhallinnan oma arvio", f"{fmt(bms['nfp_kwh'], 1)} kWh",
+                 f"Ero mitattuun {fmt(purku['ero_bms_pct'])} %; ei vaikuta tulokseen")
         if purku.get("purku_kwh") is not None:
             addp_d("Akusta otettu energia", f"{fmt(purku['purku_kwh'], 2)} kWh", f"{_BRAND['gen']} elinkaaren purkulaskuri")
             addp_d("Jarrutuksissa palautunut energia", f"{fmt(purku['palautus_kwh'], 2)} kWh",

@@ -605,6 +605,26 @@ def _tarkista_viite_mittauksella(res, model, nfp) -> None:
                                            "sitä suurempi", mk, v["lahde"]))
 
 
+def bms_lahde(platform) -> str:
+    """Mistä akunhallinnan täyden akun energia on peräisin (raportin selitys)."""
+    from . import polled
+    if polled.is_polled(platform):
+        return ("Arvo on laskettu akunhallinnan ilmoittamasta kuntoprosentista ja mallin kapasiteetista; "
+                "se ei riipu AKVERIn mittauksesta.")
+    return "Arvo on luettu suoraan auton akunhallinnasta; se ei riipu AKVERIn mittauksesta."
+
+
+def bms_vertailu(ero_pct, epavarmuus_kwh=None, taysi_kwh=None) -> tuple[str, str]:
+    """Mitatun kapasiteetin ja akunhallinnan arvion vertailu: (tila, lauseke etusivulle)."""
+    tol = max(2.0, (epavarmuus_kwh / taysi_kwh * 100) if epavarmuus_kwh and taysi_kwh else 0.0)
+    e = abs(ero_pct)
+    if e <= tol:
+        return "Vastaa mittausta", "vastaa mittausta"
+    if e <= 5.0:
+        return "Pieni ero", "poikkeaa mittauksesta vähän"
+    return "Poikkeaa mittauksesta", "poikkeaa mittauksesta selvästi; raportin tulos perustuu mittaukseen"
+
+
 def _gross_net(res, ref_kwh, buffer) -> dict:
     """Brutto = akun koko energia, netto = käytettävissä oleva energia (brutto miinus akunhallinnan suojavara)."""
     y = res.get("yhteenveto") or {}
@@ -614,6 +634,11 @@ def _gross_net(res, ref_kwh, buffer) -> dict:
            "brutto_uutena": ref_kwh, "netto_uutena": (ref_kwh - b) if (ref_kwh and b is not None) else None,
            "brutto_nyt": now, "netto_nyt": (now - b) if (now and b is not None) else None,
            "uutena_lahde": res["viite"]["lahde"], "nyt_lahde": y.get("kunto_lahde")}
+    if out["netto_uutena"] is None:
+        # Valmistajan ilmoittama käytettävä energia uutena (esimerkiksi Volkswagen-konsernin MEB-autot)
+        m = profiles.get((res.get("ajoneuvo") or {}).get("malli_id"))
+        if m and m.get("netto_kwh"):
+            out["netto_uutena"] = float(m["netto_kwh"])
     return out
 
 
@@ -934,9 +959,12 @@ def _summarize(res):
         ar.append({"nimi": "Mitattu kapasiteetti", "arvo": f"{fmt(pt['taysi_kwh'])} kWh",
                    "luokka": None, "kuvaus": f"{pt['lahde']}. Mittaustarkkuus ±{fmt(pt['epavarmuus_kwh'])} kWh. "
                                              f"Mittauksen luotettavuus: {(pt.get('laatu_luokka') or '–').lower()}."})
-        if bms.get("nfp_kwh"):
-            ar.append({"nimi": "Teslan akunhallinnan ilmoittama", "arvo": f"{fmt(bms['nfp_kwh'])} kWh", "luokka": None,
-                       "kuvaus": f"Ero mitattuun {fmt(pt.get('ero_bms_pct'))} %."})
+        if bms.get("nfp_kwh") and pt.get("ero_bms_pct") is not None:
+            tila, _ = bms_vertailu(pt["ero_bms_pct"], pt.get("epavarmuus_kwh"), pt.get("taysi_kwh"))
+            ar.append({"nimi": "Vertailu akunhallinnan arvioon", "arvo": tila, "luokka": None,
+                       "kuvaus": f"Teslan akunhallinnan oma arvio {fmt(bms['nfp_kwh'])} kWh, mitattu "
+                                 f"{fmt(pt['taysi_kwh'])} kWh, ero {fmt(pt['ero_bms_pct'])} %. "
+                                 + bms_lahde(res.get("ajoneuvo", {}).get("alusta"))})
 
     cs = res.get("kennot")
     if cs:

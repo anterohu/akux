@@ -53,6 +53,15 @@ ESITTELYAUTOT = {
     "id3-58": {"nimi": "Volkswagen ID.3 Pro 58 kWh 2021 (NMC)", "malli_id": "vw-meb-58",
                "opts": {"chem": "NMC", "cells": 108, "nfp_kwh": 57.0, "bol_kwh": 62.0, "weak_cell": 77,
                         "vin": "WVWZZZE1ZMP012345"}},
+    "enyaq-77": {"nimi": "Škoda Enyaq 80 77 kWh 2022 (NMC)", "malli_id": "skoda-meb-77",
+                 "opts": {"chem": "NMC", "cells": 96, "nfp_kwh": 76.1, "bol_kwh": 82.0, "weak_cell": 18,
+                          "vin": "TMBJC9NY5NF012345"}},
+    "q4-77": {"nimi": "Audi Q4 40 e-tron 77 kWh 2022 (NMC)", "malli_id": "audi-meb-77",
+              "opts": {"chem": "NMC", "cells": 96, "nfp_kwh": 77.4, "bol_kwh": 82.0, "weak_cell": 61,
+                       "vin": "WAUZZZFZ5NP012345"}},
+    "born-58": {"nimi": "Cupra Born 58 kWh 2022 (NMC)", "malli_id": "cupra-meb-58",
+                "opts": {"chem": "NMC", "cells": 108, "nfp_kwh": 56.2, "bol_kwh": 62.0, "weak_cell": 90,
+                         "vin": "VSSZZZK1ZNP012345"}},
 }
 
 

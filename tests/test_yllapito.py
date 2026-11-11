@@ -151,22 +151,29 @@ def test_yllapito():
 
         # esimerkkiautot: lisäys, raportit ja poisto
         _, e = call(base, "/api/esimerkit", "POST", {})
-        assert e["lisatty"] == 9 and e["autoja"] == 3, e
+        assert e["lisatty"] == 23 and e["autoja"] == 10, e
         _, e2 = call(base, "/api/esimerkit", "POST", {})
         assert e2["lisatty"] == 0, "esimerkit lisättiin kahdesti"
         _, lst = call(base, "/api/mittaukset")
         ex_tests = [t for t in lst["mittaukset"] if t["id"] != tid]
-        assert len(ex_tests) == 9
+        assert len(ex_tests) == 23
+        merkit = set()
         for t in ex_tests:
             assert t["tila"] == "valmis" and t["kunto_pct"], t
             _, pdf_e = call(base, f"/api/mittaukset/{t['id']}/raportti.pdf")
             assert pdf_e[:4] == b"%PDF"
             _, full = call(base, f"/api/mittaukset/{t['id']}")
             kk = full["tulos"]["kapasiteetit"]
-            assert kk["brutto_nyt"] and kk["netto_nyt"] and kk["netto_nyt"] < kk["brutto_nyt"], kk
-            assert full["tulos"]["ajoneuvo"]["kennotyyppi"], full["tulos"]["ajoneuvo"]
+            aj = full["tulos"]["ajoneuvo"]
+            merkit.add(aj.get("merkki"))
+            assert kk["brutto_nyt"], kk
+            if aj.get("merkki") == "Tesla":     # muiden merkkien akunhallinta ei ilmoita suojavaraa
+                assert kk["netto_nyt"] and kk["netto_nyt"] < kk["brutto_nyt"], kk
+            assert aj["kennotyyppi"], aj
+            assert full["ajoneuvo"]["nimi"].split()[0] == aj.get("merkki"), (full["ajoneuvo"]["nimi"], aj.get("merkki"))
+        assert merkit == {"Tesla", "Hyundai", "Kia", "Nissan", "Volkswagen", "Škoda", "Audi", "Cupra"}, merkit
         _, d = call(base, "/api/esimerkit", "POST", {"poista": True})
-        assert d["poistettu"] == 3
+        assert d["poistettu"] == 10
         _, vs = call(base, "/api/ajoneuvot")
         assert len(vs["ajoneuvot"]) == 1, "omat autot eivät saa poistua"
 
