@@ -202,29 +202,30 @@ class Api:
         }
 
     def _live_reference(self, snap, vehicle):
-        """Alkuperäinen kapasiteetti reaaliaikaisen kunnon laskemiseen. Sama järjestys kuin raportissa:
-        akunhallinta, aiempi mittaus tai ilmoitettu arvo, mallitaulukko."""
-        if snap.get("bol_kwh"):
-            if snap.get("platform") not in (None, "m3", "sx"):
-                return snap["bol_kwh"], "mallin alkuperäinen kapasiteetti"
-            return snap["bol_kwh"], "Teslan akunhallinta"
+        """Alkuperäinen kapasiteetti reaaliaikaisen kunnon laskemiseen. Sama järjestys ja samat tarkistukset
+        kuin raportissa: akunhallinta (jos arvo sopii akkuun), aiempi mittaus tai ilmoitettu arvo, mallitaulukko."""
+        from .analysis import reference_capacity, bol_sopii
         key = (snap.get("vin"), (vehicle or {}).get("malli_id"), snap.get("brick_count"), snap.get("platform"))
-        cache = getattr(self, "_ref_cache", None)
+        cache = getattr(self, "_model_cache", None)
         if cache and cache[0] == key:
-            return cache[1]
-        from .analysis import reference_capacity
-        model = profiles.get((vehicle or {}).get("malli_id"))
-        if not model and snap.get("vin"):
-            info = vinmod.decode(snap["vin"])
-            if info.get("kelvollinen"):
-                model, _ = profiles.identify(info, brick_count=snap.get("brick_count"),
-                                             platform=snap.get("platform"), nfp_kwh=snap.get("nfp_kwh"))
-        kwh, src = reference_capacity(vehicle or {}, None, model)
+            model = cache[1]
+        else:
+            model = profiles.get((vehicle or {}).get("malli_id")) or profiles.get(snap.get("malli_id"))
+            if not model and snap.get("vin"):
+                info = vinmod.decode(snap["vin"])
+                if info.get("kelvollinen"):
+                    model, _ = profiles.identify(info, brick_count=snap.get("brick_count"),
+                                                 platform=snap.get("platform"), nfp_kwh=snap.get("nfp_kwh"))
+            self._model_cache = (key, model)
+        bol = snap.get("bol_kwh")
+        if bol and bol_sopii(bol, model, snap.get("nfp_kwh"), snap.get("brick_count")):
+            if snap.get("platform") not in (None, "m3", "sx"):
+                return bol, "mallin alkuperäinen kapasiteetti"
+            return bol, "Teslan akunhallinta"
+        kwh, src = reference_capacity(vehicle or {}, None, model, snap.get("nfp_kwh"), snap.get("brick_count"))
         label = ("mallin alkuperäinen kapasiteetti (likiarvo)" if src.startswith("Mallitaulukko") else
                  "ilmoitettu" if src.startswith("Käyttäjän") else "akunhallinta, aiempi mittaus")
-        out = (kwh, label if kwh else None)
-        self._ref_cache = (key, out)
-        return out
+        return kwh, (label if kwh else None)
 
     def _bus_verdict(self):
         d = self.app.decoder
