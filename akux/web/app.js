@@ -812,7 +812,7 @@ views.mittaukset = {
   render(arg) { if (arg) return this.renderOne(Number(arg)); this.renderList(); },
   async renderList() {
     view.innerHTML = `<div class="head"><div><h1>Mittaukset</h1><div class="muted">Ohjelmaan tallennetut ja tiedostoista avatut mittaukset</div></div>
-      <label class="btn primary" style="cursor:pointer">Avaa mittaustiedosto<input type="file" id="tOpen" accept=".akveri,.akux" hidden></label></div>
+      <label class="btn primary" style="cursor:pointer">Avaa mittaustiedosto<input type="file" id="tOpen" ${ANDROID ? "" : `accept=".akveri,.akux"`} hidden></label></div>
       <div class="card" id="tList"></div>`;
     const { mittaukset } = await api("/api/mittaukset");
     $("#tList").innerHTML = testTable(mittaukset, true);
@@ -822,7 +822,8 @@ views.mittaukset = {
       if (!f) return;
       try {
         const r = await upload("/api/mittaukset/avaa", f);
-        toast(r.uusi ? "Mittaus avattu tiedostosta" : "Mittaus oli jo ohjelmassa");
+        toast((r.uusi ? "Mittaus avattu tiedostosta" : "Mittaus oli jo ohjelmassa, ja se avattiin")
+          + (r.laskettu_uudelleen ? `. Tulos laskettiin uudelleen versiolla ${r.laskettu_uudelleen}.` : ""));
         location.hash = `#/mittaukset/${r.id}`;
       } catch (err) { toast(err.message, true); }
       e.target.value = "";

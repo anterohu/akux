@@ -76,6 +76,16 @@ def test_mittaustiedosto():
         r2 = mittaustiedosto.import_file(b.storage, data)
         assert not r2["uusi"] and r2["id"] == r["id"]
 
+        # Vanhemmalla versiolla laskettu mittaus: avattaessa tulos lasketaan uudelleen tällä versiolla
+        tt = b.storage.test(r["id"])
+        b.storage.update_test(r["id"], tulos={**tt["tulos"], "versio": "1.7.0"})
+        r3 = api.avaa_mittaus({}, {"_raw": data})
+        assert r3["laskettu_uudelleen"] and not r3["uusi"], r3
+        t3 = b.storage.test(r["id"])["tulos"]
+        assert t3["versio"] != "1.7.0" and t3["aiempi_laskenta"]["versio"] == "1.7.0", t3.get("aiempi_laskenta")
+        r4 = api.avaa_mittaus({}, {"_raw": data})       # nyt jo ajan tasalla: ei lasketa uudelleen
+        assert "laskettu_uudelleen" not in r4
+
         # Muutettu tiedosto hylätään
         zin = zipfile.ZipFile(io.BytesIO(data))
         buf = io.BytesIO()

@@ -525,9 +525,20 @@ class Api:
 
     def avaa_mittaus(self, q, body):
         try:
-            return mittaustiedosto.import_file(self.app.storage, body.get("_raw") or b"")
-        except ValueError as e:
-            raise ApiError(str(e))
+            r = mittaustiedosto.import_file(self.app.storage, body.get("_raw") or b"")
+        except (ValueError, KeyError) as e:
+            raise ApiError(str(e) if isinstance(e, ValueError) else
+                           "Tiedosto ei ole AKVERIn mittaustiedosto tai se on vaurioitunut.")
+        # Vanhemmalla versiolla laskettu tulos lasketaan avattaessa uudelleen tämän version laskennalla
+        # samasta tallennetusta mittausdatasta. Aiemman laskennan versio ja kunto jäävät raporttiin.
+        t = self.app.storage.test(r["id"]) or {}
+        if t.get("tila") == "valmis" and (t.get("tulos") or {}).get("versio") != VERSIO:
+            try:
+                analysis.reanalyze(self.app.storage, r["id"])
+                r["laskettu_uudelleen"] = VERSIO
+            except Exception:
+                pass
+        return r
 
     def tallenna_kansioon(self, q, body, tid):
         try:
