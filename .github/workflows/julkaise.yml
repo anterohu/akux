@@ -1,0 +1,62 @@
+# Julkaisu valmiin ajon käännöksistä. Käytetään, jos pääajon julkaisuvaihe jää GitHubin häiriön takia
+# tekemättä, vaikka testit ja käännökset ovat onnistuneet. Ajetaan käsin: Actions → Julkaise valmis ajo.
+name: Julkaise valmis ajo
+on:
+  workflow_dispatch:
+    inputs:
+      ajo:
+        description: "Pääajon tunniste (run id), jonka testit ja käännökset onnistuivat"
+        required: true
+jobs:
+  julkaisu:
+    name: Julkaisu
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Varmista, että ajon testit ja käännökset onnistuivat
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/actions/runs/${{ inputs.ajo }}/jobs \
+            -q '.jobs[] | select(.name != "Julkaisu") | .conclusion' | sort -u > tila.txt
+          cat tila.txt
+          test "$(cat tila.txt)" = "success"
+          SHA=$(gh api repos/${{ github.repository }}/actions/runs/${{ inputs.ajo }} -q .head_sha)
+          git fetch --depth=1 origin "$SHA" && git checkout "$SHA"
+      - uses: actions/download-artifact@v4
+        with:
+          name: Akux-android
+          run-id: ${{ inputs.ajo }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: Akux-windows
+          run-id: ${{ inputs.ajo }}
+          github-token: ${{ github.token }}
+      - name: Lue versio
+        run: |
+          V=$(python3 -c "import re;print(re.search(r'VERSIO = \"([^\"]+)\"', open('akux/__init__.py').read()).group(1))")
+          echo "VERSIO=$V" >> $GITHUB_ENV
+          ls -la
+      - name: Julkaise
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSIO }}
+          target_commitish: ${{ github.sha }}
+          name: AKVERI ${{ env.VERSIO }}
+          make_latest: true
+          body: |
+            **Windows:** lataa AKVERI-asennus-${{ env.VERSIO }}.exe ja avaa se. Jos Windows näyttää ilmoituksen *Windows suojasi tietokonettasi*, valitse Lisätietoja → Suorita silti.
+
+            **Android:** lataa AKVERI-${{ env.VERSIO }}.apk puhelimeen ja avaa se. Android 10 tai uudempi.
+
+            Päivitys asennetaan samalla tavalla vanhan version päälle. Autot, mittaukset, raportit ja asetukset säilyvät.
+
+            Ennen julkaisua on ajettu kaikki testit, Windows-asennus ja päivitys oikealla Windows-koneella sekä Android-sovelluksen kokonaistesti emulaattorissa.
+          files: |
+            AKVERI-*.apk
+            AKVERI-asennus-*.exe
+          overwrite_files: true
