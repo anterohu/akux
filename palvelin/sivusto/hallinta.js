@@ -82,7 +82,7 @@
         ul.appendChild(el('li', d.googleKaytossa ? 'Google Play -ostojen tarkistus on käytössä.' : 'Google Play -ostojen tarkistus EI ole käytössä' + (d.googleVirhe ? ': ' + d.googleVirhe : '. Lisää palvelutilin avain ja sovelluksen paketti Hallintatyökalun AKVERI-välilehdellä.')));
         ul.appendChild(el('li', d.kirjanpitoEhja ? 'Krediittien kirjanpito on eheä (' + d.kirjanpitoRiveja + ' riviä).' : 'VAROITUS: krediittien kirjanpidon tarkisteketju ei täsmää. Kirjanpitoa on muutettu palvelimen ulkopuolelta. Selvitä syy ennen kuin jatkat.'));
         ul.appendChild(el('li', d.viimeisinVarmuuskopio ? 'Viimeisin varmuuskopio: ' + d.viimeisinVarmuuskopio : 'Varmuuskopiota ei ole vielä otettu.'));
-        if (d.testitilit && d.testitilit.length) ul.appendChild(el('li', 'Testitilejä käytössä: ' + d.testitilit.join(', ') + '. Niiden mittaukset eivät kuluta krediittejä ja näkyvät tarkistussivulla testimittauksina. Testimittauksia 30 pv: ' + d.testimittaukset30 + '.'));
+        if (d.testitilit && d.testitilit.length) ul.appendChild(el('li', 'Testitilejä käytössä: ' + d.testitilit.join(', ') + '. Niiden mittaukset eivät kuluta krediittejä ja näkyvät tarkistussivulla testimittauksina. Esittelytila ja esimerkkiautot näkyvät sovelluksessa vain testitileillä. Testimittauksia 30 pv: ' + d.testimittaukset30 + '.'));
         ul.appendChild(el('li', 'Palvelimen versio: ' + (d.versio || 'tuntematon')));
         h.appendChild(ul);
       }).catch(virhe());

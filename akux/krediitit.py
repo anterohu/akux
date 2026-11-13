@@ -140,9 +140,29 @@ class Krediitit:
 
     def tilanne(self) -> dict:
         d = self._kutsu("GET", "/api/v1/saldo")
+        self._muista_esittely(d)
         d["tuotteet"] = self._kutsu("GET", "/api/v1/tuotteet", tunnistus=False).get("tuotteet", [])
         d["versiot"] = self.versiot()
         return d
+
+    # ------------------------------------------------------------ esittelytila
+    # Esittelytila ja esimerkkiautot eivät näy asiakkaille. Ne ovat käytössä vain tileillä, jotka on merkitty
+    # testitileiksi akveri.fi:n hallinnassa, sekä kehitys- ja testiversioissa (AKVERI_ESITTELY=1).
+    def _muista_esittely(self, d: dict):
+        sallittu = bool(d.get("testitili"))
+        if bool(self.storage.settings().get("esittely")) != sallittu:
+            self.storage.save_settings({"esittely": sallittu})
+
+    def esittely_sallittu(self, tarkista: bool = False) -> bool:
+        import os  # noqa: PLC0415
+        if os.environ.get("AKVERI_ESITTELY") == "1":
+            return True
+        if tarkista:
+            try:
+                self._muista_esittely(self._kutsu("GET", "/api/v1/saldo", aikaraja=10.0))
+            except PalveluVirhe:
+                pass
+        return bool(self.storage.settings().get("esittely"))
 
     def versiot(self) -> dict:
         """Palvelimen ilmoittama vähimmäis- ja uusin versio verrattuna tähän versioon."""

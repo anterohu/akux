@@ -26,10 +26,6 @@ OHJE = [
                 "Lisää auto. Ohjelma lukee valmistenumeron autosta ja tunnistaa mallin.",
                 "Tee autolle pikatarkastus. Sen jälkeen voit tehdä kapasiteettimittauksen.",
             ]),
-            ("p", "<b>Esimerkkiautot:</b> Autot-sivun painike <b>Lisää esimerkkiautot</b> tuo ohjelmaan kymmenen autoa "
-                  "valmiine mittauksineen ja raportteineen: kolme Teslaa ja yksi auto kustakin muusta tuetusta merkistä "
-                  "(Hyundai, Kia, Nissan, Volkswagen, Škoda, Audi ja Cupra). Niillä näkee heti, miltä raportit ja ohjelman eri näkymät "
-                  "näyttävät. Esimerkit poistetaan samasta kohdasta, eikä poisto koske omia autoja."),
             ("note", "Ohjelma ainoastaan lukee tietoja. Se ei lähetä autolle mitään eikä muuta auton asetuksia."),
         ],
     },
@@ -137,8 +133,7 @@ OHJE = [
         "id": "krediitit", "otsikko": "Krediitit ja raportin tarkistus",
         "osat": [
             ("p", "Yksi krediitti kattaa yhden mittauksen ja sen raportin. Krediitit ostetaan Android-sovelluksen "
-                  "<b>Krediitit</b>-sivulla Google Playn kautta. Krediitti veloitetaan, kun mittaus aloitetaan. "
-                  "Esittelytilan mittaukset eivät käytä krediittejä."),
+                  "<b>Krediitit</b>-sivulla Google Playn kautta. Krediitti veloitetaan, kun mittaus aloitetaan."),
             ("ul", [
                 "<b>Raportin tunnus:</b> jokainen mittaus saa tunnuksen (esimerkiksi AK-7H2QK-M4XPC). Tunnus ja QR-koodi ovat "
                 "raportin ensimmäisellä sivulla. QR-koodi avaa sivun akveri.fi/v/tunnus, jolla raportin vastaanottaja näkee "

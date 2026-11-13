@@ -97,6 +97,8 @@ OLETUSASETUKSET = {
     # joten palautus uudelle laitteelle siirtää myös krediitit.
     "tili": "",
     "tili_avain": "",
+    # Esittelytila ja esimerkkiautot vain testitileille (akveri.fi:n hallinta). Päivittyy palvelimen tiedoista.
+    "esittely": False,
     "raportin_ulkoasu": "b",
     "ajo_lepo_min": 15,
     "ajo_loppu_soc": 10,

@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.ServiceInfo
 import android.os.IBinder
 import android.os.PowerManager
@@ -66,6 +67,11 @@ class AkuxService : Service() {
                 started = false
                 sendBroadcast(Intent(ACTION_STOPPED).setPackage(packageName))
                 stopSelf()
+            }
+            // Testiversiossa (debug) esittelytila on aina käytössä emulaattoritestejä varten. Play-versiossa se on vain
+            // akveri.fi:n testitileillä.
+            if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+                Python.getInstance().getModule("os")["environ"]?.callAttr("__setitem__", "AKVERI_ESITTELY", "1")
             }
             Python.getInstance().getModule("akux.android").callAttr("start", filesDir.absolutePath, bridge)
         }

@@ -166,15 +166,39 @@ def test_krediitit():
             assert api.krediitit({}, {})["versiot"]["paivitys_saatavilla"] is True
             palvelin.pyynto("PUT", "/api/hallinta/asetukset", {"uusinVersio": ""}, True)
 
-            # 3b. Testitili: mittaus ei kuluta krediittiä ja lupa merkitään testiksi
-            palvelin.pyynto("POST", f"/api/hallinta/tilit/{tili}/tila", {"testitili": True}, True)
-            assert api.krediitit({}, {})["testitili"] is True
+            # 3a. Esittelytila ja esimerkkiautot eivät ole asiakkaiden käytössä (vain testitileillä)
+            vanha_esittely = os.environ.pop("AKVERI_ESITTELY", None)
+            try:
+                assert api.tietoja({}, {})["esittely"] is False
+                for kutsu in (lambda: api.yhdista({}, {"tyyppi": "demo"}), lambda: api.esimerkit({}, {})):
+                    try:
+                        kutsu()
+                        raise AssertionError("esittelytila avautui asiakkaalle")
+                    except ApiError as e:
+                        assert e.code == 403 and "testitileillä" in str(e), e
+                api.tallenna_asetukset({}, {"esittely": True})
+                assert app.storage.settings()["esittely"] is False, "esittelytilaa ei voi avata asetuksista"
+                assert not [v for v in app.storage.vehicles() if (v.get("opitut") or {}).get("esimerkki")]
+
+                # 3b. Testitili: mittaus ei kuluta krediittiä ja lupa merkitään testiksi. Esittelytila avautuu.
+                palvelin.pyynto("POST", f"/api/hallinta/tilit/{tili}/tila", {"testitili": True}, True)
+                assert api.krediitit({}, {})["testitili"] is True
+                assert api.tietoja({}, {})["esittely"] is True
+                assert api.esimerkit({}, {})["ok"] and api.esimerkit({}, {"poista": True})["poistettu"] > 0
+            finally:
+                if vanha_esittely is not None:
+                    os.environ["AKVERI_ESITTELY"] = vanha_esittely
             tidt = app.start_test(vehicle_id=vid, tyyppi="kapasiteetti", mittarilukema=49990)
             assert app.storage.test(tidt)["lupa_testi"] == 1 and api.krediitit({}, {})["saldo"] == 3
             assert api.mittaus({}, {}, tidt)["lupa"]["testi"] is True
             api.keskeyta({}, {})
             assert api.krediitit({}, {})["saldo"] == 3, "testiluvan peruminen ei lisää krediittejä"
             palvelin.pyynto("POST", f"/api/hallinta/tilit/{tili}/tila", {"testitili": False}, True)
+            vanha_esittely = os.environ.pop("AKVERI_ESITTELY", None)
+            assert api.krediitit({}, {})["testitili"] is False and api.tietoja({}, {})["esittely"] is False, \
+                "testitilan poisto sulkee esittelytilan"
+            if vanha_esittely is not None:
+                os.environ["AKVERI_ESITTELY"] = vanha_esittely
 
             # 4. Mittaus veloittaa yhden krediitin ja saa luvan
             tid = app.start_test(vehicle_id=vid, tyyppi="pikatarkastus", mittarilukema=50000, mittaaja="Matti Mittaaja",
@@ -269,8 +293,9 @@ def test_krediitit():
 
 
 def test_esittelytila_ilman_krediittia():
-    """Esittelytila ei tarvitse krediittiä eikä verkkoa. Raporttiin tulee ESIMERKKI-leima."""
+    """Esittelytila (testitili tai testiversio) ei tarvitse krediittiä. Raporttiin tulee ESIMERKKI-leima."""
     os.environ["AKVERI_PALVELU"] = "http://127.0.0.1:9"
+    os.environ["AKVERI_ESITTELY"] = "1"
     try:
         with tempfile.TemporaryDirectory() as kansio:
             from akux.app import App

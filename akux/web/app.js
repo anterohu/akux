@@ -10,6 +10,8 @@ let pollTimer = null;
 
 // ---------- apufunktiot ----------
 const ANDROID = !!window.AkuxAndroid;
+// Esittelytila ja esimerkkiautot vain testitileille (merkitään akveri.fi:n hallinnassa). Asiakkaat eivät näe niitä.
+async function esittelySallittu() { try { return !!(await api("/api/tietoja")).esittely; } catch (e) { return false; } }
 const MALLIRYHMAT = [
   ["Model 3", m => m.malli_koodi === "3"],
   ["Model Y", m => m.malli_koodi === "Y"],
@@ -182,10 +184,10 @@ views.yleiskuva = {
     this.renderStart();
   },
   async renderStart() {
-    const [st, { ajoneuvot }, { mittaukset }] = await Promise.all([api("/api/asetukset"), api("/api/ajoneuvot"), api("/api/mittaukset")]);
+    const [st, { ajoneuvot }, { mittaukset }, E] = await Promise.all([api("/api/asetukset"), api("/api/ajoneuvot"), api("/api/mittaukset"), esittelySallittu()]);
     const steps = [
       [!!st.yritys_nimi, "Täytä yrityksen tiedot raportteja varten", "#/asetukset"],
-      [!!(S && S.yhteys.kaynnissa) || mittaukset.length > 0, "Yhdistä autoon tai kokeile esittelytilaa", null],
+      [!!(S && S.yhteys.kaynnissa) || mittaukset.length > 0, E ? "Yhdistä autoon tai kokeile esittelytilaa" : "Yhdistä autoon", null],
       [ajoneuvot.length > 0, "Lisää auto", "#/autot/uusi"],
       [mittaukset.some(m => m.tila === "valmis"), "Tee ensimmäinen pikatarkastus", "#/mittaus"],
     ];
@@ -211,6 +213,7 @@ views.yleiskuva = {
         hkOpts = brands.map(b => `<optgroup label="${esc(b)}">${hk.filter(m => m.merkki === b).map(m =>
           `<option value="${esc(m.id)}">${esc(m.nimi)}${m.kyselyt_varmistettu === false ? " (kokeellinen)" : ""}</option>`).join("")}</optgroup>`).join("");
       } catch (e) { /* */ }
+      const E = await esittelySallittu();
       const opts = ports.portit.map(p => `<option value="${esc(p.laite)}">${esc(p.laite)} – ${esc(p.kuvaus)}${p.todennakoinen ? " (OBDLink)" : ""}</option>`).join("");
       c.innerHTML = `
         <h2>Yhdistä</h2>
@@ -226,7 +229,7 @@ views.yleiskuva = {
               <button class="btn" id="bRefresh">Päivitä portit</button></div>
             <p class="small muted" style="margin-top:10px">${ANDROID ? "Kytke sovitin auton diagnostiikkaliittimeen ja USB-C-sovittimella puhelimeen. Kun Android kysyy lupaa käyttää sovitinta, valitse Salli." : "Kytke sovitin auton diagnostiikkaliittimeen ja tietokoneeseen."} Auton on oltava hereillä, esimerkiksi ovi avattuna tai ilmastointi päällä. <a href="#/ohjeet/yhdistaminen">Ohje</a></p>
           </div>
-          <div>
+          ${E ? `<div>
             <label class="f"><span>Esittelytila ilman autoa</span></label>
             <select id="demoCar"><option value="m3-lr">Model 3 Long Range 2020 (NCA)</option><option value="m3-lfp">Model 3 SR+ 2020, LFP-akku</option>
               <option value="my-lr">Model Y Long Range 2022 (NMC)</option><option value="ms-85">Model S 85 2015</option>
@@ -238,7 +241,8 @@ views.yleiskuva = {
             <p class="small muted" style="margin-top:8px">Esittelytilassa voit kokeilla kaikkia toimintoja ja nähdä esimerkkiraportin ilman autoa. Aika kulkee nopeutettuna.</p>
             <div class="row"><button class="btn" id="bDemo">Käynnistä esittelytila</button>
               <button class="btn" id="bEx">Esimerkkiraportit</button></div>
-          </div>
+            <p class="small muted">Esittelytila näkyy vain testitileillä.</p>
+          </div>` : ""}
         </div>`;
       const sel = $("#port");
       if (S && sel && ports.portit.length) {
@@ -250,8 +254,8 @@ views.yleiskuva = {
       }
       $("#bRefresh").onclick = () => { this.connRendered = null; this.renderConnCard(); };
       $("#bConnect").onclick = () => act(() => api("/api/yhdista", { method: "POST", body: { tyyppi: "obdlink", portti: $("#port").value, malli_id: $("#connModel").value } }), "Yhdistetään…").then(poll);
-      $("#bEx").onclick = () => act(() => api("/api/esimerkit", { method: "POST", body: {} }), "Esimerkkiautot ovat käytettävissä").then(() => (location.hash = "#/mittaukset"));
-      $("#bDemo").onclick = () => act(() => api("/api/yhdista", { method: "POST", body: { tyyppi: "demo", soc: 12, nopeutus: 60, auto: $("#demoCar").value } }), "Esittelytila käynnistetty").then(poll);
+      if ($("#bEx")) $("#bEx").onclick = () => act(() => api("/api/esimerkit", { method: "POST", body: {} }), "Esimerkkiautot ovat käytettävissä").then(() => (location.hash = "#/mittaukset"));
+      if ($("#bDemo")) $("#bDemo").onclick = () => act(() => api("/api/yhdista", { method: "POST", body: { tyyppi: "demo", soc: 12, nopeutus: 60, auto: $("#demoCar").value } }), "Esittelytila käynnistetty").then(poll);
     } else {
       c.innerHTML = `
         <div class="row"><div><h2 style="margin:0">${y.simuloitu ? "Esittelytila" : "Yhdistetty sovittimeen"}</h2>
@@ -671,13 +675,13 @@ views.autot = {
     this.renderList();
   },
   async renderList() {
-    const { ajoneuvot } = await api("/api/ajoneuvot");
+    const [{ ajoneuvot }, E] = await Promise.all([api("/api/ajoneuvot"), esittelySallittu()]);
     const hasEx = ajoneuvot.some(v => v.opitut && v.opitut.esimerkki);
     view.innerHTML = `<div class="head"><div><h1>Autot</h1><div class="muted">Tallennetut autot ja niiden mittaushistoria</div></div>
-      <div class="row"><button class="btn" id="vEx">${hasEx ? "Poista esimerkkiautot" : "Lisää esimerkkiautot"}</button><a class="btn primary" href="#/autot/uusi">Lisää auto</a></div></div>
-      ${hasEx ? "" : `<p class="small muted" style="margin:-8px 0 16px">Esimerkkiautoissa (kolme Teslaa ja yksi auto kustakin muusta tuetusta merkistä) on valmiit raportit kaikista mittaustyypeistä, joten näet heti, miltä kaikki näyttää.</p>`}
+      <div class="row">${hasEx || E ? `<button class="btn" id="vEx">${hasEx ? "Poista esimerkkiautot" : "Lisää esimerkkiautot"}</button>` : ""}<a class="btn primary" href="#/autot/uusi">Lisää auto</a></div></div>
+      ${hasEx || !E ? "" : `<p class="small muted" style="margin:-8px 0 16px">Esimerkkiautoissa (kolme Teslaa ja yksi auto kustakin muusta tuetusta merkistä) on valmiit raportit kaikista mittaustyypeistä, joten näet heti, miltä kaikki näyttää.</p>`}
       <div class="card" id="vList"></div>`;
-    $("#vEx").onclick = () => hasEx
+    if ($("#vEx")) $("#vEx").onclick = () => hasEx
       ? (confirm("Poistetaanko esimerkkiautot ja niiden mittaukset? Omiin autoihisi ei kosketa.") &&
          act(() => api("/api/esimerkit", { method: "POST", body: { poista: true } }), "Esimerkkiautot poistettu").then(() => this.renderList()))
       : act(() => api("/api/esimerkit", { method: "POST", body: {} }), "Esimerkkiautot lisätty").then(() => this.renderList());

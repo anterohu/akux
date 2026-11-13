@@ -175,6 +175,7 @@ class Api:
     def tietoja(self, q, body):
         import platform
         return {"nimi": NIMI, "versio": VERSIO, "datakansio": str(self.app.storage.dir), "alusta": platform_name(),
+                "esittely": self.app.krediitit.esittely_sallittu(),
                 "python": platform.python_version(), "jarjestelma": f"{platform.system()} {platform.release()}"}
 
     def tila(self, q, body):
@@ -296,6 +297,8 @@ class Api:
     def yhdista(self, q, body):
         kind = body.get("tyyppi", "obdlink")
         if kind == "demo":
+            if not self.app.krediitit.esittely_sallittu(tarkista=True):
+                raise ApiError("Esittelytila on käytössä vain testitileillä.", 403)
             self.app.connect("demo", soc=(_num(body.get("soc")) or 12) / 100, accel=_num(body.get("nopeutus")) or 60,
                              auto=body.get("auto"))
         else:
@@ -667,7 +670,7 @@ class Api:
         return s
 
     def tallenna_asetukset(self, q, body):
-        for k in ("puhelin_avain", "tili", "tili_avain", "palvelu_osoite"):
+        for k in ("puhelin_avain", "tili", "tili_avain", "palvelu_osoite", "esittely"):
             body.pop(k, None)
         # Mittausten raja-arvot: virheellinen tai tyhjä arvo jätetään pois, muut rajataan järkevälle välille
         limits = {"lepo_alku_min": (0, 240), "lepo_loppu_min": (0, 240), "kapasiteetti_lahto_soc_max": (5, 60),
@@ -697,6 +700,8 @@ class Api:
             return {"ok": True, "poistettu": len(ex)}
         if ex:
             return {"ok": True, "lisatty": 0, "autoja": len(ex)}
+        if not self.app.krediitit.esittely_sallittu(tarkista=True):
+            raise ApiError("Esimerkkiautot ovat käytössä vain testitileillä.", 403)
         folder = Path(__file__).parent / "data" / "esimerkit"
         n = 0
         for f in sorted([*folder.glob("*.akveri"), *folder.glob("*.akux")]):

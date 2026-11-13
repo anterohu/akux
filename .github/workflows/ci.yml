@@ -5,6 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Testeissä esittelytila on aina käytössä. Julkaistussa ohjelmassa se on vain akveri.fi:n testitileillä.
+env:
+  AKVERI_ESITTELY: "1"
+
 jobs:
   testit:
     name: Testit (Python)
