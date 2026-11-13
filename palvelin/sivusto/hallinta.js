@@ -117,6 +117,7 @@
         $('#yt-nimi').value = y.nimi || ''; $('#yt-ytunnus').value = y.yTunnus || ''; $('#yt-osoite').value = y.osoite || ''; $('#yt-sahkoposti').value = y.sahkoposti || ''; $('#yt-puhelin').value = y.puhelin || '';
         $('#as-play').value = a.playLinkki || ''; $('#as-hinnasto').value = a.hinnasto || ''; $('#as-hyvitysaika').value = a.hyvitysaikaMin;
         piirraTuotteet(a.tuotteet);
+        $('#ve-min').value = a.vahimmaisversio || ''; $('#ve-uusin').value = a.uusinVersio || '';
         asiakirjat = a.asiakirjat || {}; naytaAsiakirja();
       }).catch(virhe());
     },
@@ -262,6 +263,11 @@
       e.preventDefault();
       api('/asetukset', { method: 'PUT', body: { playLinkki: $('#as-play').value.trim(), hinnasto: $('#as-hinnasto').value, hyvitysaikaMin: Number($('#as-hyvitysaika').value), tuotteet: tuotteet } })
         .then(function (a) { piirraTuotteet(a.tuotteet); ilmoita('Tallennettu.', true); }).catch(virhe());
+    });
+    $('#versiolomake').addEventListener('submit', function (e) {
+      e.preventDefault();
+      api('/asetukset', { method: 'PUT', body: { vahimmaisversio: $('#ve-min').value.trim(), uusinVersio: $('#ve-uusin').value.trim() } })
+        .then(function () { ilmoita('Versiot tallennettu.', true); }).catch(virhe());
     });
     $('#ak-tyyppi').addEventListener('change', naytaAsiakirja);
     $('#asiakirjalomake').addEventListener('submit', function (e) {

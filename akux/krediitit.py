@@ -85,6 +85,13 @@ def peruttavissa(t: dict, nyt: float | None = None) -> bool:
     return luvan_tila(t) == "varattu" and (nyt or time.time()) <= float(t.get("lupa_peruttavissa") or 0)
 
 
+def _versio(v: str) -> tuple:
+    try:
+        return tuple(int(x) for x in str(v).split(".")[:3])
+    except ValueError:
+        return (0, 0, 0)
+
+
 def muotoile_tunnus(t: str | None) -> str:
     return f"{t[:2]}-{t[2:7]}-{t[7:]}" if t and len(t) == 12 else (t or "")
 
@@ -105,7 +112,8 @@ class Krediitit:
         return (os.environ.get("AKVERI_PALVELU") or OLETUSOSOITE).rstrip("/")
 
     def _kutsu(self, method: str, polku: str, body: dict | None = None, tunnistus=True, aikaraja=20.0) -> dict:
-        headers = {"Accept": "application/json", "User-Agent": "AKVERI"}
+        from . import VERSIO  # noqa: PLC0415
+        headers = {"Accept": "application/json", "User-Agent": f"AKVERI/{VERSIO}", "X-AKVERI-Versio": VERSIO}
         if tunnistus:
             s = self.varmista_tili()
             headers["Authorization"] = f"AKVERI {s['tili']}.{s['avain']}"
@@ -133,7 +141,17 @@ class Krediitit:
     def tilanne(self) -> dict:
         d = self._kutsu("GET", "/api/v1/saldo")
         d["tuotteet"] = self._kutsu("GET", "/api/v1/tuotteet", tunnistus=False).get("tuotteet", [])
+        d["versiot"] = self.versiot()
         return d
+
+    def versiot(self) -> dict:
+        """Palvelimen ilmoittama vähimmäis- ja uusin versio verrattuna tähän versioon."""
+        from . import VERSIO  # noqa: PLC0415
+        t = self._kutsu("GET", "/api/v1/tila", tunnistus=False, aikaraja=10.0)
+        nyt = _versio(VERSIO)
+        return {"nykyinen": VERSIO, "vahimmaisversio": t.get("vahimmaisversio"), "uusin": t.get("uusinVersio") or "",
+                "paivitys_pakollinen": bool(t.get("vahimmaisversio")) and nyt < _versio(t["vahimmaisversio"]),
+                "paivitys_saatavilla": bool(t.get("uusinVersio")) and nyt < _versio(t["uusinVersio"])}
 
     def osto(self, tuote: str, ostotunnus: str) -> dict:
         return self._kutsu("POST", "/api/v1/osto", {"tuote": tuote, "ostotunnus": ostotunnus}, aikaraja=40.0)

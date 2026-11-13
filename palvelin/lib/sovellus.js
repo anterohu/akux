@@ -32,6 +32,12 @@ const OLETUSTUOTTEET = [
   { tuote: 'akveri_testi_20', krediitit: 20 }
 ];
 const OLETUS_HYVITYSAIKA_MIN = 60;
+// Sovelluksen versiot: palvelin hyväksyy krediittitoiminnot vain sovellukselta, joka on vähintään vahimmaisversio.
+// Rajapinta /api/v1 pidetään taaksepäin yhteensopivana. Jos sitä joskus muutetaan yhteensopimattomasti, uusi rajapinta
+// tehdään polkuun /api/v2 ja vanhaa pidetään yllä, kunnes vähimmäisversio on nostettu sen yli.
+const OLETUS_VAHIMMAISVERSIO = '2.0.0';
+const VERSIO_RE = /^\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+function vertaaVersioita(a, b) { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0; }
 
 function muotoileTunnus(t) { return t ? `${t.slice(0, 2)}-${t.slice(2, 7)}-${t.slice(7)}` : ''; }
 function normalisoiTunnus(t) { return String(t || '').toUpperCase().replace(/[\s-]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1'); }
@@ -55,6 +61,15 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
   const ostot = () => varasto.get('ostot');
   const asetukset = () => varasto.get('asetukset');
   const tuotteet = () => (Array.isArray(asetukset().tuotteet) && asetukset().tuotteet.length ? asetukset().tuotteet : OLETUSTUOTTEET);
+  const vahimmaisversio = () => (VERSIO_RE.test(String(asetukset().vahimmaisversio)) ? asetukset().vahimmaisversio : OLETUS_VAHIMMAISVERSIO);
+  const uusinVersio = () => (VERSIO_RE.test(String(asetukset().uusinVersio)) ? asetukset().uusinVersio : '');
+  // Sovellus kertoo versionsa otsakkeessa X-AKVERI-Versio. Liian vanha versio ei saa krediittitoimintoja (426).
+  function tarkistaVersio(req) {
+    const v = String(req.headers['x-akveri-versio'] || '');
+    if (!VERSIO_RE.test(v) || vertaaVersioita(v, vahimmaisversio()) < 0) {
+      throw new Virhe(`AKVERIn versio ${v || '(tuntematon)'} on liian vanha. Päivitä AKVERI uusimpaan versioon (vähintään ${vahimmaisversio()}).`, 426);
+    }
+  }
   const hyvitysaikaMs = () => (Number(asetukset().hyvitysaikaMin) > 0 ? Number(asetukset().hyvitysaikaMin) : OLETUS_HYVITYSAIKA_MIN) * 60000;
 
   function rajoita(req, nimi, raja, ikkunaMs) {
@@ -220,12 +235,13 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
   // ------------------------------------------------------------ reititys
   async function kasittele(req, res, polku, kysely) {
     try {
-      if (polku === '/api/v1/tila' && req.method === 'GET') return json(res, 200, { ok: true, palvelu: 'akveri', versio: env.AKVERI_VERSIO || '', ostot: google.kaytossa });
+      if (polku === '/api/v1/tila' && req.method === 'GET') return json(res, 200, { ok: true, palvelu: 'akveri', versio: env.AKVERI_VERSIO || '', ostot: google.kaytossa, rajapinta: 1, vahimmaisversio: vahimmaisversio(), uusinVersio: uusinVersio() });
       if (polku === '/api/v1/avain' && req.method === 'GET') return json(res, 200, { algoritmi: 'Ed25519', julkinen: avain.julkinen });
       if (polku === '/api/v1/tuotteet' && req.method === 'GET') return json(res, 200, { tuotteet: tuotteet() });
       const vm = /^\/api\/v1\/vahvistus\/([A-Za-z0-9-]{10,20})$/.exec(polku);
       if (vm && req.method === 'GET') return json(res, 200, vahvistus(req, vm[1], kysely.get('vin')));
       if (req.method !== 'POST' && polku !== '/api/v1/saldo') throw new Virhe('Tuntematon pyyntö.', 404);
+      tarkistaVersio(req);
       if (polku === '/api/v1/tili') return json(res, 200, luoTili(req));
       rajoita(req, 'api', 600, 3600000);
       const tili = tunnista(req);
@@ -267,4 +283,4 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
   return { kasittele, tarkistaPerutut, google, julkinenAvain: avain.julkinen, tuotteet };
 }
 
-module.exports = { luoSovellusRajapinta, muotoileTunnus, normalisoiTunnus, TUNNUS_RE, TILI_RE, OLETUSTUOTTEET };
+module.exports = { luoSovellusRajapinta, muotoileTunnus, normalisoiTunnus, TUNNUS_RE, TILI_RE, OLETUSTUOTTEET, OLETUS_VAHIMMAISVERSIO, vertaaVersioita, VERSIO_RE };

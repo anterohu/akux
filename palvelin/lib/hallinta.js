@@ -15,7 +15,7 @@ const scrypt = promisify(crypto.scrypt);
 const totp = require('./totp');
 const ipraja = require('./ipraja');
 const { json, Virhe, lueJson, ipOsoite, puhdista, yksiRivi, vakioaikainenVertailu } = require('./apu');
-const { normalisoiTunnus, muotoileTunnus, OLETUSTUOTTEET } = require('./sovellus');
+const { normalisoiTunnus, muotoileTunnus, OLETUSTUOTTEET, OLETUS_VAHIMMAISVERSIO, VERSIO_RE, vertaaVersioita } = require('./sovellus');
 
 const ISTUNTO_MS = 8 * 3600000;
 const EVASTE = 'akveri_hallinta';
@@ -46,7 +46,8 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
   const sallitut = ipraja.jasenna(env.HALLINTA_SALLITUT_IP || '');
   const omistaja = () => varasto.get('omistaja');
   const asetukset = () => varasto.get('asetukset');
-  const latauskansio = path.join(varasto.kansio, 'lataukset');
+  // Omat lataukset (esim. Windows-versio). Tuotannossa tietokansion ulkopuolella (AKVERI_LATAUKSET), koska tiedostot ovat suuria.
+  const latauskansio = path.resolve(env.AKVERI_LATAUKSET || path.join(varasto.kansio, 'lataukset'));
   let alustus = null; // { salaisuus, salasanaTiiviste, vanhenee } — kesken oleva käyttöönotto
 
   function sallittu(req) { return ipraja.sallittu(sallitut, ipOsoite(req, env)); }
@@ -127,7 +128,7 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
     let krediititYhteensa = 0;
     for (const id of Object.keys(varasto.get('tilit'))) krediititYhteensa += varasto.saldo(id);
     let varmuus = '';
-    try { varmuus = fs.readdirSync(path.join(varasto.kansio, 'varmuuskopiot')).filter(n => /^\d{4}/.test(n) && !n.endsWith('.kesken')).sort().pop() || ''; } catch (e) { /* ei vielä */ }
+    try { varmuus = fs.readdirSync(varasto.varmuuskopiokansio).filter(n => /^\d{4}/.test(n) && !n.endsWith('.kesken')).sort().pop() || ''; } catch (e) { /* ei vielä */ }
     return {
       tilit: Object.keys(varasto.get('tilit')).length,
       krediititTileilla: krediititYhteensa,
@@ -227,6 +228,7 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
       yhteystiedot: a.yhteystiedot || {}, playLinkki: a.playLinkki || '', hinnasto: a.hinnasto || '',
       tuotteet: Array.isArray(a.tuotteet) && a.tuotteet.length ? a.tuotteet : OLETUSTUOTTEET,
       hyvitysaikaMin: Number(a.hyvitysaikaMin) > 0 ? Number(a.hyvitysaikaMin) : 60,
+      vahimmaisversio: VERSIO_RE.test(String(a.vahimmaisversio)) ? a.vahimmaisversio : OLETUS_VAHIMMAISVERSIO, uusinVersio: a.uusinVersio || '',
       asiakirjat: { ehdot: a.asiakirjat && a.asiakirjat.ehdot || null, tietosuoja: a.asiakirjat && a.asiakirjat.tietosuoja || null }
     };
   }
@@ -251,6 +253,14 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
       if (!Number.isInteger(m) || m < 10 || m > 24 * 60) throw new Virhe('Automaattisen perumisen aika on 10–1440 minuuttia.');
       a.hyvitysaikaMin = m;
     }
+    for (const k of ['vahimmaisversio', 'uusinVersio']) {
+      if (body[k] === undefined) continue;
+      const v = puhdista(body[k], 20);
+      if (k === 'uusinVersio' && !v) { a.uusinVersio = ''; continue; }
+      if (!VERSIO_RE.test(v)) throw new Virhe('Versio on muotoa 2.0.0.');
+      a[k] = v;
+    }
+    if (a.uusinVersio && vertaaVersioita(a.uusinVersio, a.vahimmaisversio || OLETUS_VAHIMMAISVERSIO) < 0) throw new Virhe('Uusin versio ei voi olla pienempi kuin vähimmäisversio.');
     if (body.tuotteet !== undefined) {
       if (!Array.isArray(body.tuotteet) || !body.tuotteet.length || body.tuotteet.length > 10) throw new Virhe('Anna 1–10 tuotetta.');
       const lista = body.tuotteet.map(t => ({ tuote: puhdista(t.tuote, 100), krediitit: Number(t.krediitit) }));

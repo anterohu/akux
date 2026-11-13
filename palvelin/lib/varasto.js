@@ -24,9 +24,12 @@ const VARMUUSKOPIOITA = 30;
 function tiiviste(teksti) { return crypto.createHash('sha256').update(String(teksti)).digest('hex'); }
 
 class Varasto {
-  constructor(kansio, { nyt = () => Date.now() } = {}) {
+  // varmuuskopiokansio: päivittäiset kopiot. Tuotannossa tietokansion ulkopuolella (AKVERI_VARMUUSKOPIOT), jotta
+  // Hallintatyökalun ottama tietokansion kopio ei sisällä aiempia kopioita.
+  constructor(kansio, { nyt = () => Date.now(), varmuuskopiokansio } = {}) {
     if (!kansio) throw new Error('Tietokansio puuttuu (DB_DIR).');
     this.kansio = path.resolve(kansio);
+    this.varmuuskopiokansio = path.resolve(varmuuskopiokansio || path.join(this.kansio, 'varmuuskopiot'));
     this.nyt = nyt;
     fs.mkdirSync(this.kansio, { recursive: true, mode: 0o700 });
     this.data = {};
@@ -97,9 +100,9 @@ class Varasto {
   }
 
   // ------------------------------------------------------------ varmuuskopiot
-  // Päivittäinen kopio kansioon varmuuskopiot/AAAA-KK-PP. Säilytetään 30 uusinta. Palauttaa luodun kansion nimen tai ''.
+  // Päivittäinen kopio kansioon <varmuuskopiokansio>/AAAA-KK-PP. Säilytetään 30 uusinta. Palauttaa luodun kansion nimen tai ''.
   varmuuskopioi(pakota = false) {
-    const juuri = path.join(this.kansio, 'varmuuskopiot');
+    const juuri = this.varmuuskopiokansio;
     fs.mkdirSync(juuri, { recursive: true, mode: 0o700 });
     const nimi = new Date(this.nyt()).toISOString().slice(0, 10) + (pakota ? '-' + new Date(this.nyt()).toISOString().slice(11, 19).replace(/:/g, '') : '');
     const kohde = path.join(juuri, nimi);

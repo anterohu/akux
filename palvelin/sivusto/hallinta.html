@@ -113,6 +113,13 @@
       <p><button class="nappi pieni toissijainen" type="button" id="lisaa-tuote">Lisää tuote</button></p>
       <p><button class="nappi" type="submit">Tallenna</button></p>
     </form>
+    <form class="kortti" id="versiolomake">
+      <h2>Sovelluksen versiot</h2>
+      <p class="paivays">Vähimmäisversiota vanhempi AKVERI ei voi aloittaa mittauksia eikä ostaa krediittejä, vaan pyytää päivittämään sovelluksen. Nosta vähimmäisversio vasta, kun uusi versio on Google Playssa saatavilla. Uusin versio näytetään sovelluksessa päivitysmuistutuksena.</p>
+      <label for="ve-min">Vähimmäisversio</label><input id="ve-min" placeholder="2.0.0" maxlength="11">
+      <label for="ve-uusin">Uusin versio (valinnainen)</label><input id="ve-uusin" placeholder="2.0.0" maxlength="11">
+      <p><button class="nappi" type="submit">Tallenna versiot</button></p>
+    </form>
     <form class="kortti" id="asiakirjalomake">
       <h2>Käyttöehdot ja tietosuojaseloste</h2>
       <label for="ak-tyyppi">Asiakirja</label><select id="ak-tyyppi"><option value="ehdot">Käyttöehdot</option><option value="tietosuoja">Tietosuojaseloste</option></select>

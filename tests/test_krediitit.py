@@ -153,6 +153,18 @@ def test_krediitit():
             palvelin.kirjaudu()
             palvelin.pyynto("POST", f"/api/hallinta/tilit/{tili}/krediitit", {"muutos": 3, "selite": "Testi"}, True)
             assert api.krediitit({}, {})["saldo"] == 3
+            v = api.krediitit({}, {})["versiot"]
+            assert v["nykyinen"] == v["vahimmaisversio"] and not v["paivitys_pakollinen"] and not v["paivitys_saatavilla"], v
+            # Vähimmäisversion nosto: tämä versio ei saa enää krediittitoimintoja ja ohjelma kertoo päivityksestä
+            palvelin.pyynto("PUT", "/api/hallinta/asetukset", {"vahimmaisversio": "9.0.0", "uusinVersio": "9.0.0"}, True)
+            try:
+                app.start_test(vehicle_id=vid, tyyppi="pikatarkastus")
+                raise AssertionError("vanha versio aloitti mittauksen")
+            except RuntimeError as e:
+                assert "liian vanha" in str(e), e
+            palvelin.pyynto("PUT", "/api/hallinta/asetukset", {"vahimmaisversio": "2.0.0", "uusinVersio": "9.0.0"}, True)
+            assert api.krediitit({}, {})["versiot"]["paivitys_saatavilla"] is True
+            palvelin.pyynto("PUT", "/api/hallinta/asetukset", {"uusinVersio": ""}, True)
 
             # 3b. Testitili: mittaus ei kuluta krediittiä ja lupa merkitään testiksi
             palvelin.pyynto("POST", f"/api/hallinta/tilit/{tili}/tila", {"testitili": True}, True)

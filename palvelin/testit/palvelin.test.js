@@ -57,6 +57,8 @@ async function kaynnista(t, { lisaEnv = {}, kello } = {}) {
     const h = { ...otsakkeet };
     if (body !== undefined) h['Content-Type'] = 'application/json';
     if (auth) h.Authorization = `AKVERI ${auth.tili}.${auth.avain}`;
+    if (polku.startsWith('/api/v1/') && !('X-AKVERI-Versio' in h) && !otsakkeet.ilmanVersiota) h['X-AKVERI-Versio'] = '2.0.0';
+    delete h.ilmanVersiota;
     if (evaste) h.Cookie = evaste;
     const r = await fetch(osoite + polku, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body), redirect: 'manual' });
     const teksti = await r.text();
@@ -321,4 +323,25 @@ test('testitili: mittaus ei kuluta krediittiä ja tarkistus näyttää testimitt
   await pyynto(`/api/hallinta/tilit/${tili.tili}/tila`, { method: 'POST', evaste: s.evaste, otsakkeet: s.otsakkeet, body: { testitili: false } });
   assert.equal((await pyynto('/api/v1/testi/varaa', { method: 'POST', auth: tili, body: {} })).status, 402);
   assert.equal((await pyynto('/api/hallinta/yhteenveto', { evaste: s.evaste })).d.testimittaukset30, 2);
+});
+
+test('vanha sovellusversio ei saa krediittitoimintoja, ja vähimmäisversiota voi nostaa hallinnassa', async (t) => {
+  const { pyynto, aika } = await kaynnista(t);
+  assert.equal((await pyynto('/api/v1/tili', { method: 'POST', otsakkeet: { ilmanVersiota: true } })).status, 426);
+  assert.equal((await pyynto('/api/v1/tili', { method: 'POST', otsakkeet: { 'X-AKVERI-Versio': '1.9.1' } })).status, 426);
+  const tili = (await pyynto('/api/v1/tili', { method: 'POST' })).d;
+  let tila = (await pyynto('/api/v1/tila')).d;
+  assert.equal(tila.vahimmaisversio, '2.0.0'); assert.equal(tila.rajapinta, 1);
+  const s = await kirjauduHallintaan(pyynto, aika);
+  const put = (body) => pyynto('/api/hallinta/asetukset', { method: 'PUT', evaste: s.evaste, otsakkeet: s.otsakkeet, body });
+  assert.equal((await put({ vahimmaisversio: '2.1' })).status, 400);
+  assert.equal((await put({ vahimmaisversio: '2.1.0', uusinVersio: '2.0.5' })).status, 400, 'uusin ei voi olla vähimmäistä pienempi');
+  assert.equal((await put({ vahimmaisversio: '2.1.0', uusinVersio: '2.2.0' })).status, 200);
+  tila = (await pyynto('/api/v1/tila')).d;
+  assert.equal(tila.uusinVersio, '2.2.0');
+  const r = await pyynto('/api/v1/saldo', { auth: tili });
+  assert.equal(r.status, 426); assert.match(r.d.virhe, /vähintään 2\.1\.0/);
+  assert.equal((await pyynto('/api/v1/saldo', { auth: tili, otsakkeet: { 'X-AKVERI-Versio': '2.1.0' } })).status, 200);
+  // Julkinen tarkistus toimii versiosta riippumatta (raportin vastaanottajalla ei ole sovellusta)
+  assert.equal((await pyynto('/api/v1/vahvistus/AK0000000000', { otsakkeet: { ilmanVersiota: true } })).status, 200);
 });

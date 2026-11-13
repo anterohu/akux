@@ -12,6 +12,8 @@
 //   HALLINTA_SALLITUT_IP     valinnainen IP-rajaus hallinnalle (esim. "203.0.113.5, 198.51.100.0/24")
 //   GOOGLE_PLAY_PAKETTI      Android-sovelluksen paketti (esim. fi.akux.app)
 //   GOOGLE_PALVELUTILI       polku Google Play -palvelutilin avaintiedostoon (JSON)
+//   AKVERI_VARMUUSKOPIOT     päivittäisten varmuuskopioiden kansio (oletus DB_DIR/varmuuskopiot)
+//   AKVERI_LATAUKSET         omien latausten kansio (oletus DB_DIR/lataukset)
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -33,7 +35,7 @@ const HALLINNAN_TIEDOSTOT = new Set(['hallinta.html', 'hallinta.js']);
 
 function luoPalvelin({ env = process.env, nyt = () => Date.now(), haku } = {}) {
   env = { ...env, AKVERI_VERSIO: env.AKVERI_VERSIO || VERSIO };
-  const varasto = new Varasto(env.DB_DIR || path.join(__dirname, 'data'), { nyt });
+  const varasto = new Varasto(env.DB_DIR || path.join(__dirname, 'data'), { nyt, varmuuskopiokansio: env.AKVERI_VARMUUSKOPIOT });
   const google = new GooglePlay({ paketti: env.GOOGLE_PLAY_PAKETTI, palvelutiliTiedosto: env.GOOGLE_PALVELUTILI, haku, nyt });
   const rajoitin = luoRajoitin(nyt);
   const sovellus = luoSovellusRajapinta({ varasto, google, env, nyt, rajoitin });

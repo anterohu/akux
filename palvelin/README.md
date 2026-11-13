@@ -27,7 +27,9 @@ Kirjanpito (`kirjanpito.jsonl`) on vain lisäyksiä sisältävä tiedosto, jonka
 | Polku | Sisältö |
 |---|---|
 | `/opt/akveri` | Ohjelma (vaihdetaan päivityksessä, edellinen versio jää kansioon `/opt/akveri.edellinen`) |
-| `/var/lib/akveri` | Tiedot: tilit, testit, ostot, viestit, asetukset, kirjanpito, allekirjoitusavain, päivittäiset varmuuskopiot (`varmuuskopiot/`) ja omat lataukset (`lataukset/`) |
+| `/var/lib/akveri` | Tiedot: tilit, testit, ostot, viestit, asetukset, kirjanpito ja allekirjoitusavain |
+| `/var/lib/akveri-paivittaiset` | Palvelimen omat päivittäiset varmuuskopiot (30 uusinta) |
+| `/var/lib/akveri-lataukset` | Omat lataukset (esim. Windows-versio), vain hallinnasta kirjautuneena |
 | `/var/lib/akveri-varmuuskopiot` | Hallintatyökalun ottamat varmuuskopiot (ennen jokaista päivitystä) |
 | `/etc/akveri/akveri.env` | Asetukset (vain root ja `akveri`-käyttäjä) |
 | `/etc/akveri/google-palvelutili.json` | Google Play -palvelutilin avain |
