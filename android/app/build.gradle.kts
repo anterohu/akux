@@ -19,13 +19,14 @@ val signing = Properties().apply {
 
 android {
     namespace = "fi.akux.app"
-    compileSdk = 35
+    // Google Play vaatii 31.8.2026 alkaen uusilta sovelluksilta ja päivityksiltä kohdetason Android 16 (API 36).
+    compileSdk = 36
 
     defaultConfig {
         // Google Playn sovellustunnus. Koodin sisäinen nimiavaruus (namespace) on edelleen fi.akux.app, se ei näy käyttäjälle.
         applicationId = "fi.akveri.app"
         minSdk = 29
-        targetSdk = 35
+        targetSdk = 36
         versionCode = akuxVersionCode
         versionName = akuxVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -99,7 +100,7 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("com.github.mik3y:usb-serial-for-android:3.8.0")
     // Krediittien osto Google Playssa. Palvelin (akveri.fi) tarkistaa jokaisen oston Googlelta ennen kuin krediitit lisätään.
-    implementation("com.android.billingclient:billing-ktx:7.1.1")
+    implementation("com.android.billingclient:billing-ktx:8.0.0")
 
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")

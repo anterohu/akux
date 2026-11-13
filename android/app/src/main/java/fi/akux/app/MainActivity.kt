@@ -33,6 +33,8 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
@@ -165,6 +167,16 @@ class MainActivity : ComponentActivity() {
         }
         root.addView(web, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         root.addView(splash, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        // Android 15+ piirtää sovelluksen tila- ja navigointipalkin alle (edge-to-edge). Sisältö siirretään palkkien,
+        // kameran loven ja näppäimistön ulkopuolelle, jotta mitään ei jää piiloon.
+        root.setBackgroundColor(Color.parseColor("#F3F4F6"))
+        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
+            val b = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.ime()
+            )
+            v.setPadding(b.left, b.top, b.right, b.bottom)
+            WindowInsetsCompat.CONSUMED
+        }
         setContentView(root)
 
         web.settings.javaScriptEnabled = true
@@ -313,8 +325,8 @@ class MainActivity : ComponentActivity() {
                 val params = QueryProductDetailsParams.newBuilder().setProductList(listOf(
                     QueryProductDetailsParams.Product.newBuilder().setProductId(tuote).setProductType(BillingClient.ProductType.INAPP).build()
                 )).build()
-                billing.queryProductDetailsAsync(params) { r, details ->
-                    val d = details.firstOrNull()
+                billing.queryProductDetailsAsync(params) { r, tulos ->
+                    val d = tulos.productDetailsList.firstOrNull()
                     if (r.responseCode != BillingClient.BillingResponseCode.OK || d == null) {
                         reportPurchaseError("Tuotetta ei löytynyt Google Playsta. Yritä myöhemmin uudelleen.")
                         return@queryProductDetailsAsync
