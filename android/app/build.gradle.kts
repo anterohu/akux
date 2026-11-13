@@ -16,6 +16,12 @@ val signing = Properties().apply {
     val f = rootDir.resolve("signing.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
+// Google Playn latausavain. Ei koskaan versionhallinnassa: CI kirjoittaa tiedoston GitHub-salaisuuksista.
+// Ilman sitä julkaisuversio allekirjoitetaan testiavaimella (akux.jks), jota ei saa käyttää Playssa.
+val playSigning = Properties().apply {
+    val f = rootDir.resolve("signing-play.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
 
 android {
     namespace = "fi.akux.app"
@@ -42,12 +48,18 @@ android {
             keyAlias = signing.getProperty("keyAlias")
             keyPassword = signing.getProperty("keyPassword")
         }
+        if (!playSigning.isEmpty) create("play") {
+            storeFile = rootDir.resolve(playSigning.getProperty("storeFile"))
+            storePassword = playSigning.getProperty("storePassword")
+            keyAlias = playSigning.getProperty("keyAlias")
+            keyPassword = playSigning.getProperty("keyPassword")
+        }
     }
 
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("akux")
+            signingConfig = signingConfigs.findByName("play") ?: signingConfigs.getByName("akux")
         }
         getByName("debug") {
             signingConfig = signingConfigs.getByName("akux")

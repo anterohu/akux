@@ -13,3 +13,6 @@ android/.idea/
 
 palvelin/dist/
 palvelin/data/
+android/akveri-lataus.jks
+android/signing-play.properties
+*.upload.jks

@@ -295,6 +295,18 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
+      - name: Play-latausavain GitHub-salaisuuksista
+        env:
+          AVAIN: ${{ secrets.AKVERI_LATAUSAVAIN_JKS }}
+          SALASANA: ${{ secrets.AKVERI_LATAUSAVAIN_SALASANA }}
+        run: |
+          if [ -n "$AVAIN" ] && [ -n "$SALASANA" ]; then
+            echo "$AVAIN" | base64 -d > android/akveri-lataus.jks
+            printf 'storeFile=akveri-lataus.jks\nstorePassword=%s\nkeyAlias=akveri\nkeyPassword=%s\n' "$SALASANA" "$SALASANA" > android/signing-play.properties
+            echo "PLAY_AVAIN=1" >> $GITHUB_ENV
+          else
+            echo "::warning::Play-latausavainta ei ole asetettu. Sovellus allekirjoitetaan testiavaimella, eikä AAB-tiedostoa tehdä Playhin vietäväksi."
+          fi
       - name: Rakenna sovellus
         run: gradle -p android --no-daemon assembleRelease bundleRelease assembleDebug assembleDebugAndroidTest
       - name: Ota emulaattorin kiihdytys käyttöön
@@ -318,7 +330,8 @@ jobs:
           V=$(python3 -c "import re;print(re.search(r'VERSIO = \"([^\"]+)\"', open('akux/__init__.py').read()).group(1))")
           echo "VERSIO=$V" >> $GITHUB_ENV
           cp android/app/build/outputs/apk/release/app-release.apk "AKVERI-$V.apk"
-          cp android/app/build/outputs/bundle/release/app-release.aab "AKVERI-$V.aab"
+          # Playhin vietävä AAB vain latausavaimella allekirjoitettuna (testiavain on ollut julkisesti nähtävillä).
+          if [ "$PLAY_AVAIN" = "1" ]; then cp android/app/build/outputs/bundle/release/app-release.aab "AKVERI-$V.aab"; fi
       - uses: actions/upload-artifact@v4
         with:
           name: Akux-android
