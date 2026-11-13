@@ -16,7 +16,7 @@ const totp = require('./totp');
 const ipraja = require('./ipraja');
 const { json, Virhe, lueJson, ipOsoite, puhdista, yksiRivi, vakioaikainenVertailu } = require('./apu');
 const kayttajat = require('./kayttajat');
-const { normalisoiTunnus, muotoileTunnus, OLETUSTUOTTEET, OLETUS_VAHIMMAISVERSIO, VERSIO_RE, vertaaVersioita } = require('./sovellus');
+const { normalisoiTunnus, muotoileTunnus, MITTAUSTYYPIT, OLETUSHINTA, OLETUSTUOTTEET, OLETUS_VAHIMMAISVERSIO, VERSIO_RE, vertaaVersioita } = require('./sovellus');
 
 const ISTUNTO_MS = 8 * 3600000;
 const EVASTE = 'akveri_hallinta';
@@ -41,6 +41,9 @@ function salasanaKelpaa(s) {
   if (t.length > 200) return 'Salasana on liian pitkä.';
   return '';
 }
+
+const HUOLTOTILAT = ['pois', 'sivusto', 'kaikki'];
+const HUOLTOVIESTI = 'Palvelu on tilapäisesti huollossa. Palaamme pian.';
 
 function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.now(), rajoitin }) {
   const istunnot = new Map();
@@ -259,7 +262,7 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
     t.hyvitetty = new Date(nyt()).toISOString();
     if (t.hyvityspyynto) t.hyvityspyynto.tila = 'hyvitetty';
     varasto.tallenna('testit');
-    varasto.kirjaa({ tili: t.tili, muutos: 1, syy: 'hyvitys', viite: t.tunnus, tekija: 'omistaja', selite });
+    varasto.kirjaa({ tili: t.tili, muutos: t.krediitit || 1, syy: 'hyvitys', viite: t.tunnus, tekija: 'omistaja', selite });
     return testiRivi(t);
   }
   function mitatoi(tunnus, body) {
@@ -289,10 +292,18 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
     return {
       yhteystiedot: a.yhteystiedot || {}, playLinkki: a.playLinkki || '', hinnasto: a.hinnasto || '',
       tuotteet: Array.isArray(a.tuotteet) && a.tuotteet.length ? a.tuotteet : OLETUSTUOTTEET,
+      hinnat: Object.fromEntries(MITTAUSTYYPIT.map(t => [t, Number.isInteger((a.hinnat || {})[t]) && a.hinnat[t] >= 1 ? a.hinnat[t] : OLETUSHINTA])),
       hyvitysaikaMin: Number(a.hyvitysaikaMin) > 0 ? Number(a.hyvitysaikaMin) : 60,
       vahimmaisversio: VERSIO_RE.test(String(a.vahimmaisversio)) ? a.vahimmaisversio : OLETUS_VAHIMMAISVERSIO, uusinVersio: a.uusinVersio || '',
-      asiakirjat: { ehdot: a.asiakirjat && a.asiakirjat.ehdot || null, tietosuoja: a.asiakirjat && a.asiakirjat.tietosuoja || null }
+      asiakirjat: { ehdot: a.asiakirjat && a.asiakirjat.ehdot || null, tietosuoja: a.asiakirjat && a.asiakirjat.tietosuoja || null },
+      huoltotila: huoltotila()
     };
+  }
+  // Huoltotila: pois, vain sivusto tai sivusto ja sovelluksen palvelu (krediitit, mittausten rekisteröinti, raporttien tarkistus).
+  // Hallinta, käyttöehdot ja tietosuojaseloste toimivat aina. Kirjautunut hallinnan käyttäjä näkee sivuston normaalisti.
+  function huoltotila() {
+    const h = asetukset().huoltotila || {};
+    return { tila: HUOLTOTILAT.includes(h.tila) ? h.tila : 'pois', viesti: typeof h.viesti === 'string' && h.viesti.trim() ? h.viesti : HUOLTOVIESTI, muutettu: h.muutettu || null };
   }
   function tallennaAsetukset(body) {
     const a = asetukset();
@@ -332,6 +343,22 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
       }
       if (new Set(lista.map(t => t.tuote)).size !== lista.length) throw new Virhe('Sama tuotetunnus on listassa kahdesti.');
       a.tuotteet = lista;
+    }
+    if (body.hinnat !== undefined) {
+      if (!body.hinnat || typeof body.hinnat !== 'object') throw new Virhe('Anna mittausten hinnat.');
+      const uusi = {};
+      for (const t of MITTAUSTYYPIT) {
+        const n = Number(body.hinnat[t] === undefined ? (a.hinnat || {})[t] || OLETUSHINTA : body.hinnat[t]);
+        if (!Number.isInteger(n) || n < 1 || n > 100) throw new Virhe('Mittauksen hinta on 1–100 krediittiä.');
+        uusi[t] = n;
+      }
+      a.hinnat = uusi;
+    }
+    if (body.huoltotila !== undefined) {
+      const h = body.huoltotila || {};
+      if (!HUOLTOTILAT.includes(h.tila)) throw new Virhe('Valitse huoltotila.');
+      if (typeof h.viesti === 'string' && h.viesti.trim().length > 500) throw new Virhe('Huoltoviestissä voi olla enintään 500 merkkiä.');
+      a.huoltotila = { tila: h.tila, viesti: yksiRivi(puhdista(h.viesti, 500)) || HUOLTOVIESTI, muutettu: new Date(nyt()).toISOString() };
     }
     if (body.asiakirja) {
       const tyyppi = body.asiakirja.tyyppi;
@@ -453,7 +480,9 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
     }
   }
 
-  return { kasittele, kasitteleJulkinen, sallittu, julkisetAsetukset, latauskansio, sailytysajat };
+  // Onko pyynnön tekijä kirjautunut hallintaan (huoltotilan ohitus samassa selaimessa).
+  const kirjautunut = (req) => !!istunto(req);
+  return { kasittele, kasitteleJulkinen, sallittu, julkisetAsetukset, latauskansio, sailytysajat, huoltotila, kirjautunut };
 }
 
 module.exports = { luoHallinta, tiivistaSalasana, tarkistaSalasana };

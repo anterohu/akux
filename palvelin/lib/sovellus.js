@@ -1,6 +1,6 @@
 // sovellus.js — AKVERI-sovelluksen rajapinta (/api/v1/...) ja julkinen raportin tarkistus.
 //
-// Krediittien logiikka (yksi krediitti = yksi mittaus):
+// Krediittien logiikka (mittauksen hinta krediitteinä asetetaan hallinnassa testityypeittäin, oletus 1):
 //   1. Sovellus luo itselleen tilin (tunnus + salainen avain). Tilillä ei ole ilmaisia krediittejä.
 //   2. Osto Google Playssa → sovellus lähettää ostotunnuksen → palvelin tarkistaa oston Googlelta → krediitit tilille.
 //      Sama osto hyvittyy vain kerran ja vain sille tilille, jolle se tehtiin (Google palauttaa tilin tunnuksen).
@@ -26,6 +26,10 @@ const { tiiviste } = require('./varasto');
 const TUNNUS_RE = /^AK[0-9A-HJKMNP-TV-Z]{10}$/;
 const TILI_RE = /^T[0-9A-HJKMNP-TV-Z]{12}$/;
 const VIN_RE = /^[A-HJ-NPR-Z0-9]{17}$/;
+// Mittaustyypit ja niiden oletushinta krediitteinä. Omistaja muuttaa hinnat hallinnassa (Sivusto ja ehdot → Lataus ja hinnat),
+// ja sovellus hakee ne palvelimelta (saldo-kysely), joten muutos näkyy sovelluksessa heti.
+const MITTAUSTYYPIT = ['pikatarkastus', 'kapasiteetti', 'taysi', 'ajotesti', 'pika_ajo', 'kuormitus', 'pikalataus', 'itsepurkaus'];
+const OLETUSHINTA = 1;
 const OLETUSTUOTTEET = [
   { tuote: 'akveri_testi_1', krediitit: 1 },
   { tuote: 'akveri_testi_5', krediitit: 5 },
@@ -60,6 +64,12 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
   const testit = () => varasto.get('testit');
   const ostot = () => varasto.get('ostot');
   const asetukset = () => varasto.get('asetukset');
+  const hinnat = () => {
+    const a = asetukset().hinnat || {};
+    const h = {};
+    for (const t of MITTAUSTYYPIT) h[t] = Number.isInteger(a[t]) && a[t] >= 1 ? a[t] : OLETUSHINTA;
+    return h;
+  };
   const tuotteet = () => (Array.isArray(asetukset().tuotteet) && asetukset().tuotteet.length ? asetukset().tuotteet : OLETUSTUOTTEET);
   const vahimmaisversio = () => (VERSIO_RE.test(String(asetukset().vahimmaisversio)) ? asetukset().vahimmaisversio : OLETUS_VAHIMMAISVERSIO);
   const uusinVersio = () => (VERSIO_RE.test(String(asetukset().uusinVersio)) ? asetukset().uusinVersio : '');
@@ -101,7 +111,7 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
   }
 
   function saldo(tili) {
-    return { tili: tili.id, saldo: varasto.saldo(tili.id), avoimetLuvat: vapaatLuvat(tili.id), hyvitysaikaMin: hyvitysaikaMs() / 60000, testitili: !!tili.testitili };
+    return { tili: tili.id, saldo: varasto.saldo(tili.id), avoimetLuvat: vapaatLuvat(tili.id), hyvitysaikaMin: hyvitysaikaMs() / 60000, testitili: !!tili.testitili, hinnat: hinnat() };
   }
 
   async function osto(tili, body) {
@@ -130,15 +140,19 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
   function varaa(tili, body) {
     if (vapaatLuvat(tili.id) >= 5) throw new Virhe('Tilillä on jo viisi avointa testilupaa. Viimeistele tai peru aiemmat mittaukset ensin.', 409);
     const testi = !!tili.testitili;
-    if (!testi && varasto.saldo(tili.id) < 1) throw new Virhe('Krediitit eivät riitä. Osta krediittejä sovelluksen Krediitit-näkymässä.', 402);
+    // Vanhempi sovellus ei kerro mittaustyyppiä: silloin käytetään oletushintaa.
+    const tyyppi = MITTAUSTYYPIT.includes(body.tyyppi) ? body.tyyppi : '';
+    if (body.tyyppi !== undefined && !tyyppi) throw new Virhe('Tuntematon mittaustyyppi.');
+    const hinta = tyyppi ? hinnat()[tyyppi] : OLETUSHINTA;
+    if (!testi && varasto.saldo(tili.id) < hinta) throw new Virhe(`Krediitit eivät riitä. Tämä mittaus maksaa ${hinta} ${hinta === 1 ? 'krediitin' : 'krediittiä'}. Osta krediittejä Krediitit-näkymässä.`, 402);
     let tunnus;
     do { tunnus = 'AK' + satunnaisTunnus(10); } while (testit()[tunnus]);
     const varattu = new Date(nyt()).toISOString();
     const allekirjoitus = allekirjoita(`AKVERI-LUPA|${tunnus}|${tili.id}|${varattu}`);
-    testit()[tunnus] = { tunnus, tili: tili.id, tila: 'varattu', varattu, alusta: puhdista(body.alusta, 20), sovellusversio: puhdista(body.versio, 20), allekirjoitus, ...(testi ? { testi: true } : {}) };
+    testit()[tunnus] = { tunnus, tili: tili.id, tila: 'varattu', varattu, alusta: puhdista(body.alusta, 20), sovellusversio: puhdista(body.versio, 20), allekirjoitus, ...(tyyppi ? { mittaustyyppi: tyyppi } : {}), ...(testi ? { testi: true } : { krediitit: hinta }) };
     varasto.tallenna('testit');
-    if (!testi) varasto.kirjaa({ tili: tili.id, muutos: -1, syy: 'testi', viite: tunnus });
-    return { testi, tunnus, tunnusNaytto: muotoileTunnus(tunnus), varattu, allekirjoitus, osoite: julkinenOsoite() + '/v/' + tunnus, saldo: varasto.saldo(tili.id), hyvitysaikaMin: hyvitysaikaMs() / 60000 };
+    if (!testi) varasto.kirjaa({ tili: tili.id, muutos: -hinta, syy: 'testi', viite: tunnus, ...(tyyppi ? { selite: tyyppi } : {}) });
+    return { testi, hinta: testi ? 0 : hinta, tunnus, tunnusNaytto: muotoileTunnus(tunnus), varattu, allekirjoitus, osoite: julkinenOsoite() + '/v/' + tunnus, saldo: varasto.saldo(tili.id), hyvitysaikaMin: hyvitysaikaMs() / 60000 };
   }
 
   function haeOmaTesti(tili, tunnus) {
@@ -154,7 +168,7 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
     if (nyt() - Date.parse(t.varattu) > hyvitysaikaMs()) throw new Virhe(`Luvan voi perua ${hyvitysaikaMs() / 60000} minuutin kuluessa. Lähetä hyvityspyyntö, niin ylläpito käsittelee sen.`, 409);
     t.tila = 'peruttu'; t.peruttu = new Date(nyt()).toISOString(); t.perumisenSyy = yksiRivi(puhdista(body.syy, 300));
     varasto.tallenna('testit');
-    if (!t.testi) varasto.kirjaa({ tili: tili.id, muutos: 1, syy: 'peruutus', viite: t.tunnus, selite: t.perumisenSyy });
+    if (!t.testi) varasto.kirjaa({ tili: tili.id, muutos: t.krediitit || 1, syy: 'peruutus', viite: t.tunnus, selite: t.perumisenSyy });
     return { ok: true, saldo: varasto.saldo(tili.id) };
   }
 
@@ -238,7 +252,7 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
     try {
       if (polku === '/api/v1/tila' && req.method === 'GET') return json(res, 200, { ok: true, palvelu: 'akveri', versio: env.AKVERI_VERSIO || '', ostot: google.kaytossa, rajapinta: 1, vahimmaisversio: vahimmaisversio(), uusinVersio: uusinVersio() });
       if (polku === '/api/v1/avain' && req.method === 'GET') return json(res, 200, { algoritmi: 'Ed25519', julkinen: avain.julkinen });
-      if (polku === '/api/v1/tuotteet' && req.method === 'GET') return json(res, 200, { tuotteet: tuotteet() });
+      if (polku === '/api/v1/tuotteet' && req.method === 'GET') return json(res, 200, { tuotteet: tuotteet(), hinnat: hinnat() });
       const vm = /^\/api\/v1\/vahvistus\/([A-Za-z0-9-]{10,20})$/.exec(polku);
       if (vm && req.method === 'GET') return json(res, 200, vahvistus(req, vm[1], kysely.get('vin')));
       if (req.method !== 'POST' && polku !== '/api/v1/saldo') throw new Virhe('Tuntematon pyyntö.', 404);
@@ -284,4 +298,4 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
   return { kasittele, tarkistaPerutut, google, julkinenAvain: avain.julkinen, tuotteet };
 }
 
-module.exports = { luoSovellusRajapinta, muotoileTunnus, normalisoiTunnus, TUNNUS_RE, TILI_RE, OLETUSTUOTTEET, OLETUS_VAHIMMAISVERSIO, vertaaVersioita, VERSIO_RE };
+module.exports = { luoSovellusRajapinta, MITTAUSTYYPIT, OLETUSHINTA, muotoileTunnus, normalisoiTunnus, TUNNUS_RE, TILI_RE, OLETUSTUOTTEET, OLETUS_VAHIMMAISVERSIO, vertaaVersioita, VERSIO_RE };

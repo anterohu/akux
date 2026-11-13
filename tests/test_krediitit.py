@@ -154,7 +154,7 @@ def test_krediitit():
             palvelin.pyynto("POST", f"/api/hallinta/tilit/{tili}/krediitit", {"muutos": 3, "selite": "Testi"}, True)
             assert api.krediitit({}, {})["saldo"] == 3
             v = api.krediitit({}, {})["versiot"]
-            assert v["nykyinen"] == v["vahimmaisversio"] and not v["paivitys_pakollinen"] and not v["paivitys_saatavilla"], v
+            assert v["vahimmaisversio"] == "2.0.0" and not v["paivitys_pakollinen"] and not v["paivitys_saatavilla"], v
             # Vähimmäisversion nosto: tämä versio ei saa enää krediittitoimintoja ja ohjelma kertoo päivityksestä
             palvelin.pyynto("PUT", "/api/hallinta/asetukset", {"vahimmaisversio": "9.0.0", "uusinVersio": "9.0.0"}, True)
             try:

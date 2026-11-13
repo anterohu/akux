@@ -407,3 +407,70 @@ test('tietosuoja: tilin ja raportin tietojen poisto sekä säilytysajat', async 
   assert.equal(palvelin.hallinta.sailytysajat().viestit, 1, 'yli kaksi vuotta vanha viesti poistuu');
   assert.equal(Object.keys(palvelin.varasto.get('viestit')).length, 0);
 });
+
+test('etusivu: kolme kieltä samasta lähteestä, kielivalinta ja ei teknistä sanastoa', async (t) => {
+  const etusivu = require('../etusivu');
+  for (const s of etusivu.kaikki()) assert.equal(fs.readFileSync(path.join(__dirname, '..', 'sivusto', s.tiedosto), 'utf8'), s.sisalto, `${s.tiedosto} on ajan tasalla (aja node palvelin/etusivu.js)`);
+  const { pyynto } = await kaynnista(t);
+  for (const [polku, kieli] of [['/', 'fi'], ['/en', 'en'], ['/sv', 'sv']]) {
+    const r = await pyynto(polku);
+    assert.equal(r.status, 200, polku);
+    assert.match(r.d, new RegExp(`<html lang="${kieli}">`));
+    for (const k of ['/', '/en', '/sv']) assert.ok(r.d.includes(`href="${k}"`), `${polku}: linkki kieleen ${k}`);
+    assert.doesNotMatch(r.d, /SOH|kennoj|akunhallin|diagnostiikka|BMS|style="/i, `${polku}: ei teknistä sanastoa eikä inline-tyylejä`);
+    assert.match(r.d, /data-play/);
+  }
+});
+
+test('huoltotila: vain sivusto tai sivusto ja sovelluksen palvelu; hallinta, ehdot ja kirjautunut käyttäjä toimivat', async (t) => {
+  const { pyynto, aika } = await kaynnista(t);
+  const s = await kirjauduHallintaan(pyynto, aika);
+  const put = (huoltotila) => pyynto('/api/hallinta/asetukset', { method: 'PUT', evaste: s.evaste, otsakkeet: s.otsakkeet, body: { huoltotila } });
+  const tili = (await pyynto('/api/v1/tili', { method: 'POST' })).d;
+  assert.equal((await put({ tila: 'jotain' })).status, 400);
+  assert.equal((await put({ tila: 'sivusto', viesti: 'x'.repeat(501) })).status, 400);
+  const r = await put({ tila: 'sivusto', viesti: 'Huolto <klo 22>' });
+  assert.equal(r.status, 200); assert.equal(r.d.huoltotila.tila, 'sivusto');
+  for (const sivu of ['/', '/en', '/sv', '/tarkista', '/v/AK7H2QKM4XPC', '/yhteystiedot']) {
+    const v = await pyynto(sivu);
+    assert.equal(v.status, 503, sivu);
+    assert.match(v.d, /Huolto &lt;klo 22&gt;/);
+  }
+  for (const sivu of ['/ehdot', '/tietosuoja', '/hallinta', '/sivusto.css', '/logo.svg']) assert.equal((await pyynto(sivu)).status, 200, `${sivu} toimii huollon aikana`);
+  assert.equal((await pyynto('/', { evaste: s.evaste })).status, 200, 'kirjautunut näkee sivuston');
+  assert.equal((await pyynto('/api/v1/saldo', { auth: tili })).status, 200, 'sovellus toimii, kun vain sivusto on huollossa');
+  assert.equal((await put({ tila: 'kaikki', viesti: 'Huolto' })).status, 200);
+  const sov = await pyynto('/api/v1/saldo', { auth: tili });
+  assert.equal(sov.status, 503); assert.equal(sov.d.huolto, true); assert.match(sov.d.virhe, /huollossa/);
+  assert.equal((await pyynto('/api/hallinta/yhteenveto', { evaste: s.evaste })).status, 200, 'hallinta toimii');
+  assert.equal((await put({ tila: 'pois', viesti: '' })).status, 200);
+  assert.equal((await pyynto('/')).status, 200);
+  assert.equal((await pyynto('/api/v1/saldo', { auth: tili })).status, 200);
+});
+
+test('mittausten hinnat: hallinnassa testityypeittäin, sovellus saa ne saldon mukana, veloitus ja palautus hinnan mukaan', async (t) => {
+  const { pyynto, g, aika } = await kaynnista(t);
+  const s = await kirjauduHallintaan(pyynto, aika);
+  const put = (body) => pyynto('/api/hallinta/asetukset', { method: 'PUT', evaste: s.evaste, otsakkeet: s.otsakkeet, body });
+  const a = (await pyynto('/api/v1/tili', { method: 'POST' })).d;
+  assert.equal((await pyynto('/api/v1/saldo', { auth: a })).d.hinnat.taysi, 1, 'oletushinta 1');
+  assert.equal((await put({ hinnat: { taysi: 0 } })).status, 400);
+  assert.equal((await put({ hinnat: { taysi: 1.5 } })).status, 400);
+  const r = await put({ hinnat: { taysi: 3, pikatarkastus: 1 } });
+  assert.equal(r.status, 200); assert.equal(r.d.hinnat.taysi, 3); assert.equal(r.d.hinnat.kapasiteetti, 1);
+  assert.equal((await pyynto('/api/v1/saldo', { auth: a })).d.hinnat.taysi, 3, 'muutos näkyy sovellukselle heti');
+  assert.equal((await pyynto('/api/v1/tuotteet')).d.hinnat.taysi, 3);
+  osto(g, 'tok-h', 'akveri_testi_5', a.tili);
+  assert.equal((await pyynto('/api/v1/osto', { method: 'POST', auth: a, body: { tuote: 'akveri_testi_5', ostotunnus: 'tok-h' } })).d.saldo, 5);
+  assert.equal((await pyynto('/api/v1/testi/varaa', { method: 'POST', auth: a, body: { tyyppi: 'tuntematon' } })).status, 400);
+  const v = await pyynto('/api/v1/testi/varaa', { method: 'POST', auth: a, body: { tyyppi: 'taysi' } });
+  assert.equal(v.status, 200); assert.equal(v.d.hinta, 3); assert.equal(v.d.saldo, 2);
+  const liian = await pyynto('/api/v1/testi/varaa', { method: 'POST', auth: a, body: { tyyppi: 'taysi' } });
+  assert.equal(liian.status, 402); assert.match(liian.d.virhe, /3 krediittiä/);
+  assert.equal((await pyynto('/api/v1/testi/peru', { method: 'POST', auth: a, body: { tunnus: v.d.tunnus, syy: 'keskeytyi' } })).d.saldo, 5, 'peruminen palauttaa koko hinnan');
+  const p = await pyynto('/api/v1/testi/varaa', { method: 'POST', auth: a, body: { tyyppi: 'pikatarkastus' } });
+  assert.equal(p.d.hinta, 1); assert.equal(p.d.saldo, 4);
+  assert.equal((await put({ hinnat: { pikatarkastus: 2 } })).status, 200);
+  assert.equal((await pyynto('/api/v1/testi/peru', { method: 'POST', auth: a, body: { tunnus: p.d.tunnus } })).d.saldo, 5, 'palautus aloitushetken hinnalla');
+  assert.equal((await pyynto('/api/v1/testi/varaa', { method: 'POST', auth: a, body: {} })).d.hinta, 1, 'vanha sovellus ilman tyyppiä: oletushinta');
+});

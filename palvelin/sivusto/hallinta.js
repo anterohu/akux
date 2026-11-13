@@ -69,6 +69,23 @@
     td.appendChild(f); lr.appendChild(td); tr.after(lr); syotteet[0] && syotteet[0].focus();
   }
 
+  var MITTAUSNIMET = { pikatarkastus: 'Pikatarkastus', kapasiteetti: 'Kapasiteettimittaus', taysi: 'Täysi akkutesti', ajotesti: 'Ajotesti', pika_ajo: 'Pika-ajotesti', kuormitus: 'Kuormitustesti', pikalataus: 'Pikalataustesti', itsepurkaus: 'Itsepurkaustesti' };
+  function piirraHinnat(h) {
+    var r = $('#hintaruudukko'); r.textContent = '';
+    Object.keys(MITTAUSNIMET).forEach(function (t) {
+      var l = el('label', MITTAUSNIMET[t]); l.setAttribute('for', 'hinta-' + t);
+      var i = el('input'); i.type = 'number'; i.min = '1'; i.max = '100'; i.step = '1'; i.id = 'hinta-' + t; i.value = (h && h[t]) || 1; i.setAttribute('data-hinta', t);
+      var d = el('div'); d.appendChild(l); d.appendChild(i); r.appendChild(d);
+    });
+  }
+  function luetutHinnat() { var h = {}; document.querySelectorAll('[data-hinta]').forEach(function (i) { h[i.getAttribute('data-hinta')] = Number(i.value); }); return h; }
+  var HUOLTO_KUVAUS = { pois: 'Huoltotila on pois päältä.', sivusto: 'Sivusto on huoltotilassa. Sovellus toimii normaalisti.', kaikki: 'Sivusto ja sovelluksen palvelu ovat huoltotilassa.' };
+  function naytaHuolto(h) {
+    h = h || { tila: 'pois', viesti: '' };
+    $('#ht-tila').value = h.tila; $('#ht-viesti').value = h.viesti || '';
+    var p = $('#huolto-nyt'); p.textContent = 'Nyt: ' + HUOLTO_KUVAUS[h.tila] + (h.muutettu ? ' Muutettu ' + aika(h.muutettu) + '.' : '');
+    p.className = 'paivays' + (h.tila === 'pois' ? '' : ' huomio-teksti');
+  }
   var LATAA = {
     yleiskatsaus: function () {
       api('/yhteenveto').then(function (d) {
@@ -116,9 +133,10 @@
         var y = a.yhteystiedot || {};
         $('#yt-nimi').value = y.nimi || ''; $('#yt-ytunnus').value = y.yTunnus || ''; $('#yt-osoite').value = y.osoite || ''; $('#yt-sahkoposti').value = y.sahkoposti || ''; $('#yt-puhelin').value = y.puhelin || '';
         $('#as-play').value = a.playLinkki || ''; $('#as-hinnasto').value = a.hinnasto || ''; $('#as-hyvitysaika').value = a.hyvitysaikaMin;
-        piirraTuotteet(a.tuotteet);
+        piirraTuotteet(a.tuotteet); piirraHinnat(a.hinnat);
         $('#ve-min').value = a.vahimmaisversio || ''; $('#ve-uusin').value = a.uusinVersio || '';
         asiakirjat = a.asiakirjat || {}; naytaAsiakirja();
+        naytaHuolto(a.huoltotila);
       }).catch(virhe());
     },
     lataukset: function () {
@@ -282,13 +300,18 @@
     $('#lisaa-tuote').addEventListener('click', function () { tuotteet.push({ tuote: '', krediitit: 1 }); piirraTuotteet(tuotteet); });
     $('#myyntilomake').addEventListener('submit', function (e) {
       e.preventDefault();
-      api('/asetukset', { method: 'PUT', body: { playLinkki: $('#as-play').value.trim(), hinnasto: $('#as-hinnasto').value, hyvitysaikaMin: Number($('#as-hyvitysaika').value), tuotteet: tuotteet } })
-        .then(function (a) { piirraTuotteet(a.tuotteet); ilmoita('Tallennettu.', true); }).catch(virhe());
+      api('/asetukset', { method: 'PUT', body: { playLinkki: $('#as-play').value.trim(), hinnasto: $('#as-hinnasto').value, hyvitysaikaMin: Number($('#as-hyvitysaika').value), tuotteet: tuotteet, hinnat: luetutHinnat() } })
+        .then(function (a) { piirraTuotteet(a.tuotteet); piirraHinnat(a.hinnat); ilmoita('Tallennettu.', true); }).catch(virhe());
     });
     $('#versiolomake').addEventListener('submit', function (e) {
       e.preventDefault();
       api('/asetukset', { method: 'PUT', body: { vahimmaisversio: $('#ve-min').value.trim(), uusinVersio: $('#ve-uusin').value.trim() } })
         .then(function () { ilmoita('Versiot tallennettu.', true); }).catch(virhe());
+    });
+    $('#huoltolomake').addEventListener('submit', function (e) {
+      e.preventDefault();
+      api('/asetukset', { method: 'PUT', body: { huoltotila: { tila: $('#ht-tila').value, viesti: $('#ht-viesti').value } } })
+        .then(function (a) { naytaHuolto(a.huoltotila); ilmoita(a.huoltotila.tila === 'pois' ? 'Huoltotila on pois päältä.' : 'Huoltotila on päällä.', true); }).catch(virhe());
     });
     $('#ak-tyyppi').addEventListener('change', naytaAsiakirja);
     $('#asiakirjalomake').addEventListener('submit', function (e) {

@@ -176,8 +176,11 @@ class Krediitit:
     def osto(self, tuote: str, ostotunnus: str) -> dict:
         return self._kutsu("POST", "/api/v1/osto", {"tuote": tuote, "ostotunnus": ostotunnus}, aikaraja=40.0)
 
-    def varaa(self, versio: str, alusta: str) -> dict:
-        return self._kutsu("POST", "/api/v1/testi/varaa", {"versio": versio, "alusta": alusta})
+    def varaa(self, versio: str, alusta: str, tyyppi: str = "") -> dict:
+        body = {"versio": versio, "alusta": alusta}
+        if tyyppi:
+            body["tyyppi"] = tyyppi  # palvelin veloittaa mittaustyypin hinnan (hallinnassa asetettu)
+        return self._kutsu("POST", "/api/v1/testi/varaa", body)
 
     def peru(self, tunnus: str, syy: str) -> dict:
         return self._kutsu("POST", "/api/v1/testi/peru", {"tunnus": tunnus, "syy": syy})

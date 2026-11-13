@@ -95,6 +95,15 @@
   <div data-nakyma="viestit" class="piilossa"><div class="taulukko"><table id="viestitaulu"></table></div></div>
 
   <div data-nakyma="asetukset" class="piilossa">
+    <form class="kortti" id="huoltolomake">
+      <h2>Huoltotila</h2>
+      <p class="paivays" id="huolto-nyt"></p>
+      <label for="ht-tila">Tila</label>
+      <select id="ht-tila"><option value="pois">Pois: kaikki toimii normaalisti</option><option value="sivusto">Vain sivusto huollossa: sovellus toimii</option><option value="kaikki">Sivusto ja sovelluksen palvelu huollossa</option></select>
+      <label for="ht-viesti">Kävijöille näytettävä viesti</label><input id="ht-viesti" maxlength="500">
+      <p class="paivays">Huollon aikana sivuston kävijät näkevät huoltoviestin (lisäksi lyhyesti englanniksi ja ruotsiksi). Kun myös sovelluksen palvelu on huollossa, sovellus ei voi aloittaa mittauksia, ostaa krediittejä eikä tarkistaa raportteja, ja se näyttää käyttäjälle huoltoilmoituksen. Tämä hallinta, käyttöehdot ja tietosuojaseloste toimivat aina. Kirjautuneena näet sivuston samassa selaimessa normaalisti.</p>
+      <p><button class="nappi" type="submit">Tallenna huoltotila</button></p>
+    </form>
     <form class="kortti" id="ytlomake">
       <h2>Yhteystiedot</h2>
       <p class="paivays">Näkyvät sivuston alatunnisteessa, yhteystietosivulla, käyttöehdoissa ja tietosuojaselosteessa.</p>
@@ -112,6 +121,9 @@
       <label for="as-hinnasto">Hinnasto etusivulle</label><textarea id="as-hinnasto" maxlength="2000" placeholder="1 mittaus 19,90 €&#10;5 mittausta 79,00 €"></textarea>
       <p class="paivays">Hinnat asetetaan Play Consolessa. Pidä tämä teksti samana kuin Play Consolen hinnat.</p>
       <label for="as-hyvitysaika">Automaattisen perumisen aika (minuuttia)</label><input id="as-hyvitysaika" type="number" min="10" max="1440">
+      <h3>Mittausten hinnat krediitteinä</h3>
+      <p class="paivays">Montako krediittiä kukin mittaus kuluttaa. Muutos tulee sovellukseen heti: sovellus hakee hinnat palvelimelta ja näyttää hinnan ennen mittauksen aloitusta. Jo aloitettujen mittausten hinta ei muutu.</p>
+      <div class="hintaruudukko" id="hintaruudukko"></div>
       <h3>Tuotteet</h3>
       <p class="paivays">Play Consolen kertakäyttöisten tuotteiden tunnukset ja montako krediittiä kukin antaa. Tunnusten pitää vastata Play Consolea täsmälleen.</p>
       <div class="taulukko"><table id="tuotetaulu"></table></div>

@@ -28,10 +28,18 @@ const VERSIO = (() => { try { return require('./package.json').version; } catch 
 const SIVUSTO = path.join(__dirname, 'sivusto');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8', '.webmanifest': 'application/manifest+json' };
 const SIVUT = {
-  '/': 'index.html', '/tarkista': 'tarkista.html', '/ehdot': 'ehdot.html', '/tietosuoja': 'tietosuoja.html',
+  '/': 'index.html', '/en': 'index-en.html', '/sv': 'index-sv.html', '/tarkista': 'tarkista.html', '/ehdot': 'ehdot.html', '/tietosuoja': 'tietosuoja.html',
   '/yhteystiedot': 'yhteystiedot.html', '/hallinta': 'hallinta.html', '/robots.txt': 'robots.txt'
 };
 const HALLINNAN_TIEDOSTOT = new Set(['hallinta.html', 'hallinta.js']);
+// Huoltotilan aikana toimivat aina: hallinta, käyttöehdot, tietosuojaseloste (Google Playn vaatimus), sivuston tiedot ja tyylit.
+const HUOLTO_AINA = new Set(['/hallinta', '/hallinta/', '/ehdot', '/tietosuoja', '/robots.txt']);
+const HUOLTO_RESURSSI = /^\/[a-z0-9-]+\.(js|css|svg|png|ico|webmanifest)$/;
+function huoltoSivu(viesti) {
+  const e = (t) => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  return `<!doctype html><html lang="fi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Huoltokatko · Maintenance · Underhåll | AKVERI</title><link rel="icon" href="/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="/sivusto.css"></head>
+<body class="huoltosivu"><main class="leveys huolto"><h1>Huoltokatko</h1><p>${e(viesti)}</p><p lang="en">The service is temporarily down for maintenance. Please try again soon.</p><p lang="sv">Tjänsten är tillfälligt stängd för underhåll. Försök igen snart.</p></main></body></html>`;
+}
 
 function luoPalvelin({ env = process.env, nyt = () => Date.now(), haku } = {}) {
   env = { ...env, AKVERI_VERSIO: env.AKVERI_VERSIO || VERSIO };
@@ -71,6 +79,17 @@ function luoPalvelin({ env = process.env, nyt = () => Date.now(), haku } = {}) {
     try { osoite = new URL(req.url || '/', 'http://x'); } catch (e) { res.writeHead(400); return res.end(); }
     const polku = osoite.pathname;
     const virhe = () => { if (!res.headersSent) json(res, 500, { virhe: 'Palvelinvirhe.' }); };
+    // Huoltotila (akveri.fi/hallinta → Sivusto ja ehdot → Huoltotila)
+    const huolto = hallinta.huoltotila();
+    if (huolto.tila !== 'pois' && !HUOLTO_AINA.has(polku) && !HUOLTO_RESURSSI.test(polku) && !polku.startsWith('/api/hallinta/') && !polku.startsWith('/api/sivusto/')) {
+      const sovellukselle = polku.startsWith('/api/v1/');
+      if ((!sovellukselle || huolto.tila === 'kaikki') && !hallinta.kirjautunut(req)) {
+        res.setHeader('Retry-After', '600');
+        if (polku.startsWith('/api/')) return json(res, 503, { virhe: 'AKVERI-palvelu on tilapäisesti huollossa. Yritä hetken kuluttua uudelleen.', huolto: true });
+        res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+        return res.end(req.method === 'HEAD' ? undefined : huoltoSivu(huolto.viesti));
+      }
+    }
     if (polku.startsWith('/api/v1/')) return sovellus.kasittele(req, res, polku, osoite.searchParams).catch(virhe);
     if (polku.startsWith('/api/hallinta/')) return hallinta.kasittele(req, res, polku, osoite.searchParams).catch(virhe);
     if (polku.startsWith('/api/sivusto/')) return hallinta.kasitteleJulkinen(req, res, polku).catch(virhe);

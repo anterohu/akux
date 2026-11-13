@@ -141,7 +141,7 @@ class App:
             _keep_awake(False)
 
     def start_test(self, **kw):
-        """Aloittaa mittauksen. Oikeasta autosta mittaus vaatii testiluvan (yksi krediitti), esittelytilassa ei."""
+        """Aloittaa mittauksen. Oikeasta autosta mittaus vaatii testiluvan (mittaustyypin hinta krediitteinä), esittelytilassa ei."""
         if self.source and self.source.simulated:
             tid = self.recorder.start(**kw)
             self.storage.update_test(tid, demo=1)
@@ -150,7 +150,7 @@ class App:
         from . import VERSIO
         from .server import platform_name
         try:
-            lupa = self.krediitit.varaa(VERSIO, platform_name())
+            lupa = self.krediitit.varaa(VERSIO, platform_name(), str(kw.get("tyyppi") or ""))
         except krediittimoduuli.PalveluVirhe as e:
             raise RuntimeError(str(e)) from None
         try:

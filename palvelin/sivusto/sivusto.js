@@ -67,6 +67,15 @@
     }).catch(function () { /* oletusteksti jää näkyviin */ }).then(function () { clearTimeout(varmistus); laatikko.classList.remove('piilossa'); });
   }
 
+  // Etusivun tekstit sivun kielellä (index.html, index-en.html, index-sv.html).
+  var KIELI = (document.documentElement.lang || 'fi').slice(0, 2);
+  var TEKSTIT = {
+    fi: { tulossa: 'Tulossa', saatavilla: 'Saatavilla Google Playssa · Android 10 tai uudempi', eiViela: 'Tulossa Google Playhin. Ilmoitamme julkaisusta tällä sivulla.' },
+    en: { tulossa: 'Coming soon', saatavilla: 'Available on Google Play · Android 10 or newer', eiViela: 'Coming soon to Google Play. We will announce it on this page.' },
+    sv: { tulossa: 'Kommer snart', saatavilla: 'Finns på Google Play · Android 10 eller nyare', eiViela: 'Kommer snart till Google Play. Vi meddelar det på den här sidan.' }
+  };
+  var T = TEKSTIT[KIELI] || TEKSTIT.fi;
+
   function etusivu(t) {
     // Google Play: kun hallinnassa on linkki, kaikki [data-play]-painikkeet vievät Google Playhin ja tila näyttää
     // "Saatavilla Google Playssa". Ilman linkkiä painikkeet ovat himmennettyjä ja tila on "Tulossa Google Playhin".
@@ -75,16 +84,16 @@
     for (var i = 0; i < napit.length; i++) {
       var n = napit[i];
       if (saatavilla) { n.href = t.playLinkki; n.rel = 'noopener'; n.removeAttribute('aria-disabled'); n.classList.remove('tulossa'); }
-      else { n.removeAttribute('href'); n.setAttribute('aria-disabled', 'true'); n.classList.add('tulossa'); var sm = n.querySelector('small'); if (sm) sm.textContent = 'Tulossa'; }
+      else { n.removeAttribute('href'); n.setAttribute('aria-disabled', 'true'); n.classList.add('tulossa'); var sm = n.querySelector('small'); if (sm) sm.textContent = T.tulossa; }
     }
     var tilat = document.querySelectorAll('[data-play-tila]');
     for (var j = 0; j < tilat.length; j++) {
       tilat[j].classList.toggle('saatavilla', saatavilla);
       var tx = tilat[j].querySelector('[data-play-teksti]');
-      if (tx) tx.textContent = saatavilla ? 'Saatavilla Google Playssa · Android 10 tai uudempi' : 'Tulossa Google Playhin. Ilmoitamme julkaisusta tällä sivulla.';
+      if (tx) tx.textContent = saatavilla ? T.saatavilla : T.eiViela;
     }
     var hinnasto = document.getElementById('hinnasto');
-    if (hinnasto && t.hinnasto) hinnasto.textContent = t.hinnasto;
+    if (hinnasto && t.hinnasto && KIELI === 'fi') hinnasto.textContent = t.hinnasto;
     var aika = document.getElementById('hyvitysaika');
     if (aika && t.hyvitysaikaMin) aika.textContent = String(t.hyvitysaikaMin);
   }

@@ -538,10 +538,13 @@ views.mittaus = {
       this.updateNew(S);
     }));
     this.type = null;
+    // Mittausten hinnat haetaan palvelimelta: hallinnassa tehty muutos näkyy tässä heti.
+    this.hinnat = null;
+    if (!(S && S.yhteys.simuloitu)) api("/api/krediitit").then(d => { this.hinnat = d.hinnat || null; this.saldo = d.saldo; this.testitili = !!d.testitili; this.updateNew(S); }).catch(() => {});
     $("#mStart").onclick = () => $("#mIndep").value === "" ? alert("Valitse, onko mittaaja riippumaton. Valinta näkyy raportissa.") : act(() => api("/api/mittaukset", { method: "POST", body: {
       ajoneuvo_id: Number($("#mVeh").value), tyyppi: this.type, mittarilukema: $("#mOdo").value,
       mittaaja: $("#mWho").value, lisatiedot: $("#mNote").value,
-      riippumaton: $("#mIndep").value === "" ? null : $("#mIndep").value === "1" } }), S && S.yhteys.simuloitu ? "Esittelymittaus aloitettu" : "Mittaus aloitettu, krediitti käytetty").then(poll);
+      riippumaton: $("#mIndep").value === "" ? null : $("#mIndep").value === "1" } }), S && S.yhteys.simuloitu ? "Esittelymittaus aloitettu" : "Mittaus aloitettu").then(poll);
   },
   updateNew(S) {
     const w = $("#mWarn"), st = $("#mStart");
@@ -555,7 +558,11 @@ views.mittaus = {
     if (w.innerHTML !== msg) w.innerHTML = msg;
     const ready = S.yhteys.kaynnissa && S.vaylatesti && S.vaylatesti.kunnossa && this.type;
     st.disabled = !ready;
-    $("#mStartHint").textContent = !this.type ? "Valitse mittauksen tyyppi." : (S.yhteys.simuloitu ? "Esittelytilan mittaus ei käytä krediittiä." : "Mittaus käyttää yhden krediitin. Jos keskeytät mittauksen tunnin kuluessa, krediitti palautuu.");
+    const hinta = this.hinnat && this.hinnat[this.type];
+    $("#mStartHint").textContent = !this.type ? "Valitse mittauksen tyyppi." : S.yhteys.simuloitu ? "Esittelytilan mittaus ei käytä krediittejä."
+      : this.testitili ? "Testitili: mittaus ei käytä krediittejä."
+      : hinta ? `Hinta ${hinta} ${hinta === 1 ? "krediitti" : "krediittiä"}${this.saldo != null ? ` (sinulla ${this.saldo})` : ""}. Jos mittaus keskeytyy heti alussa, krediitit palautuvat.`
+      : "Mittauksen hinta näytetään, kun yhteys AKVERI-palveluun on muodostettu.";
   },
   renderActive() {
     $("#mBody").innerHTML = `
@@ -965,7 +972,7 @@ function lupaKortti(t) {
 
 views.krediitit = {
   async render() {
-    view.innerHTML = `<div class="head"><div><h1>Krediitit</h1><div class="muted">Yksi krediitti = yksi mittaus ja sen tarkistettava raportti</div></div></div><div id="kBody"><div class="card">Haetaan…</div></div>`;
+    view.innerHTML = `<div class="head"><div><h1>Krediitit</h1><div class="muted">Mittaukset maksetaan krediiteillä. Kunkin mittauksen hinta näkyy ennen aloitusta.</div></div></div><div id="kBody"><div class="card">Haetaan…</div></div>`;
     let d;
     try { d = await api("/api/krediitit"); }
     catch (e) { $("#kBody").innerHTML = `<div class="notice warn"><b>Krediittitilannetta ei saatu.</b> ${esc(e.message)}</div>`; return; }
@@ -979,7 +986,7 @@ views.krediitit = {
       ${d.testitili ? `<div class="notice warn" style="margin-top:16px"><b>Testitili.</b> Mittaukset eivät kuluta krediittejä. Raportteihin tulee TESTIMITTAUS-leima, ja tarkistussivu näyttää ne testimittauksina.</div>` : ""}
       <div class="card" style="margin-top:16px"><h2>Osta krediittejä</h2>
         ${ostot ? `<p class="small muted">Maksu tehdään Google Playssa. Krediitit tulevat tilillesi heti, kun Google on vahvistanut maksun.</p>
-          <div class="row" id="kTuotteet">${(d.tuotteet || []).map(p => `<button class="btn primary" data-tuote="${esc(p.tuote)}">${p.krediitit} ${p.krediitit === 1 ? "mittaus" : "mittausta"}</button>`).join("")}</div>
+          <div class="row" id="kTuotteet">${(d.tuotteet || []).map(p => `<button class="btn primary" data-tuote="${esc(p.tuote)}">${p.krediitit} ${p.krediitit === 1 ? "krediitti" : "krediittiä"}</button>`).join("")}</div>
           <p class="small muted" id="kHinnat">Hinnat näkyvät Google Playn ostoikkunassa.</p>`
         : `<p class="small">Krediitit ostetaan AKVERIn Android-sovelluksessa Google Playn kautta. Tällä laitteella käytetään tilin krediittejä.</p>`}
         <div id="kViesti"></div>
@@ -987,7 +994,7 @@ views.krediitit = {
       <div class="card"><h2>Tili</h2>
         <dl class="kv"><dt>Tilitunnus</dt><dd><code>${esc(d.tili)}</code></dd></dl>
         <p class="small muted">Tilitunnus yksilöi tämän laitteen krediitit. Kerro se asiakaspalvelulle, jos kysyt ostosta tai hyvityksestä. Tilin salaista avainta ei näytetä.</p>
-        <p class="small muted">Jos mittaus keskeytyy ${d.hyvitysaikaMin || 60} minuutin kuluessa alusta, krediitti palautuu automaattisesti. Myöhemmin keskeytyneestä mittauksesta voit lähettää hyvityspyynnön mittauksen sivulta.</p></div>`;
+        <p class="small muted">Jos mittaus keskeytyy ${d.hyvitysaikaMin || 60} minuutin kuluessa alusta, sen krediitit palautuvat automaattisesti. Myöhemmin keskeytyneestä mittauksesta voit lähettää hyvityspyynnön mittauksen sivulta.</p></div>`;
     $$("[data-tuote]").forEach(b => (b.onclick = () => {
       $("#kViesti").innerHTML = "";
       try { window.AkuxAndroid.osta(b.dataset.tuote, d.tili); } catch (e) { toast("Ostoa ei voitu aloittaa.", true); }

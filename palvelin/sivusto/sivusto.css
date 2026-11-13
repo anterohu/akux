@@ -178,3 +178,19 @@ code, .tunnus { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace
 @media (max-width: 1080px) { .leveys.perusteet { margin-left: 16px; margin-right: 16px; } }
 @media (max-width: 720px) { .yla-tausta { position: static; } }
 section.osio { scroll-margin-top: 76px; }
+
+/* Kielivalinta (etusivu: suomi, englanti, ruotsi) */
+.kielet { display: inline-flex; gap: 2px; border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+.valikko .kielet a { padding: 2px 9px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.valikko .kielet a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
+#hinta .selite { max-width: 680px; }
+
+/* Huoltosivu */
+.huoltosivu { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.huolto { text-align: center; max-width: 600px; padding-top: 40px; padding-bottom: 40px; }
+.huolto h1 { margin: 0 0 12px; }
+.huolto p { color: var(--muted); margin: 6px 0; }
+.huolto p:first-of-type { color: var(--ink); font-size: 18px; }
+.huomio-teksti { color: var(--bad); font-weight: 600; }
+.hintaruudukko { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px 16px; margin-bottom: 8px; }
+.hintaruudukko input { width: 100%; }
