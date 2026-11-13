@@ -68,10 +68,20 @@
   }
 
   function etusivu(t) {
-    var linkki = document.getElementById('play-linkki');
-    if (linkki) {
-      if (t.playLinkki) { linkki.href = t.playLinkki; linkki.rel = 'noopener'; var h = document.getElementById('play-huomio'); if (h) h.classList.add('piilossa'); }
-      else { linkki.textContent = 'Tulossa Google Playhin'; linkki.removeAttribute('href'); linkki.setAttribute('aria-disabled', 'true'); linkki.classList.add('toissijainen'); }
+    // Google Play: kun hallinnassa on linkki, kaikki [data-play]-painikkeet vievät Google Playhin ja tila näyttää
+    // "Saatavilla Google Playssa". Ilman linkkiä painikkeet ovat himmennettyjä ja tila on "Tulossa Google Playhin".
+    var saatavilla = !!t.playLinkki;
+    var napit = document.querySelectorAll('[data-play]');
+    for (var i = 0; i < napit.length; i++) {
+      var n = napit[i];
+      if (saatavilla) { n.href = t.playLinkki; n.rel = 'noopener'; n.removeAttribute('aria-disabled'); n.classList.remove('tulossa'); }
+      else { n.removeAttribute('href'); n.setAttribute('aria-disabled', 'true'); n.classList.add('tulossa'); var sm = n.querySelector('small'); if (sm) sm.textContent = 'Tulossa'; }
+    }
+    var tilat = document.querySelectorAll('[data-play-tila]');
+    for (var j = 0; j < tilat.length; j++) {
+      tilat[j].classList.toggle('saatavilla', saatavilla);
+      var tx = tilat[j].querySelector('[data-play-teksti]');
+      if (tx) tx.textContent = saatavilla ? 'Saatavilla Google Playssa · Android 10 tai uudempi' : 'Tulossa Google Playhin. Ilmoitamme julkaisusta tällä sivulla.';
     }
     var hinnasto = document.getElementById('hinnasto');
     if (hinnasto && t.hinnasto) hinnasto.textContent = t.hinnasto;

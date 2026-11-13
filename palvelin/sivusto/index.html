@@ -10,30 +10,38 @@
 <script src="/sivusto.js" defer></script>
 </head>
 <body data-sivu="etusivu">
-<header class="leveys yla">
+<div class="yla-tausta"><header class="leveys yla">
   <a class="logo" href="/" aria-label="AKVERI – etusivulle"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46.5" fill="none" stroke="currentColor" stroke-width="6"/><circle cx="50" cy="50" r="37" fill="none" stroke="currentColor" stroke-opacity=".38" stroke-width="1.8" stroke-dasharray="2 4"/><path d="M33 71 L50 28 L67 71" fill="none" stroke="currentColor" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><line x1="40.5" y1="57" x2="59.5" y2="57" stroke="#6CC193" stroke-width="7.5" stroke-linecap="round"/></svg><span>AKVERI</span></a>
-  <nav class="valikko" aria-label="Päävalikko"><a href="/#miten">Miten mittaus tehdään</a><a href="/#autot">Tuetut autot</a><a href="/#hinnat">Hinnat</a><a href="/tarkista">Tarkista raportti</a><a href="/yhteystiedot">Yhteystiedot</a></nav>
-</header>
+  <nav class="valikko" aria-label="Päävalikko"><a href="/#miten">Miten mittaus tehdään</a><a href="/#autot">Tuetut autot</a><a href="/#hinnat">Hinnat</a><a href="/tarkista">Tarkista raportti</a><a href="/yhteystiedot">Yhteystiedot</a><a class="nappi pieni" href="/#lataa">Lataa sovellus</a></nav>
+</header></div>
 <main>
 
 <section class="leveys sankari">
   <div>
     <p class="ylaotsikko">Kotimainen sähköauton akun kuntomittaus</p>
     <h1>Akun kunto mitattuna, ei arvioituna.</h1>
-    <p class="johdanto">Suomessa kehitetty AKVERI lukee ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta ja tekee mittauksesta selkeän raportin. Jokaisessa raportissa on tunnus, jolla ostaja voi tarkistaa sen aitouden.</p>
+    <p class="johdanto">AKVERI lukee ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta ja tekee mittauksesta selkeän raportin. Jokaisessa raportissa on tunnus, jolla ostaja voi tarkistaa sen aitouden.</p>
     <div class="toiminnot">
-      <a class="nappi" id="play-linkki" href="/#miten">Lataa Google Playsta</a>
+      <a class="play-nappi" data-play href="/#lataa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5v17a.5.5 0 0 0 .76.43l14-8.5a.5.5 0 0 0 0-.86l-14-8.5A.5.5 0 0 0 5 3.5z" fill="currentColor"/></svg><span><small>Lataa sovellus</small>Google Playsta</span></a>
       <a class="nappi toissijainen" href="/tarkista">Tarkista raportti</a>
     </div>
-    <p class="huomio" id="play-huomio">AKVERI-sovellus tulee saataville Google Playhin. Ilmoitamme julkaisusta tällä sivulla.</p>
+    <p class="play-tila" data-play-tila><span class="piste"></span><span data-play-teksti>Android-sovellus · Google Play</span></p>
   </div>
   <div class="kortti raporttikuva" aria-label="Esimerkki raportin yhteenvedosta">
     <div class="otsake"><span>Täysi akkutesti</span><span class="merkki neutraali">Esimerkki</span></div>
-    <div class="rivi"><span>Akun kunto</span><span class="iso">93,7 %</span></div>
+    <div class="kunto"><span class="iso">93,7 %</span><span>Akun kunto (SOH)</span></div>
+    <div class="palkki" aria-hidden="true"><span></span></div>
     <div class="rivi"><span>Käytettävä kapasiteetti</span><b>72,6 kWh</b></div>
     <div class="rivi"><span>Kennojännitteiden hajonta</span><b>11 mV</b></div>
     <div class="rivi"><span>Raportin tunnus</span><b class="tunnus">AK-7H2QK-M4XPC</b></div>
   </div>
+</section>
+
+<section class="leveys perusteet" aria-label="Miksi AKVERI">
+  <div><b>Mitattu, ei arvioitu</b><span>Tulokset auton omasta akunhallinnasta, ei iän tai kilometrien perusteella.</span></div>
+  <div><b>Tarkistettava raportti</b><span>QR-koodi ja tunnus. Muokattu raportti ei läpäise tarkistusta.</span></div>
+  <div><b>Ei kuukausimaksua</b><span>Maksat vain tekemistäsi mittauksista.</span></div>
+  <div><b>Suomessa kehitetty</b><span>Tuki ja palvelin Suomessa.</span></div>
 </section>
 
 <section class="osio" id="miten"><div class="leveys">
@@ -64,6 +72,24 @@
     <div class="kortti"><h3>Krediitit</h3><p class="hinnasto" id="hinnasto">Hinnat näkyvät sovelluksessa ennen ostoa.</p></div>
     <div class="kortti"><h3>Jos mittaus keskeytyy</h3><p>Jos mittaus keskeytyy pian alun jälkeen, krediitti palautuu tilillesi automaattisesti (<span id="hyvitysaika">60</span> min). Jos mittaus keskeytyy myöhemmin AKVERIsta johtuvasta syystä, lähetä sovelluksesta hyvityspyyntö, niin palautamme krediitin.</p></div>
     <div class="kortti"><h3>Uudelleenlaskenta</h3><p>Kun sovellus päivittyy, aiemman mittauksen voi laskea uudelleen ja raportin tulostaa uudelleen ilman uutta krediittiä.</p></div>
+  </div>
+</div></section>
+
+<section class="osio" id="lataa"><div class="leveys">
+  <div class="kortti lataa">
+    <div>
+      <h2>Lataa AKVERI</h2>
+      <p class="selite">AKVERI on Android-sovellus, joka ladataan Google Playsta. Sovellus on maksuton, ja mittaukset maksetaan krediiteillä sovelluksessa.</p>
+      <ul class="lista">
+        <li>Android 10 tai uudempi puhelin</li>
+        <li>OBDLink-sovitin: MX+ tai LX (Bluetooth) tai EX tai SX (USB)</li>
+        <li>Tuettu sähköauto</li>
+      </ul>
+    </div>
+    <div class="lataa-toiminto">
+      <a class="play-nappi iso" data-play href="/#lataa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5v17a.5.5 0 0 0 .76.43l14-8.5a.5.5 0 0 0 0-.86l-14-8.5A.5.5 0 0 0 5 3.5z" fill="currentColor"/></svg><span><small>Lataa sovellus</small>Google Playsta</span></a>
+      <p class="play-tila" data-play-tila><span class="piste"></span><span data-play-teksti>Android-sovellus · Google Play</span></p>
+    </div>
   </div>
 </div></section>
 
