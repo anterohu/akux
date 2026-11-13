@@ -7,7 +7,7 @@
   function aika(s) { if (!s) return ''; var d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('fi-FI') + ' ' + d.toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' }); }
   function koko(n) { return n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' Mt' : Math.max(1, Math.round(n / 1024)) + ' kt'; }
   function tunnus(t) { return t ? t.slice(0, 2) + '-' + t.slice(2, 7) + '-' + t.slice(7) : ''; }
-  var TILAT = { varattu: 'Kesken', valmis: 'Rekisteröity', peruttu: 'Peruttu', mitatoity: 'Mitätöity' };
+  var TILAT = { varattu: 'Kesken', valmis: 'Rekisteröity', peruttu: 'Peruttu', mitatoity: 'Mitätöity', poistettu: 'Tiedot poistettu' };
 
   function api(polku, valinnat) {
     valinnat = valinnat || {};
@@ -135,7 +135,13 @@
         taulu($('#kirjanpitotaulu'), ['Aika', 'Tili', '#Muutos', 'Syy', 'Viite', 'Selite', 'Tekijä'], d.rivit, kirjanpitorivi);
       }).catch(virhe());
     },
-    tunnus: function () {}
+    tunnus: function () {
+      api('/kayttajat').then(function (d) {
+        var rivit = d.kayttajat.map(function (k) { return { nimi: k.nimi, posti: k.sahkoposti, tila: 'Käytössä', aika: k.viimeksiKirjautunut ? 'Kirjautunut ' + aika(k.viimeksiKirjautunut) : 'Ei vielä kirjautunut' }; })
+          .concat(d.kutsut.map(function (k) { return { nimi: k.nimi, posti: k.sahkoposti, tila: 'Kutsuttu', aika: 'Kutsu voimassa ' + aika(k.vanhenee) + ' asti' }; }));
+        taulu($('#kayttajataulu'), ['Nimi', 'Sähköposti', 'Tila', ''], rivit, function (r) { var tr = el('tr'); solu(tr, r.nimi); solu(tr, r.posti); solu(tr, r.tila); solu(tr, r.aika); return tr; });
+      }).catch(virhe());
+    }
   };
   function kirjanpitorivi(r) {
     var tr = el('tr'); solu(tr, aika(r.aika)); solu(tr, r.tili, 'tunnus'); solu(tr, (r.muutos > 0 ? '+' : '') + r.muutos, 'luku'); solu(tr, r.syy); solu(tr, r.viite && /^AK/.test(r.viite) ? tunnus(r.viite) : r.viite, 'tunnus'); solu(tr, r.selite); solu(tr, r.tekija === 'omistaja' ? 'Ylläpito' : 'Järjestelmä'); return tr;
@@ -175,6 +181,13 @@
       k.appendChild(el('p')).appendChild(nappi(d.tili.suljettu ? 'Avaa tili uudelleen' : 'Sulje tili', function () {
         if (d.tili.suljettu || window.confirm('Suljetaanko tili? Sovellus ei voi sen jälkeen aloittaa mittauksia tällä tilillä.')) api('/tilit/' + id + '/tila', { method: 'POST', body: { suljettu: !d.tili.suljettu } }).then(function () { avaaTili(id); }).catch(virhe());
       }, d.tili.suljettu ? 'toissijainen' : 'vaara'));
+      var pt = el('div', null, 'kortti');
+      pt.appendChild(el('h3', 'Tilin tietojen poisto'));
+      pt.appendChild(el('p', 'Tietosuojapyynnöstä: tili lakkaa toimimasta ja sen tunnistetiedot poistetaan. Avoimet testiluvat perutaan ja hyvityspyyntöjen tekstit poistetaan. Krediittien kirjanpito ja ostot säilytetään kirjanpitolain edellyttämän ajan (niissä on vain satunnainen tilitunnus). Rekisteröidyt raportit säilyvät tarkistusta varten; ne voi poistaa erikseen Testit-näkymästä. Poistoa ei voi perua.'));
+      var pf = el('form', null, 'rivi-lomake'); var pv = el('input'); pv.placeholder = 'Kirjoita tilitunnus vahvistukseksi'; pv.setAttribute('aria-label', 'Vahvistus');
+      var pb = el('button', 'Poista tilin tiedot', 'nappi vaara'); pb.type = 'submit'; pf.appendChild(pv); pf.appendChild(pb);
+      pf.addEventListener('submit', function (e) { e.preventDefault(); api('/tilit/' + id, { method: 'DELETE', body: { vahvista: pv.value.trim() } }).then(function () { ilmoita('Tilin tiedot poistettu.', true); $('#tilitiedot').classList.add('piilossa'); haeTilit(''); }).catch(virhe()); });
+      pt.appendChild(pf); k.appendChild(pt);
       k.appendChild(el('h3', 'Kirjanpito'));
       var t1 = el('table'); var w1 = el('div', null, 'taulukko'); w1.appendChild(t1); k.appendChild(w1);
       taulu(t1, ['Aika', 'Tili', '#Muutos', 'Syy', 'Viite', 'Selite', 'Tekijä'], d.kirjanpito, kirjanpitorivi);
@@ -206,6 +219,12 @@
           api('/testit/' + t.tunnus + '/mitatoi', { method: 'POST', body: { syy: arvot[0] } }).then(function () { ilmoita('Raportti mitätöity.', true); paivita(); }).catch(virhe());
         });
       }, 'vaara'));
+      if (t.raportti) rr.appendChild(nappi('Poista tiedot', function () {
+        rivilomake(tr, [{ otsikko: 'Poiston syy (esim. rekisteröidyn pyyntö)' }], 'Poista raportin tiedot', function (arvot) {
+          if (!window.confirm('Poistetaanko raportin tiedot pysyvästi? Tarkistussivu näyttää sen jälkeen, että tiedot on poistettu.')) return;
+          api('/testit/' + t.tunnus + '/poista-tiedot', { method: 'POST', body: { syy: arvot[0] } }).then(function () { ilmoita('Raportin tiedot poistettu.', true); paivita(); }).catch(virhe());
+        });
+      }, 'vaara'));
       if (hp && hp.tila === 'avoin') rr.appendChild(nappi('Hylkää pyyntö', function () {
         rivilomake(tr, [{ otsikko: 'Perustelu' }], 'Hylkää', function (arvot) { api('/testit/' + t.tunnus + '/hylkaa-pyynto', { method: 'POST', body: { selite: arvot[0] } }).then(function () { ilmoita('Hyvityspyyntö hylätty.', true); paivita(); }).catch(virhe()); });
       }));
@@ -227,18 +246,20 @@
   var asiakirjat = {};
   function naytaAsiakirja() { var a = asiakirjat[$('#ak-tyyppi').value]; $('#ak-teksti').value = a && a.teksti || ''; }
 
+  var kutsuTunnus = '';
   function alusta() {
     document.querySelectorAll('#valilehdet button').forEach(function (b) { b.addEventListener('click', function () { valitse(b.getAttribute('data-v')); }); });
     $('#ulos').addEventListener('click', function () { api('/ulos', { method: 'POST' }).then(function () { naytaNakyma('kirjautuminen'); }); });
     $('#kirjautumislomake').addEventListener('submit', function (e) {
       e.preventDefault();
-      api('/kirjaudu', { method: 'POST', body: { salasana: $('#k-salasana').value, koodi: $('#k-koodi').value.trim() } })
+      api('/kirjaudu', { method: 'POST', body: { sahkoposti: $('#k-posti').value.trim(), salasana: $('#k-salasana').value, koodi: $('#k-koodi').value.trim() } })
         .then(function () { $('#k-salasana').value = ''; $('#k-koodi').value = ''; naytaNakyma('hallinta'); }).catch(virhe($('#kirjautumisilmoitus')));
     });
     $('#alustuslomake').addEventListener('submit', function (e) {
       e.preventDefault();
       if ($('#a-salasana').value !== $('#a-salasana2').value) return ilmoita('Salasanat eivät täsmää.', false, $('#alustusilmoitus'));
-      api('/alusta', { method: 'POST', body: { alkutunnus: $('#a-alkutunnus').value.trim(), salasana: $('#a-salasana').value } }).then(function (d) {
+      var runko = kutsuTunnus ? { kutsu: kutsuTunnus, salasana: $('#a-salasana').value } : { alkutunnus: $('#a-alkutunnus').value.trim(), nimi: $('#a-nimi').value, sahkoposti: $('#a-posti').value, salasana: $('#a-salasana').value };
+      api('/alusta', { method: 'POST', body: runko }).then(function (d) {
         $('#alustuslomake').classList.add('piilossa'); $('#alustusvahvistus').classList.remove('piilossa');
         $('#a-avain').textContent = d.salaisuus;
         $('#a-qr').innerHTML = window.QR.qrMatrixToSvg(d.otpauth, { level: 'M', moduleSize: 4, label: 'QR-koodi todennussovellukseen' });
@@ -247,7 +268,7 @@
     });
     $('#alustusvahvistus').addEventListener('submit', function (e) {
       e.preventDefault();
-      api('/alusta/vahvista', { method: 'POST', body: { alkutunnus: $('#a-alkutunnus').value.trim(), koodi: $('#a-koodi').value.trim() } })
+      api('/alusta/vahvista', { method: 'POST', body: kutsuTunnus ? { kutsu: kutsuTunnus, koodi: $('#a-koodi').value.trim() } : { alkutunnus: $('#a-alkutunnus').value.trim(), koodi: $('#a-koodi').value.trim() } })
         .then(function () { ilmoita('Tunnus on luotu. Kirjaudu sisään.', true, $('#kirjautumisilmoitus')); naytaNakyma('kirjautuminen'); }).catch(virhe($('#alustusilmoitus')));
     });
     $('#tilihaku').addEventListener('submit', function (e) { e.preventDefault(); haeTilit($('#tili-haku').value); });
@@ -281,6 +302,18 @@
     });
     $('#varmuuskopio').addEventListener('click', function () { api('/varmuuskopio', { method: 'POST' }).then(function (d) { ilmoita(d.nimi ? 'Varmuuskopio otettu: ' + d.nimi : 'Varmuuskopio on jo otettu tällä sekunnilla.', true); }).catch(virhe()); });
 
+    var kutsu = (/[#&]kutsu=([A-Za-z0-9_-]{43})/.exec(location.hash) || [])[1] || '';
+    if (kutsu) {
+      history.replaceState(null, '', '/hallinta'); // kutsutunnus ei jää osoiteriville eikä selaimen historiaan
+      naytaNakyma('alustus');
+      $('#a-ensimmainen').classList.add('piilossa');
+      $('#a-otsikko').textContent = 'Hallinnan kutsu';
+      api('/kutsu', { method: 'POST', body: { kutsu: kutsu } }).then(function (k) {
+        $('#a-ohje').textContent = 'Tervetuloa, ' + k.nimi + '. Luo salasana tunnukselle ' + k.sahkoposti + ' ja ota käyttöön kaksivaiheinen tunnistus todennussovelluksella.';
+      }).catch(function (e) { $('#a-ohje').textContent = e.message; $('#alustuslomake').classList.add('piilossa'); });
+      kutsuTunnus = kutsu;
+      return;
+    }
     api('/tila').then(function (t) {
       if (t.kirjautunut) naytaNakyma('hallinta');
       else if (t.alustettu) naytaNakyma('kirjautuminen');

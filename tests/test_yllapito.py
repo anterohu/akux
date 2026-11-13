@@ -163,6 +163,7 @@ def test_yllapito():
             _, pdf_e = call(base, f"/api/mittaukset/{t['id']}/raportti.pdf")
             assert pdf_e[:4] == b"%PDF"
             _, full = call(base, f"/api/mittaukset/{t['id']}")
+            assert full["lupa"]["tila"] == "esimerkki", full["lupa"]   # esimerkkiraportissa ESIMERKKI-leima, ei tarkistusta
             kk = full["tulos"]["kapasiteetit"]
             aj = full["tulos"]["ajoneuvo"]
             merkit.add(aj.get("merkki"))

@@ -13,7 +13,7 @@ const totp = require('../lib/totp');
 const { kokoa } = require('../kokoa');
 
 const ALKUTUNNUS = 'a'.repeat(48);
-const PAKETTI = 'fi.akux.app';
+const PAKETTI = 'fi.akveri.app';
 
 // Google Play -rajapinnan korvike: palvelutilin avain, OAuth ja ostojen tiedot muistissa.
 function googleKorvike() {
@@ -172,11 +172,11 @@ test('Google Playssa peruttu osto vähentää krediitit', async (t) => {
 
 async function kirjauduHallintaan(pyynto, aika) {
   const H = { 'X-AKVERI-Hallinta': '1' };
-  const a = await pyynto('/api/hallinta/alusta', { method: 'POST', otsakkeet: H, body: { alkutunnus: ALKUTUNNUS, salasana: 'pitka-salasana-123' } });
+  const a = await pyynto('/api/hallinta/alusta', { method: 'POST', otsakkeet: H, body: { alkutunnus: ALKUTUNNUS, nimi: 'Antero Omistaja', sahkoposti: 'omistaja@akveri.fi', salasana: 'pitka-salasana-123' } });
   assert.equal(a.status, 200);
   assert.equal((await pyynto('/api/hallinta/alusta/vahvista', { method: 'POST', otsakkeet: H, body: { alkutunnus: ALKUTUNNUS, koodi: totp.koodiNyt(a.d.salaisuus, aika.t) } })).status, 200);
   aika.t += 31000;
-  const k = await pyynto('/api/hallinta/kirjaudu', { method: 'POST', otsakkeet: H, body: { salasana: 'pitka-salasana-123', koodi: totp.koodiNyt(a.d.salaisuus, aika.t) } });
+  const k = await pyynto('/api/hallinta/kirjaudu', { method: 'POST', otsakkeet: H, body: { sahkoposti: 'Omistaja@akveri.fi', salasana: 'pitka-salasana-123', koodi: totp.koodiNyt(a.d.salaisuus, aika.t) } });
   assert.equal(k.status, 200);
   const cookie = k.h.get('set-cookie');
   assert.match(cookie, /HttpOnly; SameSite=Strict; Path=\/; Secure/);
@@ -186,12 +186,12 @@ async function kirjauduHallintaan(pyynto, aika) {
 test('hallinta: käyttöönotto, kirjautuminen ja krediittien käsittely', async (t) => {
   const { pyynto, aika, palvelin } = await kaynnista(t);
   const H = { 'X-AKVERI-Hallinta': '1' };
-  assert.equal((await pyynto('/api/hallinta/alusta', { method: 'POST', otsakkeet: H, body: { alkutunnus: 'b'.repeat(48), salasana: 'pitka-salasana-123' } })).status, 403);
+  assert.equal((await pyynto('/api/hallinta/alusta', { method: 'POST', otsakkeet: H, body: { alkutunnus: 'b'.repeat(48), nimi: 'X Y', sahkoposti: 'x@y.fi', salasana: 'pitka-salasana-123' } })).status, 403);
   const s = await kirjauduHallintaan(pyynto, aika);
   // Uutta tunnusta ei voi luoda, kun tunnus on olemassa
-  assert.equal((await pyynto('/api/hallinta/alusta', { method: 'POST', otsakkeet: H, body: { alkutunnus: ALKUTUNNUS, salasana: 'toinen-salasana-123' } })).status, 409);
+  assert.equal((await pyynto('/api/hallinta/alusta', { method: 'POST', otsakkeet: H, body: { alkutunnus: ALKUTUNNUS, nimi: 'Toinen', sahkoposti: 't@akveri.fi', salasana: 'toinen-salasana-123' } })).status, 409);
   // Sama koodi ei kelpaa toiseen kirjautumiseen
-  assert.equal((await pyynto('/api/hallinta/kirjaudu', { method: 'POST', otsakkeet: H, body: { salasana: 'pitka-salasana-123', koodi: totp.koodiNyt(s.salaisuus, aika.t) } })).status, 401);
+  assert.equal((await pyynto('/api/hallinta/kirjaudu', { method: 'POST', otsakkeet: H, body: { sahkoposti: 'omistaja@akveri.fi', salasana: 'pitka-salasana-123', koodi: totp.koodiNyt(s.salaisuus, aika.t) } })).status, 401);
   // Ilman istuntoa tai ilman otsaketta ei pääse
   assert.equal((await pyynto('/api/hallinta/yhteenveto')).status, 401);
   const tili = (await pyynto('/api/v1/tili', { method: 'POST' })).d;
@@ -223,7 +223,7 @@ test('hallinta: asetukset, asiakirjat, lataukset ja IP-rajaus', async (t) => {
   assert.equal((await put({ yhteystiedot: { nimi: 'Testi Oy', yTunnus: '123' } })).status, 400);
   assert.equal((await put({ yhteystiedot: { nimi: 'Testi Oy', yTunnus: '1234567-8', sahkoposti: 'tuki@akveri.fi' } })).status, 200);
   assert.equal((await put({ playLinkki: 'https://example.com/apk' })).status, 400, 'lataus vain Google Playn kautta');
-  assert.equal((await put({ playLinkki: 'https://play.google.com/store/apps/details?id=fi.akux.app' })).status, 200);
+  assert.equal((await put({ playLinkki: 'https://play.google.com/store/apps/details?id=fi.akveri.app' })).status, 200);
   assert.equal((await put({ tuotteet: [{ tuote: 'akveri_testi_1', krediitit: 1 }, { tuote: 'akveri_testi_1', krediitit: 2 }] })).status, 400);
   assert.equal((await put({ asiakirja: { tyyppi: 'ehdot', teksti: '## Ehdot\n\nPalvelun tarjoaa {{nimi}}.' } })).status, 200);
   const tiedot = (await pyynto('/api/sivusto/tiedot')).d;
@@ -344,4 +344,66 @@ test('vanha sovellusversio ei saa krediittitoimintoja, ja vähimmäisversiota vo
   assert.equal((await pyynto('/api/v1/saldo', { auth: tili, otsakkeet: { 'X-AKVERI-Versio': '2.1.0' } })).status, 200);
   // Julkinen tarkistus toimii versiosta riippumatta (raportin vastaanottajalla ei ole sovellusta)
   assert.equal((await pyynto('/api/v1/vahvistus/AK0000000000', { otsakkeet: { ilmanVersiota: true } })).status, 200);
+});
+
+test('hallinnan käyttäjät: kutsu ylläpitokomennolla, käyttöönotto, kirjautuminen ja poisto katkaisee istunnon', async (t) => {
+  const { pyynto, aika, palvelin } = await kaynnista(t);
+  const omistaja = await kirjauduHallintaan(pyynto, aika);
+  const { suorita } = require('../yllapito');
+  const env = { DB_DIR: palvelin.varasto.kansio, JULKINEN_OSOITE: 'https://akveri.fi' };
+  const rivit = []; const ulos = (x) => rivit.push(x);
+  assert.throws(() => suorita(['lisaa-kayttaja', 'ei-posti', 'Matti'], { env, ulos }), /Sähköposti/);
+  suorita(['lisaa-kayttaja', 'matti@akveri.fi', 'Matti Mittaaja'], { env, ulos, nyt: () => aika.t });
+  const kutsu = /#kutsu=([A-Za-z0-9_-]{43})$/.exec(rivit.pop())[1];
+  const H = { 'X-AKVERI-Hallinta': '1' };
+  assert.deepEqual((await pyynto('/api/hallinta/kutsu', { method: 'POST', otsakkeet: H, body: { kutsu } })).d, { nimi: 'Matti Mittaaja', sahkoposti: 'matti@akveri.fi' });
+  const a = await pyynto('/api/hallinta/alusta', { method: 'POST', otsakkeet: H, body: { kutsu, salasana: 'mattin-salasana-1' } });
+  assert.equal(a.status, 200);
+  assert.equal((await pyynto('/api/hallinta/alusta/vahvista', { method: 'POST', otsakkeet: H, body: { kutsu, koodi: totp.koodiNyt(a.d.salaisuus, aika.t) } })).status, 200);
+  assert.equal((await pyynto('/api/hallinta/kutsu', { method: 'POST', otsakkeet: H, body: { kutsu } })).status, 404, 'kutsu on kertakäyttöinen');
+  aika.t += 31000;
+  const k = await pyynto('/api/hallinta/kirjaudu', { method: 'POST', otsakkeet: H, body: { sahkoposti: 'matti@akveri.fi', salasana: 'mattin-salasana-1', koodi: totp.koodiNyt(a.d.salaisuus, aika.t) } });
+  assert.equal(k.status, 200);
+  const matti = k.h.get('set-cookie').split(';')[0];
+  assert.equal((await pyynto('/api/hallinta/yhteenveto', { evaste: matti })).status, 200);
+  const lista = JSON.parse((() => { suorita(['lista-kayttajat'], { env, ulos }); return rivit.pop(); })());
+  assert.equal(lista.kayttajat.length, 2);
+  suorita(['poista-kayttaja', 'matti@akveri.fi'], { env, ulos });
+  assert.equal((await pyynto('/api/hallinta/yhteenveto', { evaste: matti })).status, 401, 'poisto katkaisee kirjautumisen heti');
+  assert.equal((await pyynto('/api/hallinta/yhteenveto', { evaste: omistaja.evaste })).status, 200);
+  assert.throws(() => suorita(['poista-kayttaja', 'omistaja@akveri.fi'], { env, ulos }), /Viimeistä käyttäjää/);
+  // Vanhentunut kutsu ei kelpaa
+  suorita(['lisaa-kayttaja', 'liisa@akveri.fi', 'Liisa'], { env, ulos, nyt: () => aika.t });
+  const vanha = /#kutsu=(.+)$/.exec(rivit.pop())[1];
+  aika.t += 25 * 3600000;
+  assert.equal((await pyynto('/api/hallinta/kutsu', { method: 'POST', otsakkeet: H, body: { kutsu: vanha } })).status, 404);
+});
+
+test('tietosuoja: tilin ja raportin tietojen poisto sekä säilytysajat', async (t) => {
+  const { pyynto, aika, palvelin } = await kaynnista(t);
+  const s = await kirjauduHallintaan(pyynto, aika);
+  const H = s.otsakkeet;
+  const tili = (await pyynto('/api/v1/tili', { method: 'POST' })).d;
+  await pyynto(`/api/hallinta/tilit/${tili.tili}/krediitit`, { method: 'POST', evaste: s.evaste, otsakkeet: H, body: { muutos: 2, selite: 'Testi' } });
+  const l1 = (await pyynto('/api/v1/testi/varaa', { method: 'POST', auth: tili, body: {} })).d;
+  await pyynto('/api/v1/testi/raportti', { method: 'POST', auth: tili, body: { tunnus: l1.tunnus, tarkiste: TARKISTE, yhteenveto: { vin: VIN, kunto_pct: 90 } } });
+  const l2 = (await pyynto('/api/v1/testi/varaa', { method: 'POST', auth: tili, body: {} })).d;
+  // Raportin tietojen poisto
+  assert.equal((await pyynto(`/api/hallinta/testit/${l1.tunnus}/poista-tiedot`, { method: 'POST', evaste: s.evaste, otsakkeet: H, body: {} })).status, 400, 'syy vaaditaan');
+  await pyynto(`/api/hallinta/testit/${l1.tunnus}/poista-tiedot`, { method: 'POST', evaste: s.evaste, otsakkeet: H, body: { syy: 'Rekisteröidyn pyyntö' } });
+  const v = (await pyynto('/api/v1/vahvistus/' + l1.tunnus)).d;
+  assert.equal(v.tila, 'poistettu'); assert.equal(v.kuntoPct, undefined);
+  assert.equal(JSON.stringify(palvelin.varasto.get('testit')[l1.tunnus]).includes('000123'), false, 'valmistenumero poistettu');
+  // Tilin poisto vaatii vahvistuksen; avoin lupa perutaan ja tili lakkaa toimimasta
+  assert.equal((await pyynto(`/api/hallinta/tilit/${tili.tili}`, { method: 'DELETE', evaste: s.evaste, otsakkeet: H, body: { vahvista: 'väärä' } })).status, 400);
+  assert.equal((await pyynto(`/api/hallinta/tilit/${tili.tili}`, { method: 'DELETE', evaste: s.evaste, otsakkeet: H, body: { vahvista: tili.tili } })).status, 200);
+  assert.equal((await pyynto('/api/v1/saldo', { auth: tili })).status, 401);
+  assert.equal((await pyynto('/api/v1/vahvistus/' + l2.tunnus)).d.tila, 'peruttu');
+  assert.ok(palvelin.varasto.kirjanpito({ tili: tili.tili }).length >= 2, 'kirjanpito säilyy (kirjanpitolaki)');
+  // Säilytysajat: viestit 2 vuotta
+  await pyynto('/api/sivusto/viesti', { method: 'POST', body: { nimi: 'Matti', sahkoposti: 'matti@example.com', viesti: 'Kysymys', suostumus: true } });
+  assert.deepEqual(palvelin.hallinta.sailytysajat(), { viestit: 0, raportit: 0, pyynnot: 0 });
+  aika.t += 2 * 366 * 86400000;
+  assert.equal(palvelin.hallinta.sailytysajat().viestit, 1, 'yli kaksi vuotta vanha viesti poistuu');
+  assert.equal(Object.keys(palvelin.varasto.get('viestit')).length, 0);
 });

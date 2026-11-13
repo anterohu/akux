@@ -13,7 +13,7 @@ const zlib = require('zlib');
 const crypto = require('crypto');
 
 const JUURI = __dirname;
-const MUKAAN = ['server.js', 'package.json', 'README.md', 'lib', 'sivusto'];
+const MUKAAN = ['server.js', 'yllapito.js', 'package.json', 'README.md', 'lib', 'sivusto'];
 
 function listaa(rel) {
   const polku = path.join(JUURI, rel);

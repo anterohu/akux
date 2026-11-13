@@ -5,7 +5,8 @@
     valmis: { luokka: 'ok', ikoni: '✓', otsikko: 'Raportti on rekisteröity', teksti: 'Alla olevat tiedot on tallennettu AKVERIn palvelimelle mittauksen päätyttyä. Vertaa niitä raporttiin.' },
     varattu: { luokka: 'kesken', ikoni: '!', otsikko: 'Mittaus on kesken tai raporttia ei ole rekisteröity', teksti: 'Tällä tunnuksella on aloitettu mittaus, mutta raporttia ei ole rekisteröity. Raporttia ei voi pitää tarkistettuna.' },
     peruttu: { luokka: 'ei', ikoni: '✕', otsikko: 'Mittaus on peruttu', teksti: 'Mittaus on keskeytetty ja peruttu. Tällä tunnuksella tehty raportti ei ole kelvollinen.' },
-    mitatoity: { luokka: 'ei', ikoni: '✕', otsikko: 'Raportti on mitätöity', teksti: 'AKVERI on mitätöinyt tämän raportin. Raporttia ei pidä käyttää.' }
+    mitatoity: { luokka: 'ei', ikoni: '✕', otsikko: 'Raportti on mitätöity', teksti: 'AKVERI on mitätöinyt tämän raportin. Raporttia ei pidä käyttää.' },
+    poistettu: { luokka: 'ei', ikoni: '✕', otsikko: 'Raportin tiedot on poistettu', teksti: 'Raportin tiedot on poistettu palvelusta (säilytysaika päättyi tai tiedot poistettiin pyynnöstä). Raporttia ei voi enää tarkistaa.' }
   };
   function el(nimi, teksti, luokka) { var e = document.createElement(nimi); if (teksti !== undefined && teksti !== null) e.textContent = teksti; if (luokka) e.className = luokka; return e; }
   function luku(x, des) { return x === null || x === undefined ? '' : Number(x).toLocaleString('fi-FI', { minimumFractionDigits: des, maximumFractionDigits: des }); }

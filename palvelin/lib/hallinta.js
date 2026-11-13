@@ -15,6 +15,7 @@ const scrypt = promisify(crypto.scrypt);
 const totp = require('./totp');
 const ipraja = require('./ipraja');
 const { json, Virhe, lueJson, ipOsoite, puhdista, yksiRivi, vakioaikainenVertailu } = require('./apu');
+const kayttajat = require('./kayttajat');
 const { normalisoiTunnus, muotoileTunnus, OLETUSTUOTTEET, OLETUS_VAHIMMAISVERSIO, VERSIO_RE, vertaaVersioita } = require('./sovellus');
 
 const ISTUNTO_MS = 8 * 3600000;
@@ -44,11 +45,10 @@ function salasanaKelpaa(s) {
 function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.now(), rajoitin }) {
   const istunnot = new Map();
   const sallitut = ipraja.jasenna(env.HALLINTA_SALLITUT_IP || '');
-  const omistaja = () => varasto.get('omistaja');
   const asetukset = () => varasto.get('asetukset');
   // Omat lataukset (esim. Windows-versio). Tuotannossa tietokansion ulkopuolella (AKVERI_LATAUKSET), koska tiedostot ovat suuria.
   const latauskansio = path.resolve(env.AKVERI_LATAUKSET || path.join(varasto.kansio, 'lataukset'));
-  let alustus = null; // { salaisuus, salasanaTiiviste, vanhenee } — kesken oleva käyttöönotto
+  let alustus = null; // { salaisuus, salasanaTiiviste, nimi, sahkoposti, vanhenee } — kesken oleva käyttöönotto (alkutunnus tai kutsu)
 
   function sallittu(req) { return ipraja.sallittu(sallitut, ipOsoite(req, env)); }
   function evasteet(req) {
@@ -56,67 +56,84 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
     for (const osa of String(req.headers.cookie || '').split(';')) { const i = osa.indexOf('='); if (i > 0) ulos[osa.slice(0, i).trim()] = osa.slice(i + 1).trim(); }
     return ulos;
   }
+  // Istunto on voimassa vain, jos käyttäjä on yhä olemassa (poisto Hallintatyökalusta katkaisee istunnon heti).
   function istunto(req) {
     const t = evasteet(req)[EVASTE];
     const i = t && istunnot.get(t);
-    if (!i || i.vanhenee < nyt()) { if (t) istunnot.delete(t); return null; }
+    if (!i || i.vanhenee < nyt() || !kayttajat.tiedot(varasto).kayttajat[i.kayttaja]) { if (t) istunnot.delete(t); return null; }
     return i;
   }
   function asetaEvaste(res, arvo, ikaS) {
     const turvallinen = String(env.JULKINEN_OSOITE || '').startsWith('https://') ? '; Secure' : '';
     res.setHeader('Set-Cookie', `${EVASTE}=${arvo}; HttpOnly; SameSite=Strict; Path=/${turvallinen}; Max-Age=${ikaS}`);
   }
+  const onKayttajia = () => Object.keys(kayttajat.tiedot(varasto).kayttajat).length > 0;
 
   // ------------------------------------------------------------ käyttöönotto ja kirjautuminen
+  // Ensimmäinen käyttäjä: alkutunnus. Muut: Hallintatyökalun luoma kertakäyttöinen kutsu.
   async function aloitaAlustus(req, body) {
-    if (omistaja().salasana) throw new Virhe('Hallinnan tunnus on jo luotu.', 409);
-    const alkutunnus = String(env.AKVERI_ALKUTUNNUS || '');
-    if (alkutunnus.length < 32) throw new Virhe('Alkutunnusta ei ole asetettu palvelimelle. Aja AKVERIn julkaisu Hallintatyökalussa.', 503);
     if (rajoitin.kayta('alustus:' + ipOsoite(req, env), 10, 3600000)) throw new Virhe('Liian monta yritystä. Yritä tunnin kuluttua uudelleen.', 429);
-    if (!vakioaikainenVertailu(String(body.alkutunnus || ''), alkutunnus)) throw new Virhe('Alkutunnus ei täsmää.', 403);
+    let nimi, sahkoposti;
+    if (body.kutsu) {
+      const k = kayttajat.haeKutsu(varasto, body.kutsu, nyt());
+      if (!k) throw new Virhe('Kutsu ei ole voimassa. Pyydä uusi kutsu.', 403);
+      ({ nimi, sahkoposti } = k);
+    } else {
+      if (onKayttajia()) throw new Virhe('Hallinnan tunnus on jo luotu.', 409);
+      const alkutunnus = String(env.AKVERI_ALKUTUNNUS || '');
+      if (alkutunnus.length < 32) throw new Virhe('Alkutunnusta ei ole asetettu palvelimelle. Aja AKVERIn julkaisu Hallintatyökalussa.', 503);
+      if (!vakioaikainenVertailu(String(body.alkutunnus || ''), alkutunnus)) throw new Virhe('Alkutunnus ei täsmää.', 403);
+      try { nimi = kayttajat.tarkistaNimi(body.nimi); sahkoposti = kayttajat.tarkistaPosti(body.sahkoposti); } catch (e) { throw new Virhe(e.message); }
+    }
     const vika = salasanaKelpaa(body.salasana);
     if (vika) throw new Virhe(vika);
     const salaisuus = totp.luoSalaisuus();
-    alustus = { salaisuus, salasanaTiiviste: await tiivistaSalasana(body.salasana), vanhenee: nyt() + 15 * 60000 };
-    return { salaisuus, otpauth: totp.otpauthUrl({ salaisuus, tili: 'hallinta', myontaja: 'AKVERI' }) };
+    alustus = { salaisuus, salasanaTiiviste: await tiivistaSalasana(body.salasana), nimi, sahkoposti, kutsu: body.kutsu || null, vanhenee: nyt() + 15 * 60000 };
+    return { salaisuus, otpauth: totp.otpauthUrl({ salaisuus, tili: sahkoposti, myontaja: 'AKVERI' }), nimi, sahkoposti };
   }
   function vahvistaAlustus(req, body) {
-    if (omistaja().salasana) throw new Virhe('Hallinnan tunnus on jo luotu.', 409);
-    if (!alustus || alustus.vanhenee < nyt()) throw new Virhe('Käyttöönotto on vanhentunut. Aloita alusta.', 409);
-    if (!vakioaikainenVertailu(String(body.alkutunnus || ''), String(env.AKVERI_ALKUTUNNUS || ''))) throw new Virhe('Alkutunnus ei täsmää.', 403);
+    if (!alustus || alustus.vanhenee < nyt() || (alustus.kutsu || null) !== (body.kutsu || null)) throw new Virhe('Käyttöönotto on vanhentunut. Aloita alusta.', 409);
+    if (alustus.kutsu) { if (!kayttajat.haeKutsu(varasto, alustus.kutsu, nyt())) throw new Virhe('Kutsu ei ole enää voimassa.', 403); }
+    else {
+      if (onKayttajia()) throw new Virhe('Hallinnan tunnus on jo luotu.', 409);
+      if (!vakioaikainenVertailu(String(body.alkutunnus || ''), String(env.AKVERI_ALKUTUNNUS || ''))) throw new Virhe('Alkutunnus ei täsmää.', 403);
+    }
     const askel = totp.tarkistaKoodi(alustus.salaisuus, body.koodi, nyt());
     if (askel === null) throw new Virhe('Koodi ei täsmää. Tarkista puhelimen kellonaika ja yritä uudelleen.');
-    Object.assign(omistaja(), { salasana: alustus.salasanaTiiviste, totp: alustus.salaisuus, viimeisinAskel: askel, luotu: new Date(nyt()).toISOString() });
-    varasto.tallenna('omistaja');
+    try { kayttajat.lisaaKayttaja(varasto, { nimi: alustus.nimi, sahkoposti: alustus.sahkoposti, salasana: alustus.salasanaTiiviste, totp: alustus.salaisuus, askel, kutsu: alustus.kutsu }, nyt()); }
+    catch (e) { throw new Virhe(e.message, 409); }
     alustus = null;
     return { ok: true };
   }
   async function kirjaudu(req, res, body) {
     const ip = ipOsoite(req, env);
     if (rajoitin.kayta('kirjaudu:' + ip, 10, 15 * 60000) || rajoitin.kayta('kirjaudu:kaikki', 60, 3600000)) throw new Virhe('Liian monta kirjautumisyritystä. Yritä myöhemmin uudelleen.', 429);
-    const o = omistaja();
-    if (!o.salasana) throw new Virhe('Hallinnan tunnusta ei ole vielä luotu.', 409);
-    const salasanaOk = await tarkistaSalasana(body.salasana, o.salasana);
-    const askel = totp.tarkistaKoodi(o.totp, body.koodi, nyt());
-    if (!salasanaOk || askel === null || askel <= (o.viimeisinAskel || 0)) {
+    const o = kayttajat.tiedot(varasto);
+    if (!Object.keys(o.kayttajat).length) throw new Virhe('Hallinnan tunnusta ei ole vielä luotu.', 409);
+    const rivi = kayttajat.haePostilla(o, body.sahkoposti);
+    const k = rivi && rivi[1];
+    const salasanaOk = await tarkistaSalasana(body.salasana, k ? k.salasana : 'scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA$' + 'A'.repeat(86));
+    const askel = k ? totp.tarkistaKoodi(k.totp, body.koodi, nyt()) : null;
+    if (!k || !salasanaOk || askel === null || askel <= (k.viimeisinAskel || 0)) {
       await new Promise(r => setTimeout(r, 400));
-      throw new Virhe('Salasana tai vahvistuskoodi on väärin.', 401);
+      throw new Virhe('Sähköposti, salasana tai vahvistuskoodi on väärin.', 401);
     }
-    o.viimeisinAskel = askel; o.viimeksiKirjautunut = new Date(nyt()).toISOString();
+    k.viimeisinAskel = askel; k.viimeksiKirjautunut = new Date(nyt()).toISOString();
     varasto.tallenna('omistaja');
     const t = crypto.randomBytes(32).toString('base64url');
-    istunnot.set(t, { vanhenee: nyt() + ISTUNTO_MS });
+    istunnot.set(t, { vanhenee: nyt() + ISTUNTO_MS, kayttaja: rivi[0] });
     asetaEvaste(res, t, ISTUNTO_MS / 1000);
-    return { ok: true };
+    return { ok: true, nimi: k.nimi };
   }
-  async function vaihdaSalasana(body) {
-    const o = omistaja();
-    if (!(await tarkistaSalasana(body.nykyinen, o.salasana))) throw new Virhe('Nykyinen salasana on väärin.', 403);
+  async function vaihdaSalasana(req, body) {
+    const i = istunto(req);
+    const k = kayttajat.tiedot(varasto).kayttajat[i.kayttaja];
+    if (!(await tarkistaSalasana(body.nykyinen, k.salasana))) throw new Virhe('Nykyinen salasana on väärin.', 403);
     const vika = salasanaKelpaa(body.uusi);
     if (vika) throw new Virhe(vika);
-    o.salasana = await tiivistaSalasana(body.uusi);
+    k.salasana = await tiivistaSalasana(body.uusi);
     varasto.tallenna('omistaja');
-    istunnot.clear();
+    for (const [t, x] of istunnot) if (x.kayttaja === i.kayttaja) istunnot.delete(t);
     return { ok: true, viesti: 'Salasana vaihdettu. Kirjaudu uudelleen.' };
   }
 
@@ -154,6 +171,7 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
   }
   function haeTili(id) { const t = varasto.get('tilit')[String(id).toUpperCase()]; if (!t) throw new Virhe('Tiliä ei löydy.', 404); return t; }
   function testiRivi(t) { return { ...t, tunnusNaytto: muotoileTunnus(t.tunnus), allekirjoitus: undefined }; }
+  const testiRiviAuki = testiRivi;
   function tili(id) {
     const t = haeTili(id);
     return { tili: tiliRivi(t), kirjanpito: varasto.kirjanpito({ tili: t.id, raja: 300 }), testit: Object.values(varasto.get('testit')).filter(x => x.tili === t.id).sort((a, b) => b.varattu.localeCompare(a.varattu)).slice(0, 200).map(testiRivi) };
@@ -175,6 +193,50 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
     varasto.tallenna('tilit');
     return tiliRivi(t);
   }
+  // ---- Tietosuoja: tietojen poisto pyynnöstä ja säilytysajat (ks. tietosuojaseloste)
+  // Tilin poisto: tili lakkaa toimimasta ja sen tunnistetiedot poistetaan. Krediittien kirjanpito ja ostot säilytetään
+  // kirjanpitolain edellyttämän ajan; niissä on vain satunnainen tilitunnus. Rekisteröidyt raportit säilyvät, koska raportin
+  // vastaanottajalla on oikeutettu etu tarkistaa ne; raportin tiedot voi poistaa erikseen.
+  function poistaTili(id, body) {
+    const t = haeTili(id);
+    if (body.vahvista !== t.id) throw new Virhe('Vahvista poisto kirjoittamalla tilitunnus.');
+    for (const x of Object.values(varasto.get('testit'))) {
+      if (x.tili !== t.id) continue;
+      if (x.hyvityspyynto) { x.hyvityspyynto.syy = ''; x.hyvityspyynto.tiedot = ''; }
+      if (x.tila === 'varattu') { x.tila = 'peruttu'; x.peruttu = new Date(nyt()).toISOString(); x.perumisenSyy = 'Tili poistettu'; }
+    }
+    varasto.tallenna('testit');
+    delete varasto.get('tilit')[t.id];
+    varasto.tallenna('tilit');
+    return { ok: true, poistettu: t.id };
+  }
+  function tyhjennaRaportti(x, syy) {
+    x.raportti = null; x.tila = 'poistettu'; x.poistettu = new Date(nyt()).toISOString(); x.poistonSyy = syy;
+    if (x.hyvityspyynto) { x.hyvityspyynto.syy = ''; x.hyvityspyynto.tiedot = ''; }
+  }
+  function poistaRaportinTiedot(tunnus, body) {
+    const x = haeTesti(tunnus);
+    const syy = yksiRivi(puhdista(body.syy, 200));
+    if (!syy) throw new Virhe('Kirjoita poiston syy (esim. rekisteröidyn pyyntö).');
+    tyhjennaRaportti(x, syy);
+    varasto.tallenna('testit');
+    return testiRiviAuki(x);
+  }
+  // Säilytysajat, ajetaan kerran vuorokaudessa: viestit 2 vuotta, hyvityspyyntöjen tekstit 2 vuotta, raportit 10 vuotta.
+  function sailytysajat() {
+    const nytMs = nyt(), V2 = 2 * 365 * 86400000, V10 = 10 * 366 * 86400000;
+    let viestit = 0, raportit = 0, pyynnot = 0;
+    const v = varasto.get('viestit');
+    for (const [id, x] of Object.entries(v)) if (nytMs - Date.parse(x.aika) > V2) { delete v[id]; viestit++; }
+    for (const x of Object.values(varasto.get('testit'))) {
+      if (x.raportti && nytMs - Date.parse(x.rekisteroity || x.varattu) > V10) { tyhjennaRaportti(x, 'Säilytysaika päättyi'); raportit++; }
+      if (x.hyvityspyynto && (x.hyvityspyynto.syy || x.hyvityspyynto.tiedot) && nytMs - Date.parse(x.hyvityspyynto.aika) > V2) { x.hyvityspyynto.syy = ''; x.hyvityspyynto.tiedot = ''; pyynnot++; }
+    }
+    if (viestit) varasto.tallenna('viestit');
+    if (raportit || pyynnot) varasto.tallenna('testit');
+    return { viestit, raportit, pyynnot };
+  }
+
   function testit(kysely) {
     const haku = normalisoiTunnus(kysely.get('haku') || '');
     const suodatin = String(kysely.get('suodatin') || '');
@@ -341,23 +403,36 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
       const p = polku.slice('/api/hallinta'.length);
       // Muutospyynnöissä vaaditaan oma otsake: toinen sivusto ei voi lähettää sitä selaimen kautta.
       if (req.method !== 'GET' && req.headers['x-akveri-hallinta'] !== '1') throw new Virhe('Pyyntö hylättiin.', 403);
-      if (p === '/tila' && req.method === 'GET') return json(res, 200, { alustettu: !!omistaja().salasana, kirjautunut: !!istunto(req), alkutunnusAsetettu: String(env.AKVERI_ALKUTUNNUS || '').length >= 32 });
+      if (p === '/tila' && req.method === 'GET') {
+        const i = istunto(req);
+        const k = i && kayttajat.tiedot(varasto).kayttajat[i.kayttaja];
+        return json(res, 200, { alustettu: onKayttajia(), kirjautunut: !!k, nimi: k ? k.nimi : null, alkutunnusAsetettu: String(env.AKVERI_ALKUTUNNUS || '').length >= 32 });
+      }
+      if (p === '/kutsu' && req.method === 'POST') {
+        // Kutsulinkin tarkistus ennen käyttöönottoa: kertoo vain nimen ja sähköpostin, jolle kutsu on tehty.
+        if (rajoitin.kayta('kutsu:' + ipOsoite(req, env), 20, 3600000)) throw new Virhe('Liian monta yritystä.', 429);
+        const k = kayttajat.haeKutsu(varasto, (await lueJson(req)).kutsu, nyt());
+        if (!k) throw new Virhe('Kutsu ei ole voimassa. Pyydä uusi kutsu.', 404);
+        return json(res, 200, { nimi: k.nimi, sahkoposti: k.sahkoposti });
+      }
       if (p === '/alusta' && req.method === 'POST') return json(res, 200, await aloitaAlustus(req, await lueJson(req)));
       if (p === '/alusta/vahvista' && req.method === 'POST') return json(res, 200, vahvistaAlustus(req, await lueJson(req)));
       if (p === '/kirjaudu' && req.method === 'POST') return json(res, 200, await kirjaudu(req, res, await lueJson(req)));
       if (p === '/ulos' && req.method === 'POST') { const t = evasteet(req)[EVASTE]; if (t) istunnot.delete(t); asetaEvaste(res, '', 0); return json(res, 200, { ok: true }); }
       if (!istunto(req)) throw new Virhe('Kirjaudu sisään.', 401);
       const body = req.method === 'GET' ? {} : await lueJson(req, 128 * 1024);
-      if (p === '/salasana' && req.method === 'POST') return json(res, 200, await vaihdaSalasana(body));
+      if (p === '/salasana' && req.method === 'POST') return json(res, 200, await vaihdaSalasana(req, body));
+      if (p === '/kayttajat' && req.method === 'GET') return json(res, 200, kayttajat.lista(varasto, nyt()));
       if (p === '/yhteenveto' && req.method === 'GET') return json(res, 200, yhteenveto());
       if (p === '/tilit' && req.method === 'GET') return json(res, 200, { tilit: tilit(kysely) });
       let m = /^\/tilit\/(T[0-9A-Z]{12})(\/krediitit|\/tila)?$/.exec(p);
       if (m && !m[2] && req.method === 'GET') return json(res, 200, tili(m[1]));
       if (m && m[2] === '/krediitit' && req.method === 'POST') return json(res, 200, muutaKrediitteja(m[1], body));
       if (m && m[2] === '/tila' && req.method === 'POST') return json(res, 200, tilinTila(m[1], body));
+      if (m && !m[2] && req.method === 'DELETE') return json(res, 200, poistaTili(m[1], body));
       if (p === '/testit' && req.method === 'GET') return json(res, 200, { testit: testit(kysely) });
-      m = /^\/testit\/([A-Za-z0-9-]{10,20})\/(hyvita|mitatoi|hylkaa-pyynto)$/.exec(p);
-      if (m && req.method === 'POST') return json(res, 200, m[2] === 'hyvita' ? hyvita(m[1], body) : m[2] === 'mitatoi' ? mitatoi(m[1], body) : hylkaaHyvityspyynto(m[1], body));
+      m = /^\/testit\/([A-Za-z0-9-]{10,20})\/(hyvita|mitatoi|hylkaa-pyynto|poista-tiedot)$/.exec(p);
+      if (m && req.method === 'POST') return json(res, 200, m[2] === 'hyvita' ? hyvita(m[1], body) : m[2] === 'mitatoi' ? mitatoi(m[1], body) : m[2] === 'poista-tiedot' ? poistaRaportinTiedot(m[1], body) : hylkaaHyvityspyynto(m[1], body));
       if (p === '/ostot' && req.method === 'GET') return json(res, 200, { ostot: ostot() });
       if (p === '/viestit' && req.method === 'GET') return json(res, 200, { viestit: viestit() });
       m = /^\/viestit\/([a-f0-9]{16})$/.exec(p);
@@ -378,7 +453,7 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
     }
   }
 
-  return { kasittele, kasitteleJulkinen, sallittu, julkisetAsetukset, latauskansio };
+  return { kasittele, kasitteleJulkinen, sallittu, julkisetAsetukset, latauskansio, sailytysajat };
 }
 
 module.exports = { luoHallinta, tiivistaSalasana, tarkistaSalasana };

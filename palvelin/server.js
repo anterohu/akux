@@ -10,7 +10,7 @@
 //   LUOTETTU_PROXY=1         Caddy samalla koneella: asiakkaan IP-osoite otetaan X-Forwarded-For-otsakkeesta
 //   AKVERI_ALKUTUNNUS        hallinnan tunnuksen kertaluonteinen luonti (Hallintatyökalu asettaa)
 //   HALLINTA_SALLITUT_IP     valinnainen IP-rajaus hallinnalle (esim. "203.0.113.5, 198.51.100.0/24")
-//   GOOGLE_PLAY_PAKETTI      Android-sovelluksen paketti (esim. fi.akux.app)
+//   GOOGLE_PLAY_PAKETTI      Android-sovelluksen paketti (esim. fi.akveri.app)
 //   GOOGLE_PALVELUTILI       polku Google Play -palvelutilin avaintiedostoon (JSON)
 //   AKVERI_VARMUUSKOPIOT     päivittäisten varmuuskopioiden kansio (oletus DB_DIR/varmuuskopiot)
 //   AKVERI_LATAUKSET         omien latausten kansio (oletus DB_DIR/lataukset)
@@ -84,6 +84,7 @@ function luoPalvelin({ env = process.env, nyt = () => Date.now(), haku } = {}) {
   const ajastimet = [];
   function ajoitetut() {
     try { varasto.varmuuskopioi(); } catch (e) { console.error('[varmuuskopio]', e.message); }
+    try { const s = hallinta.sailytysajat(); if (s.viestit || s.raportit || s.pyynnot) console.log('[säilytysajat] poistettu', JSON.stringify(s)); } catch (e) { console.error('[säilytysajat]', e.message); }
   }
   palvelin.kaynnista = () => {
     ajoitetut();
@@ -96,6 +97,7 @@ function luoPalvelin({ env = process.env, nyt = () => Date.now(), haku } = {}) {
   palvelin.on('close', () => { for (const a of ajastimet) clearInterval(a); });
   palvelin.varasto = varasto;
   palvelin.sovellus = sovellus;
+  palvelin.hallinta = hallinta;
   return palvelin;
 }
 

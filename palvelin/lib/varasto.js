@@ -61,6 +61,8 @@ class Varasto {
     this._kirjoitaTiedosto(this._polku(nimi), JSON.stringify(this.data[nimi], null, 1) + '\n');
   }
   get(nimi) { return this.data[nimi]; }
+  // Lukee tiedoston levyltä uudelleen (esim. ylläpitokomento on muuttanut sitä palvelimen ollessa käynnissä).
+  lataaUudelleen(nimi) { if (TIEDOSTOT.includes(nimi)) this.data[nimi] = this._lue(nimi); return this.data[nimi]; }
 
   // ------------------------------------------------------------ kirjanpito
   _lataaKirjanpito() {

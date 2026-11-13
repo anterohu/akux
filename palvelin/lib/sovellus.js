@@ -176,7 +176,7 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
 
   function rekisteroi(tili, body) {
     const t = haeOmaTesti(tili, body.tunnus);
-    if (t.tila === 'peruttu' || t.tila === 'mitatoity') throw new Virhe('Testilupa on peruttu, joten raporttia ei voi rekisteröidä.', 409);
+    if (t.tila === 'peruttu' || t.tila === 'mitatoity' || t.tila === 'poistettu') throw new Virhe('Testilupa on peruttu tai poistettu, joten raporttia ei voi rekisteröidä.', 409);
     const tarkiste = String(body.tarkiste || '').toLowerCase();
     if (!/^[0-9a-f]{64}$/.test(tarkiste)) throw new Virhe('Raakadatan tarkiste puuttuu.');
     if (t.raportti && t.raportti.tarkiste !== tarkiste) throw new Virhe('Tällä testiluvalla on jo rekisteröity toinen mittaus. Yksi lupa kelpaa yhteen mittaukseen.', 409);
@@ -218,6 +218,7 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
       loytyi: true, tunnus: muotoileTunnus(t.tunnus), tila: t.tila, testi: !!t.testi, varattu: t.varattu, rekisteroity: t.rekisteroity || null, paivitetty: t.paivitetty || null,
       mitatoinninSyy: t.tila === 'mitatoity' ? (t.mitatoinninSyy || '') : undefined
     };
+    if (t.tila === 'poistettu') ulos.poistonSyy = 'Raportin tiedot on poistettu.';
     if (t.tila === 'valmis') Object.assign(ulos, {
       tyyppi: r.tyyppi, merkki: r.merkki, malli: r.malli, vin: r.vinAlku ? `${r.vinAlku}········${r.vinLoppu}` : '',
       mittarilukema: r.mittarilukema, kuntoPct: r.kuntoPct, kapasiteettiKwh: r.kapasiteettiKwh, mitattu: r.mitattu, paattynyt: r.paattynyt,

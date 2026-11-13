@@ -701,6 +701,8 @@ class Api:
         n = 0
         for f in sorted([*folder.glob("*.akveri"), *folder.glob("*.akux")]):
             r = mittaustiedosto.import_file(st, f.read_bytes(), merkitse=False)
+            # Esimerkit ovat esittelytilan mittauksia: raporttiin ESIMERKKI-leima, ei testilupaa eikä tarkistusta
+            st.update_test(r["id"], demo=1, lupa=None, lupa_tila=None, lupa_testi=None)
             st.learn(r["ajoneuvo_id"], {"esimerkki": True})
             v = st.vehicle(r["ajoneuvo_id"]) or {}
             if (v.get("nimi") or "").startswith("Esimerkki: "):

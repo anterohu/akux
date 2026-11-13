@@ -970,8 +970,8 @@ views.krediitit = {
       <div class="grid g3">
         ${stat("Krediittejä", d.saldo, "", d.avoimetLuvat ? `${d.avoimetLuvat} mittausta kesken` : "")}
       </div>
-      ${d.versiot && d.versiot.paivitys_pakollinen ? `<div class="notice bad" style="margin-top:16px"><b>Päivitä AKVERI.</b> Versio ${esc(d.versiot.nykyinen)} on liian vanha. Mittauksia voi aloittaa vasta, kun AKVERI on päivitetty vähintään versioon ${esc(d.versiot.vahimmaisversio)}.${ANDROID ? ` <a href="https://play.google.com/store/apps/details?id=fi.akux.app" target="_blank" rel="noopener">Avaa Google Play</a>` : ""}</div>`
-        : d.versiot && d.versiot.paivitys_saatavilla ? `<div class="notice" style="margin-top:16px">Uusi versio ${esc(d.versiot.uusin)} on saatavilla.${ANDROID ? ` <a href="https://play.google.com/store/apps/details?id=fi.akux.app" target="_blank" rel="noopener">Avaa Google Play</a>` : ""}</div>` : ""}
+      ${d.versiot && d.versiot.paivitys_pakollinen ? `<div class="notice bad" style="margin-top:16px"><b>Päivitä AKVERI.</b> Versio ${esc(d.versiot.nykyinen)} on liian vanha. Mittauksia voi aloittaa vasta, kun AKVERI on päivitetty vähintään versioon ${esc(d.versiot.vahimmaisversio)}.${ANDROID ? ` <a href="https://play.google.com/store/apps/details?id=fi.akveri.app" target="_blank" rel="noopener">Avaa Google Play</a>` : ""}</div>`
+        : d.versiot && d.versiot.paivitys_saatavilla ? `<div class="notice" style="margin-top:16px">Uusi versio ${esc(d.versiot.uusin)} on saatavilla.${ANDROID ? ` <a href="https://play.google.com/store/apps/details?id=fi.akveri.app" target="_blank" rel="noopener">Avaa Google Play</a>` : ""}</div>` : ""}
       ${d.testitili ? `<div class="notice warn" style="margin-top:16px"><b>Testitili.</b> Mittaukset eivät kuluta krediittejä. Raportteihin tulee TESTIMITTAUS-leima, ja tarkistussivu näyttää ne testimittauksina.</div>` : ""}
       <div class="card" style="margin-top:16px"><h2>Osta krediittejä</h2>
         ${ostot ? `<p class="small muted">Maksu tehdään Google Playssa. Krediitit tulevat tilillesi heti, kun Google on vahvistanut maksun.</p>
@@ -1148,7 +1148,7 @@ views.yllapito = {
         <div class="card"><h2>Päivitys</h2>
           <p class="small">Käytössä on versio <b>${esc(info.versio)}</b>.</p>
           <p class="small muted">${ANDROID ? "Google Play päivittää AKVERIn automaattisesti." : "Asenna uusi versio vanhan päälle. Asennus sulkee AKVERIn, päivittää sen ja säilyttää tiedot."} Autot, mittaukset, raportit, asetukset ja krediitit säilyvät.</p>
-          ${ANDROID ? `<div class="row"><a class="btn primary" href="https://play.google.com/store/apps/details?id=fi.akux.app" target="_blank" rel="noopener">Avaa Google Play</a></div>` : ""}</div>
+          ${ANDROID ? `<div class="row"><a class="btn primary" href="https://play.google.com/store/apps/details?id=fi.akveri.app" target="_blank" rel="noopener">Avaa Google Play</a></div>` : ""}</div>
         <div class="card"><h2>Varmuuskopiot</h2>
           <p class="small muted">Ohjelma tekee varmuuskopion automaattisesti kerran viikossa ja säilyttää viisi uusinta. Tallenna kopio välillä myös muistitikulle tai pilvipalveluun.</p>
           <div class="row"><a class="btn" href="/api/yllapito/varmuuskopio" id="bNow">Tee varmuuskopio nyt</a>

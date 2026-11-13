@@ -22,7 +22,8 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "fi.akux.app"
+        // Google Playn sovellustunnus. Koodin sisäinen nimiavaruus (namespace) on edelleen fi.akux.app, se ei näy käyttäjälle.
+        applicationId = "fi.akveri.app"
         minSdk = 29
         targetSdk = 35
         versionCode = akuxVersionCode

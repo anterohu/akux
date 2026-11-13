@@ -22,6 +22,17 @@ Ei ulkoisia riippuvuuksia. Vaatii Node 22:n.
 
 Kirjanpito (`kirjanpito.jsonl`) on vain lisäyksiä sisältävä tiedosto, jonka jokainen rivi on ketjutettu edelliseen tiivisteellä. Hallinta varoittaa, jos tiedostoa on muutettu palvelimen ulkopuolelta.
 
+## Hallinnan käyttäjät
+
+Ensimmäinen käyttäjä luodaan alkutunnuksella, jonka Hallintatyökalu näyttää AKVERI-näkymässä. Muut käyttäjät lisätään ja poistetaan Hallintatyökalun AKVERI-näkymästä: palvelimella ajetaan `yllapito.js`, joka luo kertakäyttöisen kutsulinkin (24 h). Kirjautuminen: sähköposti, salasana ja kaksivaiheisen tunnistuksen koodi. Poisto katkaisee kirjautumisen heti.
+
+## Tietosuoja ja säilytysajat
+
+- Tilin tietojen poisto pyynnöstä: hallinta → Tilit ja krediitit → tili → Tilin tietojen poisto. Kirjanpito ja ostot säilyvät kirjanpitolain ajan (niissä on vain satunnainen tilitunnus).
+- Raportin tietojen poisto: Testit ja hyvitykset → Poista tiedot. Tarkistussivu kertoo, että tiedot on poistettu.
+- Automaattisesti kerran vuorokaudessa: yhteydenotot poistetaan 2 vuoden, hyvityspyyntöjen tekstit 2 vuoden ja raporttien tiedot 10 vuoden jälkeen.
+- Palvelimelle ei kerry turhaa dataa: päivittäisiä varmuuskopioita säilytetään 30, palvelimella on vain nykyinen ja edellinen versio, ja Hallintatyökalun versiovarastossa 10 uusinta pakettia.
+
 ## Tiedot palvelimella
 
 | Polku | Sisältö |
@@ -40,7 +51,7 @@ Palvelu ajetaan omalla järjestelmäkäyttäjällä `akveri` (ei kirjautumista).
 
 1. Play Consolessa: luo kertakäyttöiset tuotteet (esim. `akveri_testi_1`, `akveri_testi_5`, `akveri_testi_20`) ja aseta hinnat.
 2. Google Cloudissa: luo palvelutili ja sille JSON-avain. Play Consolessa: Käyttäjät ja oikeudet → kutsu palvelutilin sähköpostiosoite ja anna oikeus "Talous- ja tilaustietojen tarkastelu" sekä "Tilausten ja tilausten hallinta".
-3. Hallintatyökalun AKVERI-välilehdellä: lisää sovelluksen paketti (`fi.akux.app`) ja palvelutilin avaintiedosto, ja paina Julkaise.
+3. Hallintatyökalun AKVERI-välilehdellä: lisää sovelluksen paketti (`fi.akveri.app`) ja palvelutilin avaintiedosto, ja paina Julkaise.
 4. akveri.fi/hallinta → Sivusto ja ehdot: tarkista, että tuotetunnukset ja krediittimäärät vastaavat Play Consolea.
 
 ## Ympäristömuuttujat

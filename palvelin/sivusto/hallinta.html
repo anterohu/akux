@@ -19,10 +19,14 @@
 
 <section id="nakyma-alustus" class="piilossa">
   <div class="kortti proosa">
-    <h1>Hallinnan käyttöönotto</h1>
-    <p>Luo hallinnan tunnus. Tarvitset alkutunnuksen, jonka Hallintatyökalu näyttää AKVERI-välilehdellä, sekä puhelimeen todennussovelluksen (esim. Google Authenticator tai Microsoft Authenticator).</p>
+    <h1 id="a-otsikko">Hallinnan käyttöönotto</h1>
+    <p id="a-ohje">Luo hallinnan ensimmäinen tunnus. Tarvitset alkutunnuksen, jonka Hallintatyökalu näyttää AKVERI-välilehdellä, sekä puhelimeen todennussovelluksen (esim. Google Authenticator tai Microsoft Authenticator).</p>
     <form id="alustuslomake">
-      <label for="a-alkutunnus">Alkutunnus</label><input id="a-alkutunnus" autocomplete="off" spellcheck="false" required>
+      <div id="a-ensimmainen">
+      <label for="a-alkutunnus">Alkutunnus</label><input id="a-alkutunnus" autocomplete="off" spellcheck="false">
+      <label for="a-nimi">Nimi</label><input id="a-nimi" autocomplete="name" maxlength="80">
+      <label for="a-posti">Sähköposti (käyttäjätunnus)</label><input id="a-posti" type="email" autocomplete="username" maxlength="160">
+      </div>
       <label for="a-salasana">Uusi salasana (vähintään 12 merkkiä)</label><input id="a-salasana" type="password" autocomplete="new-password" required minlength="12">
       <label for="a-salasana2">Salasana uudelleen</label><input id="a-salasana2" type="password" autocomplete="new-password" required minlength="12">
       <p><button class="nappi" type="submit">Jatka</button></p>
@@ -41,6 +45,7 @@
 <section id="nakyma-kirjautuminen" class="piilossa">
   <form class="kortti proosa" id="kirjautumislomake">
     <h1>Kirjaudu hallintaan</h1>
+    <label for="k-posti">Sähköposti</label><input id="k-posti" type="email" autocomplete="username" required>
     <label for="k-salasana">Salasana</label><input id="k-salasana" type="password" autocomplete="current-password" required>
     <label for="k-koodi">Vahvistuskoodi</label><input id="k-koodi" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
     <p><button class="nappi" type="submit">Kirjaudu</button></p>
@@ -102,7 +107,7 @@
     </form>
     <form class="kortti" id="myyntilomake">
       <h2>Lataus ja hinnat</h2>
-      <label for="as-play">Google Play -linkki</label><input id="as-play" placeholder="https://play.google.com/store/apps/details?id=fi.akux.app">
+      <label for="as-play">Google Play -linkki</label><input id="as-play" placeholder="https://play.google.com/store/apps/details?id=fi.akveri.app">
       <p class="paivays">Kun linkki on tyhjä, etusivulla lukee "Tulossa Google Playhin". Asennustiedostoja ei jaeta sivustolla.</p>
       <label for="as-hinnasto">Hinnasto etusivulle</label><textarea id="as-hinnasto" maxlength="2000" placeholder="1 mittaus 19,90 €&#10;5 mittausta 79,00 €"></textarea>
       <p class="paivays">Hinnat asetetaan Play Consolessa. Pidä tämä teksti samana kuin Play Consolen hinnat.</p>
@@ -140,6 +145,9 @@
   </div>
 
   <div data-nakyma="tunnus" class="piilossa">
+    <div class="kortti"><h2>Hallinnan käyttäjät</h2>
+      <p class="paivays">Käyttäjät lisätään ja poistetaan Hallintatyökalun AKVERI-välilehdellä. Uusi käyttäjä saa kertakäyttöisen kutsulinkin (voimassa 24 tuntia) ja asettaa oman salasanansa ja kaksivaiheisen tunnistuksen. Poisto katkaisee kirjautumisen heti.</p>
+      <div class="taulukko"><table id="kayttajataulu"></table></div></div>
     <form class="kortti proosa" id="salasanalomake">
       <h2>Vaihda salasana</h2>
       <label for="s-nykyinen">Nykyinen salasana</label><input id="s-nykyinen" type="password" autocomplete="current-password" required>

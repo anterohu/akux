@@ -94,12 +94,12 @@ class Palvelin:
         return self.pyynto("GET", polku, hallinta=hallinta)
 
     def kirjaudu(self):
-        a = self.pyynto("POST", "/api/hallinta/alusta", {"alkutunnus": ALKUTUNNUS, "salasana": "testisalasana-123"}, True)
+        a = self.pyynto("POST", "/api/hallinta/alusta", {"alkutunnus": ALKUTUNNUS, "nimi": "Testi Omistaja", "sahkoposti": "omistaja@akveri.fi", "salasana": "testisalasana-123"}, True)
         self.pyynto("POST", "/api/hallinta/alusta/vahvista", {"alkutunnus": ALKUTUNNUS, "koodi": totp(a["salaisuus"])}, True)
         # Sama koodi ei kelpaa toiseen kertaan: kirjautumiseen käytetään seuraavaa aika-askelta
         nyt = time.time()
         time.sleep(30 - nyt % 30 + 0.5)
-        self.pyynto("POST", "/api/hallinta/kirjaudu", {"salasana": "testisalasana-123", "koodi": totp(a["salaisuus"])}, True)
+        self.pyynto("POST", "/api/hallinta/kirjaudu", {"sahkoposti": "omistaja@akveri.fi", "salasana": "testisalasana-123", "koodi": totp(a["salaisuus"])}, True)
 
     def sulje(self):
         self.p.terminate()
