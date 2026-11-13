@@ -15,6 +15,7 @@ const scrypt = promisify(crypto.scrypt);
 const totp = require('./totp');
 const ipraja = require('./ipraja');
 const { json, Virhe, lueJson, ipOsoite, puhdista, yksiRivi, vakioaikainenVertailu } = require('./apu');
+const { osoiteOsasta } = require('./posti');
 const kayttajat = require('./kayttajat');
 const { normalisoiTunnus, muotoileTunnus, MITTAUSTYYPIT, OLETUSHINTA, OLETUSTUOTTEET, OLETUS_VAHIMMAISVERSIO, VERSIO_RE, vertaaVersioita } = require('./sovellus');
 
@@ -45,7 +46,7 @@ function salasanaKelpaa(s) {
 const HUOLTOTILAT = ['pois', 'sivusto', 'kaikki'];
 const HUOLTOVIESTI = 'Palvelu on tilapäisesti huollossa. Palaamme pian.';
 
-function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.now(), rajoitin }) {
+function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.now(), rajoitin, postitus }) {
   const istunnot = new Map();
   const sallitut = ipraja.jasenna(env.HALLINTA_SALLITUT_IP || '');
   const asetukset = () => varasto.get('asetukset');
@@ -296,11 +297,18 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
       hyvitysaikaMin: Number(a.hyvitysaikaMin) > 0 ? Number(a.hyvitysaikaMin) : 60,
       vahimmaisversio: VERSIO_RE.test(String(a.vahimmaisversio)) ? a.vahimmaisversio : OLETUS_VAHIMMAISVERSIO, uusinVersio: a.uusinVersio || '',
       asiakirjat: { ehdot: a.asiakirjat && a.asiakirjat.ehdot || null, tietosuoja: a.asiakirjat && a.asiakirjat.tietosuoja || null },
-      huoltotila: huoltotila()
+      huoltotila: huoltotila(),
+      posti: postiNakyma()
     };
   }
   // Huoltotila: pois, vain sivusto tai sivusto ja sovelluksen palvelu (krediitit, mittausten rekisteröinti, raporttien tarkistus).
   // Hallinta, käyttöehdot ja tietosuojaseloste toimivat aina. Kirjautunut hallinnan käyttäjä näkee sivuston normaalisti.
+  // Sähköposti: palvelin, ilmoitusten lähettäjä (noreply), omien viestien lähettäjä (info) ja ilmoitusten vastaanottaja.
+  // Salasanaa ei koskaan palauteta selaimelle.
+  function postiNakyma() {
+    const p = asetukset().posti;
+    return p ? { host: p.host, port: p.port, secure: !!p.secure, user: p.user || '', salasanaAsetettu: !!p.pass, lahettaja: p.lahettaja || '', lahettajaOmat: p.lahettajaOmat || '', vastaanottaja: p.vastaanottaja || '' } : null;
+  }
   function huoltotila() {
     const h = asetukset().huoltotila || {};
     return { tila: HUOLTOTILAT.includes(h.tila) ? h.tila : 'pois', viesti: typeof h.viesti === 'string' && h.viesti.trim() ? h.viesti : HUOLTOVIESTI, muutettu: h.muutettu || null };
@@ -354,6 +362,30 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
       }
       a.hinnat = uusi;
     }
+    if (body.posti !== undefined) {
+      if (body.posti === null) delete a.posti;
+      else {
+        const p = body.posti || {};
+        const host = yksiRivi(puhdista(p.host, 200)).toLowerCase();
+        if (!/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/.test(host)) throw new Virhe('Anna sähköpostipalvelimen nimi, esimerkiksi smtp.esimerkki.fi.');
+        const port = Number(p.port);
+        if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Virhe('Portti on yleensä 587 tai 465.');
+        const osoite = (s, kentta, pakollinen) => {
+          const t = yksiRivi(puhdista(s, 200));
+          if (!t && !pakollinen) return '';
+          if (!osoiteOsasta(t)) throw new Virhe(`${kentta}: anna sähköpostiosoite tai muoto "AKVERI <osoite@akveri.fi>".`);
+          return t;
+        };
+        const vanha = a.posti || {};
+        a.posti = {
+          host, port, secure: p.secure === true, user: yksiRivi(puhdista(p.user, 200)),
+          pass: typeof p.pass === 'string' && p.pass !== '' ? p.pass.slice(0, 500) : (vanha.pass || ''),
+          lahettaja: osoite(p.lahettaja, 'Ilmoitusten lähettäjä', true),
+          lahettajaOmat: osoite(p.lahettajaOmat, 'Omien viestien lähettäjä', false),
+          vastaanottaja: osoite(p.vastaanottaja, 'Ilmoitusten vastaanottaja', true)
+        };
+      }
+    }
     if (body.huoltotila !== undefined) {
       const h = body.huoltotila || {};
       if (!HUOLTOTILAT.includes(h.tila)) throw new Virhe('Valitse huoltotila.');
@@ -405,6 +437,7 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
     if (Object.keys(v).length >= 5000) throw new Virhe('Viestien vastaanotto on hetkellisesti täynnä. Lähetä viesti sähköpostilla.', 503);
     v[crypto.randomBytes(8).toString('hex')] = { aika: new Date(nyt()).toISOString(), nimi, sahkoposti, aihe, testitunnus, viesti: teksti, kasitelty: false };
     varasto.tallenna('viestit');
+    if (postitus) postitus.ilmoitaTaustalla(`AKVERI: uusi yhteydenotto${aihe ? ' (' + aihe + ')' : ''}`, `Lähettäjä: ${nimi} <${sahkoposti}>\n${testitunnus ? 'Raportti: ' + muotoileTunnus(testitunnus) + '\n' : ''}\n${teksti}\n\nVastaa viestiin akveri.fi/hallinta → Viestit.\n`);
     return { ok: true };
   }
 
@@ -412,7 +445,10 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
     try {
       if (polku === '/api/sivusto/tiedot' && req.method === 'GET') {
         const a = julkisetAsetukset();
-        return json(res, 200, { yhteystiedot: a.yhteystiedot, playLinkki: a.playLinkki, hinnasto: a.hinnasto, hyvitysaikaMin: a.hyvitysaikaMin });
+        // Julkinen sähköposti: yhteystietojen osoite tai, jos sitä ei ole, omien viestien osoite (info).
+        const yt = { ...a.yhteystiedot };
+        if (!yt.sahkoposti && postitus && postitus.infoOsoite()) yt.sahkoposti = postitus.infoOsoite();
+        return json(res, 200, { yhteystiedot: yt, playLinkki: a.playLinkki, hinnasto: a.hinnasto, hyvitysaikaMin: a.hyvitysaikaMin });
       }
       const am = /^\/api\/sivusto\/asiakirja\/(ehdot|tietosuoja)$/.exec(polku);
       if (am && req.method === 'GET') return json(res, 200, julkisetAsetukset().asiakirjat[am[1]] || {});
@@ -464,6 +500,24 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
       if (p === '/viestit' && req.method === 'GET') return json(res, 200, { viestit: viestit() });
       m = /^\/viestit\/([a-f0-9]{16})$/.exec(p);
       if (m && req.method === 'POST') { const v = varasto.get('viestit')[m[1]]; if (!v) throw new Virhe('Viestiä ei löydy.', 404); v.kasitelty = body.kasitelty !== false; varasto.tallenna('viestit'); return json(res, 200, { ok: true }); }
+      const mv = /^\/viestit\/([a-f0-9]{16})\/vastaa$/.exec(p);
+      if (mv && req.method === 'POST') {
+        const v = varasto.get('viestit')[mv[1]]; if (!v) throw new Virhe('Viestiä ei löydy.', 404);
+        const teksti = puhdista(body.teksti, 5000);
+        if (!teksti.trim()) throw new Virhe('Kirjoita vastaus.');
+        if (!postitus || !postitus.kaytossa()) throw new Virhe('Sähköpostia ei ole asetettu. Aseta se kohdassa Sivusto ja ehdot → Sähköposti.', 409);
+        try { await postitus.omaViesti(v.sahkoposti, 'Re: AKVERI' + (v.aihe ? ': ' + v.aihe : ''), teksti); }
+        catch (e) { throw new Virhe('Vastauksen lähetys epäonnistui: ' + e.message, 502); }
+        v.vastaukset = [...(v.vastaukset || []), { aika: new Date(nyt()).toISOString(), teksti }].slice(-20); v.kasitelty = true;
+        varasto.tallenna('viestit');
+        return json(res, 200, { ok: true });
+      }
+      if (p === '/posti/testi' && req.method === 'POST') {
+        if (!postitus || !postitus.kaytossa()) throw new Virhe('Sähköpostia ei ole asetettu.', 409);
+        try { await postitus.ilmoita('AKVERI: sähköpostin testi', 'Tämä on testiviesti akveri.fi:n hallinnasta. Jos luet tämän, ilmoitukset toimivat.\n'); }
+        catch (e) { throw new Virhe('Testiviesti epäonnistui: ' + e.message, 502); }
+        return json(res, 200, { ok: true });
+      }
       if (m && req.method === 'DELETE') { delete varasto.get('viestit')[m[1]]; varasto.tallenna('viestit'); return json(res, 200, { ok: true }); }
       if (p === '/asetukset' && req.method === 'GET') return json(res, 200, julkisetAsetukset());
       if (p === '/asetukset' && req.method === 'PUT') return json(res, 200, tallennaAsetukset(body));

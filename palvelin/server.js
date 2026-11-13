@@ -22,6 +22,7 @@ const { Varasto } = require('./lib/varasto');
 const { GooglePlay } = require('./lib/google');
 const { luoSovellusRajapinta } = require('./lib/sovellus');
 const { luoHallinta } = require('./lib/hallinta');
+const { luoPostitus } = require('./lib/posti');
 const { json, luoRajoitin } = require('./lib/apu');
 
 const VERSIO = (() => { try { return require('./package.json').version; } catch (e) { return ''; } })();
@@ -41,13 +42,14 @@ function huoltoSivu(viesti) {
 <body class="huoltosivu"><main class="leveys huolto"><h1>Huoltokatko</h1><p>${e(viesti)}</p><p lang="en">The service is temporarily down for maintenance. Please try again soon.</p><p lang="sv">Tjänsten är tillfälligt stängd för underhåll. Försök igen snart.</p></main></body></html>`;
 }
 
-function luoPalvelin({ env = process.env, nyt = () => Date.now(), haku } = {}) {
+function luoPalvelin({ env = process.env, nyt = () => Date.now(), haku, postiLahetin } = {}) {
   env = { ...env, AKVERI_VERSIO: env.AKVERI_VERSIO || VERSIO };
   const varasto = new Varasto(env.DB_DIR || path.join(__dirname, 'data'), { nyt, varmuuskopiokansio: env.AKVERI_VARMUUSKOPIOT });
   const google = new GooglePlay({ paketti: env.GOOGLE_PLAY_PAKETTI, palvelutiliTiedosto: env.GOOGLE_PALVELUTILI, haku, nyt });
   const rajoitin = luoRajoitin(nyt);
-  const sovellus = luoSovellusRajapinta({ varasto, google, env, nyt, rajoitin });
-  const hallinta = luoHallinta({ varasto, sovellus, env, nyt, rajoitin });
+  const postitus = luoPostitus(varasto, postiLahetin ? { lahetin: postiLahetin } : {});
+  const sovellus = luoSovellusRajapinta({ varasto, google, env, nyt, rajoitin, postitus });
+  const hallinta = luoHallinta({ varasto, sovellus, env, nyt, rajoitin, postitus });
 
   function staattinen(req, res, polku) {
     let nimi = SIVUT[polku];

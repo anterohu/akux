@@ -194,3 +194,6 @@ section.osio { scroll-margin-top: 76px; }
 .huomio-teksti { color: var(--bad); font-weight: 600; }
 .hintaruudukko { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px 16px; margin-bottom: 8px; }
 .hintaruudukko input { width: 100%; }
+.valinta-rivi { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.valinta-rivi input[type="checkbox"] { width: auto; min-height: 0; margin: 0; flex: none; }
+.valinta-rivi { font-weight: 500; }

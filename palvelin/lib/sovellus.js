@@ -58,7 +58,7 @@ function lataaAvain(kansio) {
   return { yksityinen, julkinen: crypto.createPublicKey(yksityinen).export({ type: 'spki', format: 'der' }).toString('base64') };
 }
 
-function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => Date.now(), rajoitin }) {
+function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => Date.now(), rajoitin, postitus }) {
   const avain = lataaAvain(varasto.kansio);
   const tilit = () => varasto.get('tilit');
   const testit = () => varasto.get('testit');
@@ -178,6 +178,7 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
     if (t.hyvityspyynto) return { ok: true, jo: true };
     t.hyvityspyynto = { aika: new Date(nyt()).toISOString(), syy: puhdista(body.syy, 1500), tiedot: puhdista(body.tiedot, 4000), tila: 'avoin' };
     varasto.tallenna('testit');
+    if (postitus) postitus.ilmoitaTaustalla('AKVERI: uusi hyvityspyyntö', `Mittaus ${muotoileTunnus(t.tunnus)}, tili ${tili.id}.\nSyy: ${t.hyvityspyynto.syy || '-'}\n\nKäsittele pyyntö akveri.fi/hallinta → Testit ja hyvitykset.\n`);
     return { ok: true };
   }
 

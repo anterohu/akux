@@ -474,3 +474,69 @@ test('mittausten hinnat: hallinnassa testityypeittäin, sovellus saa ne saldon m
   assert.equal((await pyynto('/api/v1/testi/peru', { method: 'POST', auth: a, body: { tunnus: p.d.tunnus } })).d.saldo, 5, 'palautus aloitushetken hinnalla');
   assert.equal((await pyynto('/api/v1/testi/varaa', { method: 'POST', auth: a, body: {} })).d.hinta, 1, 'vanha sovellus ilman tyyppiä: oletushinta');
 });
+
+// Pieni SMTP-palvelin testeihin: kirjaa komennot ja viestit.
+function smtpPalvelin() {
+  const net = require('net');
+  const viestit = []; const komennot = [];
+  const s = net.createServer((c) => {
+    c.setEncoding('utf8'); c.write('220 testi ESMTP\r\n');
+    let data = false, puskuri = '', nyky = {};
+    c.on('data', (d) => {
+      puskuri += d;
+      let i;
+      while ((i = puskuri.indexOf('\r\n')) >= 0) {
+        const rivi = puskuri.slice(0, i); puskuri = puskuri.slice(i + 2);
+        if (data) { if (rivi === '.') { data = false; viestit.push(nyky); nyky = {}; c.write('250 ok\r\n'); } else nyky.data = (nyky.data || '') + rivi + '\n'; continue; }
+        komennot.push(rivi);
+        if (/^EHLO/.test(rivi)) c.write('250-testi\r\n250 AUTH PLAIN LOGIN\r\n');
+        else if (/^AUTH PLAIN /.test(rivi)) c.write(Buffer.from(rivi.slice(11), 'base64').toString() === '\0posti\0salainen' ? '235 ok\r\n' : '535 väärä\r\n');
+        else if (/^MAIL FROM:/.test(rivi)) { nyky.from = rivi; c.write('250 ok\r\n'); }
+        else if (/^RCPT TO:/.test(rivi)) { nyky.to = rivi; c.write('250 ok\r\n'); }
+        else if (rivi === 'DATA') { data = true; c.write('354 jatka\r\n'); }
+        else if (rivi === 'QUIT') { c.write('221 hei\r\n'); c.end(); }
+        else c.write('500 ?\r\n');
+      }
+    });
+  });
+  return new Promise(r => s.listen(0, '127.0.0.1', () => r({ portti: s.address().port, viestit, komennot, sulje: () => s.close() })));
+}
+
+test('sähköposti: ilmoitukset noreply-osoitteesta vastaanottajalle, vastaus info-osoitteesta, salasanaa ei palauteta', async (t) => {
+  const smtp = await smtpPalvelin(); t.after(smtp.sulje);
+  const { pyynto, aika } = await kaynnista(t);
+  const s = await kirjauduHallintaan(pyynto, aika);
+  const put = (body) => pyynto('/api/hallinta/asetukset', { method: 'PUT', evaste: s.evaste, otsakkeet: s.otsakkeet, body });
+  const posti = { host: '127.0.0.1', port: smtp.portti, user: 'posti', pass: 'salainen', lahettaja: 'AKVERI <noreply@akveri.fi>', lahettajaOmat: 'AKVERI <info@akveri.fi>', vastaanottaja: 'omistaja@akveri.fi' };
+  assert.equal((await put({ posti: { ...posti, lahettaja: 'ei osoite' } })).status, 400);
+  assert.equal((await put({ posti: { ...posti, vastaanottaja: '' } })).status, 400);
+  const r = await put({ posti });
+  assert.equal(r.status, 200); assert.equal(r.d.posti.salasanaAsetettu, true); assert.equal(r.d.posti.pass, undefined);
+  assert.ok(!JSON.stringify((await pyynto('/api/hallinta/asetukset', { evaste: s.evaste })).d).includes('salainen'), 'salasana ei näy selaimelle');
+  assert.equal((await put({ posti: { ...posti, pass: '' } })).status, 200, 'tyhjä salasana säilyttää tallennetun');
+  assert.equal((await pyynto('/api/hallinta/posti/testi', { method: 'POST', evaste: s.evaste, otsakkeet: s.otsakkeet })).status, 200);
+  assert.equal(smtp.viestit.length, 1);
+  assert.match(smtp.viestit[0].from, /<noreply@akveri\.fi>/); assert.match(smtp.viestit[0].to, /<omistaja@akveri\.fi>/);
+  assert.match(smtp.viestit[0].data, /Reply-To: info@akveri\.fi/);
+  // yhteydenotto → ilmoitus omistajalle
+  const v = await pyynto('/api/sivusto/viesti', { method: 'POST', body: { nimi: 'Olli Ostaja', sahkoposti: 'olli@esim.fi', aihe: 'Raportti', viesti: 'Kysymys\nraportista', suostumus: true } });
+  assert.equal(v.status, 200);
+  for (let i = 0; i < 50 && smtp.viestit.length < 2; i++) await new Promise(r => setTimeout(r, 20));
+  assert.equal(smtp.viestit.length, 2); assert.match(smtp.viestit[1].data, /Subject: AKVERI: uusi yhteydenotto \(Raportti\)/);
+  assert.match(Buffer.from(smtp.viestit[1].data.split('\n\n')[1].replace(/\n/g, ''), 'base64').toString(), /Olli Ostaja <olli@esim\.fi>/);
+  // vastaus info-osoitteesta
+  const id = (await pyynto('/api/hallinta/viestit', { evaste: s.evaste })).d.viestit[0].id;
+  assert.equal((await pyynto(`/api/hallinta/viestit/${id}/vastaa`, { method: 'POST', evaste: s.evaste, otsakkeet: s.otsakkeet, body: { teksti: ' ' } })).status, 400);
+  const va = await pyynto(`/api/hallinta/viestit/${id}/vastaa`, { method: 'POST', evaste: s.evaste, otsakkeet: s.otsakkeet, body: { teksti: 'Hei Olli,\n\nkiitos.' } });
+  assert.equal(va.status, 200, JSON.stringify(va.d));
+  assert.match(smtp.viestit[2].from, /<info@akveri\.fi>/); assert.match(smtp.viestit[2].to, /<olli@esim\.fi>/);
+  assert.equal((await pyynto('/api/hallinta/viestit', { evaste: s.evaste })).d.viestit[0].vastaukset.length, 1);
+  assert.equal((await pyynto('/api/sivusto/tiedot')).d.yhteystiedot.sahkoposti, 'info@akveri.fi', 'julkinen osoite on info');
+  assert.ok(smtp.komennot.some(k => k.startsWith('AUTH PLAIN')));
+});
+
+test('sähköposti: otsakkeisiin ei voi syöttää rivinvaihtoja', () => {
+  const posti = require('../lib/posti');
+  assert.throws(() => posti.rakennaViesti({ from: 'a@b.fi', to: 'c@d.fi\r\nBcc: x@y.fi', subject: 'x', text: 'y' }), /rivinvaihto/);
+  assert.match(posti.rakennaViesti({ from: 'AKVERI <a@b.fi>', to: 'c@d.fi', subject: 'Hei', text: 'x' }), /^From: AKVERI <a@b\.fi>\r\n/);
+});

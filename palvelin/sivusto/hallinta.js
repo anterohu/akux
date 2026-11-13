@@ -79,6 +79,12 @@
     });
   }
   function luetutHinnat() { var h = {}; document.querySelectorAll('[data-hinta]').forEach(function (i) { h[i.getAttribute('data-hinta')] = Number(i.value); }); return h; }
+  function naytaPosti(p) {
+    $('#posti-tila').textContent = p ? ('Käytössä: ' + p.host + ':' + p.port + (p.salasanaAsetettu ? ', salasana tallennettu.' : '.')) : 'Sähköpostia ei ole asetettu. Ilmoituksia ei lähetetä, eikä viesteihin voi vastata täältä.';
+    p = p || {};
+    $('#po-host').value = p.host || ''; $('#po-port').value = p.port || 587; $('#po-secure').checked = !!p.secure; $('#po-user').value = p.user || ''; $('#po-pass').value = '';
+    $('#po-lahettaja').value = p.lahettaja || ''; $('#po-omat').value = p.lahettajaOmat || ''; $('#po-vastaanottaja').value = p.vastaanottaja || '';
+  }
   var HUOLTO_KUVAUS = { pois: 'Huoltotila on pois päältä.', sivusto: 'Sivusto on huoltotilassa. Sovellus toimii normaalisti.', kaikki: 'Sivusto ja sovelluksen palvelu ovat huoltotilassa.' };
   function naytaHuolto(h) {
     h = h || { tila: 'pois', viesti: '' };
@@ -122,6 +128,17 @@
           solu(tr, v.aihe + (v.testitunnus ? ' · ' + tunnus(v.testitunnus) : ''));
           var vv = solu(tr, v.viesti); vv.style.whiteSpace = 'pre-wrap';
           var t = solu(tr, ''); var r = el('div', null, 'toimintorivi'); t.appendChild(r);
+          if (v.vastaukset && v.vastaukset.length) { var vs = el('div', 'Vastattu ' + aika(v.vastaukset[v.vastaukset.length - 1].aika), 'paivays'); l.appendChild(vs); }
+          r.appendChild(nappi('Vastaa', function () {
+            if (t.querySelector('textarea')) return;
+            var ta = el('textarea'); ta.value = 'Hei ' + v.nimi + ',\n\n'; ta.setAttribute('aria-label', 'Vastaus osoitteeseen ' + v.sahkoposti); ta.rows = 6;
+            var laheta = nappi('Lähetä vastaus', function () {
+              if (!ta.value.trim()) return;
+              laheta.disabled = true;
+              api('/viestit/' + v.id + '/vastaa', { method: 'POST', body: { teksti: ta.value } }).then(function () { ilmoita('Vastaus lähetetty osoitteeseen ' + v.sahkoposti + '.', true); LATAA.viestit(); }).catch(function (e) { laheta.disabled = false; virhe()(e); });
+            });
+            t.appendChild(ta); t.appendChild(laheta); ta.focus();
+          }));
           r.appendChild(nappi(v.kasitelty ? 'Merkitse uudeksi' : 'Merkitse käsitellyksi', function () { api('/viestit/' + v.id, { method: 'POST', body: { kasitelty: !v.kasitelty } }).then(LATAA.viestit).catch(virhe()); }));
           r.appendChild(nappi('Poista', function () { if (window.confirm('Poistetaanko viesti pysyvästi?')) api('/viestit/' + v.id, { method: 'DELETE' }).then(LATAA.viestit).catch(virhe()); }, 'vaara'));
           return tr;
@@ -136,7 +153,7 @@
         piirraTuotteet(a.tuotteet); piirraHinnat(a.hinnat);
         $('#ve-min').value = a.vahimmaisversio || ''; $('#ve-uusin').value = a.uusinVersio || '';
         asiakirjat = a.asiakirjat || {}; naytaAsiakirja();
-        naytaHuolto(a.huoltotila);
+        naytaHuolto(a.huoltotila); naytaPosti(a.posti);
       }).catch(virhe());
     },
     lataukset: function () {
@@ -308,6 +325,12 @@
       api('/asetukset', { method: 'PUT', body: { vahimmaisversio: $('#ve-min').value.trim(), uusinVersio: $('#ve-uusin').value.trim() } })
         .then(function () { ilmoita('Versiot tallennettu.', true); }).catch(virhe());
     });
+    $('#postilomake').addEventListener('submit', function (e) {
+      e.preventDefault();
+      api('/asetukset', { method: 'PUT', body: { posti: { host: $('#po-host').value.trim(), port: Number($('#po-port').value), secure: $('#po-secure').checked, user: $('#po-user').value.trim(), pass: $('#po-pass').value, lahettaja: $('#po-lahettaja').value.trim(), lahettajaOmat: $('#po-omat').value.trim(), vastaanottaja: $('#po-vastaanottaja').value.trim() } } })
+        .then(function (a) { naytaPosti(a.posti); ilmoita('Sähköpostiasetukset tallennettu.', true); }).catch(virhe());
+    });
+    $('#po-testi').addEventListener('click', function () { api('/posti/testi', { method: 'POST' }).then(function () { ilmoita('Testiviesti lähetetty ilmoitusten osoitteeseen.', true); }).catch(virhe()); });
     $('#huoltolomake').addEventListener('submit', function (e) {
       e.preventDefault();
       api('/asetukset', { method: 'PUT', body: { huoltotila: { tila: $('#ht-tila').value, viesti: $('#ht-viesti').value } } })
