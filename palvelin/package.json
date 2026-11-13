@@ -1,0 +1,13 @@
+{
+  "name": "akveri-palvelin",
+  "version": "2.0.0",
+  "private": true,
+  "description": "akveri.fi: esittelysivusto, raportin tarkistus, krediittirajapinta ja omistajan hallinta",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test testit/*.test.js",
+    "paketti": "node kokoa.js"
+  },
+  "engines": { "node": ">=22" }
+}

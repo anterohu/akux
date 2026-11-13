@@ -33,6 +33,17 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.BillingClientStateListener
+import com.android.billingclient.api.BillingFlowParams
+import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.ConsumeParams
+import com.android.billingclient.api.PendingPurchasesParams
+import com.android.billingclient.api.Purchase
+import com.android.billingclient.api.PurchasesUpdatedListener
+import com.android.billingclient.api.QueryProductDetailsParams
+import com.android.billingclient.api.QueryPurchasesParams
+import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -47,6 +58,61 @@ class MainActivity : ComponentActivity() {
     private lateinit var splash: LinearLayout
     private lateinit var splashText: TextView
     private var fileCallback: ValueCallback<Array<Uri>>? = null
+    private var pageReady = false
+
+    // Google Play -ostot. Sovellus ei itse lisää krediittejä: ostotunnus välitetään ohjelmalle, joka lähettää sen
+    // akveri.fi-palvelimelle tarkistettavaksi. Vasta palvelimen hyväksymä osto kulutetaan (consume).
+    private val purchasesListener = PurchasesUpdatedListener { result, purchases ->
+        when (result.responseCode) {
+            BillingClient.BillingResponseCode.OK -> purchases?.forEach { handlePurchase(it) }
+            BillingClient.BillingResponseCode.USER_CANCELED -> {}
+            BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> restorePurchases()
+            else -> reportPurchaseError("Osto ei onnistunut (${result.debugMessage.ifBlank { result.responseCode.toString() }}).")
+        }
+    }
+    private val billing: BillingClient by lazy {
+        BillingClient.newBuilder(this)
+            .setListener(purchasesListener)
+            .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
+            .build()
+    }
+
+    private fun withBilling(action: () -> Unit) {
+        if (billing.isReady) { action(); return }
+        billing.startConnection(object : BillingClientStateListener {
+            override fun onBillingSetupFinished(r: BillingResult) {
+                if (r.responseCode == BillingClient.BillingResponseCode.OK) action()
+                else reportPurchaseError("Google Play ei ole käytettävissä (${r.responseCode}).")
+            }
+            override fun onBillingServiceDisconnected() {}
+        })
+    }
+
+    private fun handlePurchase(p: Purchase) {
+        when (p.purchaseState) {
+            Purchase.PurchaseState.PURCHASED -> {
+                val product = p.products.firstOrNull() ?: return
+                js("window.akveriOsto && window.akveriOsto(${JSONObject.quote(product)}, ${JSONObject.quote(p.purchaseToken)})")
+            }
+            Purchase.PurchaseState.PENDING ->
+                runOnUiThread { Toast.makeText(this, "Maksu odottaa vahvistusta. Krediitit lisätään, kun maksu on vahvistettu.", Toast.LENGTH_LONG).show() }
+            else -> {}
+        }
+    }
+
+    /** Kesken jääneet ostot (esim. sovellus suljettiin ennen kirjausta) kirjataan uudelleen. Palvelin hyvittää oston vain kerran. */
+    private fun restorePurchases() {
+        if (!pageReady) return
+        withBilling {
+            billing.queryPurchasesAsync(QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build()) { r, list ->
+                if (r.responseCode == BillingClient.BillingResponseCode.OK) list.forEach { handlePurchase(it) }
+            }
+        }
+    }
+
+    private fun reportPurchaseError(msg: String) = js("window.akveriOstoVirhe && window.akveriOstoVirhe(${JSONObject.quote(msg)})")
+
+    private fun js(code: String) = runOnUiThread { if (pageReady) web.evaluateJavascript(code, null) }
 
     private val pickFile = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         fileCallback?.onReceiveValue(if (uri != null) arrayOf(uri) else null)
@@ -158,6 +224,7 @@ class MainActivity : ComponentActivity() {
                             web.loadUrl(BASE)
                             splash.visibility = View.GONE
                         }
+                        runOnUiThread { pageReady = true }
                         return@thread
                     }
                 } catch (_: Exception) {
@@ -237,9 +304,51 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun platform(): String = "android"
+
+        /** Aloittaa Google Play -oston. tili sidotaan ostoon, jotta palvelin hyväksyy oston vain tälle tilille. */
+        @JavascriptInterface
+        fun osta(tuote: String, tili: String) {
+            if (!Regex("^[a-z0-9][a-z0-9._]{0,98}$").matches(tuote) || !Regex("^T[0-9A-Z]{12}$").matches(tili)) return
+            withBilling {
+                val params = QueryProductDetailsParams.newBuilder().setProductList(listOf(
+                    QueryProductDetailsParams.Product.newBuilder().setProductId(tuote).setProductType(BillingClient.ProductType.INAPP).build()
+                )).build()
+                billing.queryProductDetailsAsync(params) { r, details ->
+                    val d = details.firstOrNull()
+                    if (r.responseCode != BillingClient.BillingResponseCode.OK || d == null) {
+                        reportPurchaseError("Tuotetta ei löytynyt Google Playsta. Yritä myöhemmin uudelleen.")
+                        return@queryProductDetailsAsync
+                    }
+                    val flow = BillingFlowParams.newBuilder()
+                        .setProductDetailsParamsList(listOf(BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(d).build()))
+                        .setObfuscatedAccountId(tili)
+                        .build()
+                    runOnUiThread { billing.launchBillingFlow(this@MainActivity, flow) }
+                }
+            }
+        }
+
+        /** Kuluttaa oston, kun palvelin on kirjannut krediitit. Sama tuote voidaan sen jälkeen ostaa uudelleen. */
+        @JavascriptInterface
+        fun kuluta(token: String) {
+            if (token.isBlank() || token.length > 4000) return
+            withBilling {
+                billing.consumeAsync(ConsumeParams.newBuilder().setPurchaseToken(token).build()) { _, _ -> }
+            }
+        }
+
+        /** Käyttöliittymä pyytää kirjaamaan kesken jääneet ostot (sivun latauduttua). */
+        @JavascriptInterface
+        fun palautaOstot() = restorePurchases()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        restorePurchases()
     }
 
     override fun onDestroy() {
+        if (billing.isReady) billing.endConnection()
         try {
             unregisterReceiver(stoppedReceiver)
         } catch (_: Exception) {

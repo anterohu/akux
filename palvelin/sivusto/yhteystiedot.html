@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yhteystiedot – AKVERI</title>
+<meta name="description" content="Ota yhteyttä AKVERIin.">
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/sivusto.css">
+<script src="/sivusto.js" defer></script>
+</head>
+<body data-sivu="yhteystiedot">
+<header class="leveys yla">
+  <a class="logo" href="/" aria-label="AKVERI – etusivulle"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46.5" fill="none" stroke="currentColor" stroke-width="6"/><circle cx="50" cy="50" r="37" fill="none" stroke="currentColor" stroke-opacity=".38" stroke-width="1.8" stroke-dasharray="2 4"/><path d="M33 71 L50 28 L67 71" fill="none" stroke="currentColor" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><line x1="40.5" y1="57" x2="59.5" y2="57" stroke="#6CC193" stroke-width="7.5" stroke-linecap="round"/></svg><span>AKVERI</span></a>
+  <nav class="valikko" aria-label="Päävalikko"><a href="/#miten">Miten mittaus tehdään</a><a href="/#autot">Tuetut autot</a><a href="/#hinnat">Hinnat</a><a href="/tarkista">Tarkista raportti</a><a href="/yhteystiedot">Yhteystiedot</a></nav>
+</header>
+<main>
+
+<section class="leveys">
+  <div class="proosa"><h1>Yhteystiedot</h1>
+  <p><b data-yt="nimi">[yrityksen nimi]</b><br><span data-yt-rivi="yTunnus">Y-tunnus <span data-yt="yTunnus"></span><br></span><span data-yt="osoite"></span></p>
+  <p><span data-yt-rivi="sahkoposti">Sähköposti: <span data-yt="sahkoposti" data-yt-linkki="mailto"></span><br></span><span data-yt-rivi="puhelin">Puhelin: <span data-yt="puhelin" data-yt-linkki="tel"></span></span></p>
+  <p class="paivays" id="yt-tyhja">Yhteystiedot päivitetään pian.</p></div>
+  <form class="kortti proosa" id="yhteyslomake" novalidate>
+    <h2>Lähetä viesti</h2>
+    <p class="selite">Jos asia koskee mittausta, kirjoita mukaan raportin tai testin tunnus. Vastaamme sähköpostilla.</p>
+    <label for="y-nimi">Nimi</label><input id="y-nimi" name="nimi" autocomplete="name" required maxlength="120">
+    <label for="y-posti">Sähköposti</label><input id="y-posti" name="sahkoposti" type="email" autocomplete="email" required maxlength="160">
+    <label for="y-aihe">Aihe</label><select id="y-aihe" name="aihe"><option>Kysymys</option><option>Mittaus tai raportti</option><option>Krediitit ja ostot</option><option>Yhteistyö</option><option>Tietosuoja</option></select>
+    <label for="y-tunnus">Raportin tai testin tunnus (valinnainen)</label><input id="y-tunnus" name="testitunnus" maxlength="20" autocomplete="off">
+    <label for="y-viesti">Viesti</label><textarea id="y-viesti" name="viesti" required maxlength="3000"></textarea>
+    <div class="vh" aria-hidden="true"><label for="y-www">Jätä tyhjäksi</label><input id="y-www" name="www" tabindex="-1" autocomplete="off"></div>
+    <label class="valinta"><input type="checkbox" id="y-suostumus"> <span>Tietojani saa käyttää viestiin vastaamiseen <a href="/tietosuoja">tietosuojaselosteen</a> mukaisesti.</span></label>
+    <p><button class="nappi" type="submit">Lähetä</button></p>
+    <div class="ilmoitus" id="y-ilmoitus" role="status"></div>
+  </form>
+</section>
+
+</main>
+<footer class="ala">
+  <div class="leveys">
+    <div><b data-yt="nimi">[yrityksen nimi]</b><span data-yt-rivi="yTunnus"> · Y-tunnus <span data-yt="yTunnus"></span></span><br><span data-yt="osoite"></span></div>
+    <nav aria-label="Alatunniste"><a href="/ehdot">Käyttöehdot</a><a href="/tietosuoja">Tietosuojaseloste</a><a href="/yhteystiedot">Yhteystiedot</a><a href="/tarkista">Tarkista raportti</a></nav>
+  </div>
+</footer>
+</body>
+</html>

@@ -982,23 +982,10 @@ class Recorder:
         try:
             result = analysis.analyze_test(self.app.storage, tid, meta)
             self.app.storage.update_test(tid, tulos=result)
-            y = result.get("yhteenveto") or {}
-            if y.get("kunto_pct") is not None:
-                kwh = y.get("kapasiteetti_kwh")
-                txt = f"Akun kunto {y['kunto_pct']:.1f} %".replace(".", ",") + \
-                      (f", kapasiteetti {kwh:.1f} kWh".replace(".", ",") if kwh else "") + ". Raportti on valmis."
-            else:
-                txt = "Mittaus on valmis. Avaa tulos ohjelmasta."
-            self.app.notify("valmis", "Mittaus valmis", txt)
             analysis.learn_vehicle(self.app.storage, tid, result)
-            if self.app.settings.get("mittaus_tallennus", True):
-                try:
-                    from . import mittaustiedosto
-                    paths = mittaustiedosto.save_to_folder(self.app.storage, tid)
-                    if paths:
-                        self.app.storage.add_event(tid, t, f"Mittaustiedosto ja raportti tallennettu: {paths[0].parent}")
-                except Exception as e:  # noqa: BLE001
-                    self.app.storage.add_event(tid, t, f"Mittaustiedoston tallennus epäonnistui: {e}")
+            # Ilmoitus, raportin rekisteröinti akveri.fi:hin ja tallennus kansioon (App.mittaus_valmis)
+            if hasattr(self.app, "mittaus_valmis"):
+                self.app.mittaus_valmis(tid, result)
         except Exception as e:  # noqa: BLE001
             import traceback
             traceback.print_exc()

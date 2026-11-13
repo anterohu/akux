@@ -167,7 +167,12 @@ def import_file(storage, data: bytes, merkitse: bool = True) -> dict:
         raw_path.write_bytes(z.read("raakadata.csv.gz"))
     storage.update_test(tid, tila=t.get("tila") or "valmis", aloitettu=t.get("aloitettu"),
                         paattynyt=t.get("paattynyt"), tulos=t.get("tulos") or {},
-                        raakadata=str(raw_path) if raw_path else None, tarkiste=t.get("tarkiste"))
+                        raakadata=str(raw_path) if raw_path else None, tarkiste=t.get("tarkiste"),
+                        # Testilupa kulkee tiedoston mukana, jotta raportin QR-koodi ja tarkistus säilyvät.
+                        # Rekisteröimätöntä lupaa ei rekisteröidä tällä laitteella: se kuuluu mittauksen tehneen laitteen tilille.
+                        lupa=t.get("lupa"), demo=t.get("demo"), lupa_testi=t.get("lupa_testi"),
+                        lupa_tila=("tuotu" if t.get("lupa") and (t.get("lupa_tila") or "varattu") in ("varattu", "peru_odottaa")
+                                   else t.get("lupa_tila")))
     cols = ["t", "vaihe", "v", "i", "soc_ui", "soc_avg", "nfp", "ner", "t_min", "t_max",
             "c_min", "c_max", "e_in", "e_out", "ah_in"]
     samples = json.loads(z.read("naytteet.json"))

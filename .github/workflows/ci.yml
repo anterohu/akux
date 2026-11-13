@@ -49,6 +49,30 @@ jobs:
       - name: Kaikki automallit
         run: python tests/test_mallit.py
 
+  palvelin:
+    name: akveri.fi-palvelin ja krediitit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pypdf
+      - name: Palvelimen testit
+        run: node --test palvelin/testit/*.test.js
+      - name: Krediitit ja testiluvat päästä päähän
+        run: python tests/test_krediitit.py
+        timeout-minutes: 15
+      - name: Julkaisupaketti
+        run: node palvelin/kokoa.js .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: akveri-palvelin
+          path: akveri-palvelin-*.zip
+
   testityypit:
     name: Testityypit, autot ja akkukemiat
     runs-on: ubuntu-latest
@@ -272,7 +296,7 @@ jobs:
         with:
           gradle-version: "8.9"
       - name: Rakenna sovellus
-        run: gradle -p android --no-daemon assembleRelease assembleDebug assembleDebugAndroidTest
+        run: gradle -p android --no-daemon assembleRelease bundleRelease assembleDebug assembleDebugAndroidTest
       - name: Ota emulaattorin kiihdytys käyttöön
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -294,10 +318,13 @@ jobs:
           V=$(python3 -c "import re;print(re.search(r'VERSIO = \"([^\"]+)\"', open('akux/__init__.py').read()).group(1))")
           echo "VERSIO=$V" >> $GITHUB_ENV
           cp android/app/build/outputs/apk/release/app-release.apk "AKVERI-$V.apk"
+          cp android/app/build/outputs/bundle/release/app-release.aab "AKVERI-$V.aab"
       - uses: actions/upload-artifact@v4
         with:
           name: Akux-android
-          path: AKVERI-*.apk
+          path: |
+            AKVERI-*.apk
+            AKVERI-*.aab
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -308,7 +335,7 @@ jobs:
   julkaisu:
     name: Julkaisu
     runs-on: ubuntu-latest
-    needs: [testit, testityypit, windows, android]
+    needs: [testit, palvelin, testityypit, windows, android]
     permissions:
       contents: write
     steps:
@@ -319,6 +346,9 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: Akux-windows
+      - uses: actions/download-artifact@v4
+        with:
+          name: akveri-palvelin
       - name: Lue versio
         run: |
           V=$(python3 -c "import re;print(re.search(r'VERSIO = \"([^\"]+)\"', open('akux/__init__.py').read()).group(1))")
@@ -331,14 +361,16 @@ jobs:
           name: AKVERI ${{ env.VERSIO }}
           make_latest: true
           body: |
-            **Windows:** lataa AKVERI-asennus-${{ env.VERSIO }}.exe ja avaa se. Jos Windows näyttää ilmoituksen *Windows suojasi tietokonettasi*, valitse Lisätietoja → Suorita silti.
+            Sisäinen julkaisu. Asiakkaat asentavat AKVERIn Google Playsta, eikä näitä tiedostoja jaeta asiakkaille.
 
-            **Android:** lataa AKVERI-${{ env.VERSIO }}.apk puhelimeen ja avaa se. Android 10 tai uudempi.
-
-            Päivitys asennetaan samalla tavalla vanhan version päälle. Autot, mittaukset, raportit ja asetukset säilyvät.
+            **Google Play:** AKVERI-${{ env.VERSIO }}.aab ladataan Play Consoleen (Tuotanto → Luo uusi julkaisu).
+            **Windows (omistajalle):** AKVERI-asennus-${{ env.VERSIO }}.exe viedään akveri.fi:n Omat lataukset -kohtaan Hallintatyökalun AKVERI-välilehdeltä.
+            **akveri.fi-palvelin:** akveri-palvelin-${{ env.VERSIO }}.zip viedään palvelimelle Hallintatyökalun AKVERI-välilehdeltä.
 
             Ennen julkaisua on ajettu kaikki testit, Windows-asennus ja päivitys oikealla Windows-koneella sekä Android-sovelluksen kokonaistesti emulaattorissa.
           files: |
             AKVERI-*.apk
+            AKVERI-*.aab
             AKVERI-asennus-*.exe
+            akveri-palvelin-*.zip
           overwrite_files: true

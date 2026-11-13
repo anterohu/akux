@@ -1,4 +1,4 @@
 """AKVERI – sähköauton ajoakun kunnon ja kapasiteetin mittaus."""
 
 NIMI = "AKVERI"
-VERSIO = "1.9.1"
+VERSIO = "2.0.0"

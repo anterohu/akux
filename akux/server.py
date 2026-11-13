@@ -17,6 +17,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from . import NIMI, VERSIO, analysis, docs, maintenance, mittaustiedosto, profiles, report
+from . import krediitit as krediittimoduuli
 from . import vin as vinmod
 from .app import App
 from .decoder import KAIKKI_PAKOLLISET
@@ -195,7 +196,8 @@ class Api:
                 "tiedot": src.info if src else {}, "simuloitu": bool(src and src.simulated),
                 "demo": {"tila": src.mode, "nopeutus": src.accel} if (src and src.simulated) else None,
             },
-            "live": snap,
+            # Akun kunto ja kapasiteetti näkyvät vain luvallisessa mittauksessa (ks. krediitit.py).
+            "live": krediittimoduuli.suodata_live(snap, a.live_kunto_sallittu()),
             "auto_tunnettu": known,
             "mittaus": a.recorder.progress(),
             "vaylatesti": self._bus_verdict(),
@@ -431,7 +433,15 @@ class Api:
                 "kunto_pct": y.get("kunto_pct"), "kunto_luokka": y.get("kunto_luokka"),
                 "kapasiteetti_kwh": y.get("kapasiteetti_kwh"), "epavarmuus_kwh": y.get("epavarmuus_kwh"),
                 "ero_mv": (r.get("kennot") or {}).get("ero_mv"), "virhe": r.get("virhe"),
-                "osat": (r.get("purku") or {}).get("osat")}
+                "osat": (r.get("purku") or {}).get("osat"), **self._lupa(t)}
+
+    @staticmethod
+    def _lupa(t):
+        tila = krediittimoduuli.luvan_tila(t)
+        return {"lupa": {"tunnus": krediittimoduuli.muotoile_tunnus(t.get("lupa")), "tila": tila, "testi": bool(t.get("lupa_testi")),
+                         "peruttavissa": krediittimoduuli.peruttavissa(t),
+                         "hyvitettavissa": tila == "varattu" and t.get("tila") in ("keskeytetty", "keskeytynyt")
+                         and not krediittimoduuli.peruttavissa(t)}}
 
     def aloita(self, q, body):
         vid = int(body.get("ajoneuvo_id") or 0)
@@ -469,8 +479,10 @@ class Api:
         return {"ok": True}
 
     def keskeyta(self, q, body):
+        tid = self.app.recorder.test_id
         self.app.recorder.cancel()
-        return {"ok": True}
+        tila = self.app.peru_lupa(tid, "Mittaus keskeytettiin") if tid else ""
+        return {"ok": True, "lupa": tila}
 
     def tauko(self, q, body):
         r = self.app.recorder
@@ -499,6 +511,40 @@ class Api:
         if not t or t["tila"] != "kesken":
             raise ApiError("Mittausta ei löydy.")
         self.app.recorder.discard(tid)
+        return {"ok": True, "lupa": self.app.peru_lupa(tid, "Kesken jäänyt mittaus hylättiin")}
+
+    # -- krediitit ------------------------------------------------------
+    def krediitit(self, q, body):
+        try:
+            d = self.app.krediitit.tilanne()
+        except krediittimoduuli.PalveluVirhe as e:
+            raise ApiError(str(e), 503)
+        return {**d, "alusta": platform_name(), "tili_naytto": d.get("tili")}
+
+    def krediitit_osto(self, q, body):
+        tuote = str(body.get("tuote") or "")
+        token = str(body.get("ostotunnus") or "")
+        if not tuote or not token:
+            raise ApiError("Oston tiedot puuttuvat.")
+        try:
+            return self.app.krediitit.osto(tuote, token)
+        except krediittimoduuli.PalveluVirhe as e:
+            raise ApiError(str(e), 409 if e.status == 409 else 400)
+
+    def hyvityspyynto(self, q, body, tid):
+        t = self.app.storage.test(tid)
+        if not t or krediittimoduuli.luvan_tila(t) != "varattu" or t.get("tila") not in ("keskeytetty", "keskeytynyt"):
+            raise ApiError("Hyvitystä voi pyytää vain keskeytyneestä mittauksesta.")
+        syy = str(body.get("syy") or "").strip()
+        if len(syy) < 10:
+            raise ApiError("Kerro lyhyesti, mitä tapahtui (vähintään 10 merkkiä).")
+        tapahtumat = "\n".join(f"{time.strftime('%d.%m. %H.%M', time.localtime(e['t']))} {e['teksti']}"
+                               for e in (self.app.storage.events(tid) or [])[-25:])
+        try:
+            self.app.krediitit.hyvityspyynto(t["lupa"], syy, f"AKVERI {VERSIO} ({platform_name()})\n{tapahtumat}")
+        except krediittimoduuli.PalveluVirhe as e:
+            raise ApiError(str(e))
+        self.app.storage.add_event(tid, time.time(), "Hyvityspyyntö lähetetty: " + syy[:200])
         return {"ok": True}
 
     def mittaukset(self, q, body):
@@ -521,6 +567,9 @@ class Api:
         t["naytteet"] = samples[::step]
         t["tapahtumat"] = self.app.storage.events(tid)
         t["ajoneuvo"] = self.app.storage.vehicle(t["vehicle_id"])
+        if not krediittimoduuli.tulos_naytettavissa(t):
+            t["tulos"] = None
+        t.update(self._lupa(t))
         return t
 
     def avaa_mittaus(self, q, body):
@@ -568,8 +617,18 @@ class Api:
         except ValueError as e:
             raise ApiError(str(e)) from e
         y = res.get("yhteenveto") or {}
+        if krediittimoduuli.luvan_tila(self.app.storage.test(tid) or {}) == "rekisteroity":
+            threading.Thread(target=self._paivita_rekisterointi, args=(tid,), daemon=True).start()
         return {"ok": True, "versio": VERSIO, "kunto_pct": y.get("kunto_pct"),
                 "aiempi": res.get("aiempi_laskenta")}
+
+    def _paivita_rekisterointi(self, tid):
+        """Uudelleen lasketun mittauksen tulos päivitetään tarkistussivulle (sama raakadata, sama lupa)."""
+        try:
+            self.app.krediitit.rekisteroi(tid, VERSIO)
+            self.app.storage.add_event(tid, time.time(), f"Uudelleen laskettu tulos päivitetty tarkistussivulle (versio {VERSIO}).")
+        except krediittimoduuli.PalveluVirhe:
+            pass
 
     def jaa_osiin(self, q, body, tid):
         try:
@@ -603,10 +662,13 @@ class Api:
         s["puhelin"] = self.phone_info()
         s["mittaus_kansio_oletus"] = "Lataukset/AKVERI" if platform_name() == "android" else str(mittaustiedosto.default_folder())
         s.pop("puhelin_avain", None)
+        for k in ("tili_avain", "palvelu_osoite"):
+            s.pop(k, None)
         return s
 
     def tallenna_asetukset(self, q, body):
-        body.pop("puhelin_avain", None)
+        for k in ("puhelin_avain", "tili", "tili_avain", "palvelu_osoite"):
+            body.pop(k, None)
         # Mittausten raja-arvot: virheellinen tai tyhjä arvo jätetään pois, muut rajataan järkevälle välille
         limits = {"lepo_alku_min": (0, 240), "lepo_loppu_min": (0, 240), "kapasiteetti_lahto_soc_max": (5, 60),
                   "lampotila_min": (-20, 40), "lampotila_max": (0, 60), "ajo_lepo_min": (0, 240),
@@ -718,6 +780,8 @@ ROUTES = [
 
     ("POST", r"/api/ilmoitus/testi", "testi_ilmoitus"), ("GET", r"/api/ohjeet", "ohjeet"),
     ("GET", r"/api/tietoja", "tietoja"),
+    ("GET", r"/api/krediitit", "krediitit"), ("POST", r"/api/krediitit/osto", "krediitit_osto"),
+    ("POST", r"/api/mittaukset/(\d+)/hyvityspyynto", "hyvityspyynto"),
 ]
 
 

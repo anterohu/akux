@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AKVERI – sähköauton akun kuntomittaus ja tarkistettava raportti</title>
+<meta name="description" content="AKVERI mittaa sähköauton ajoakun kunnon ja kapasiteetin auton omasta akunhallinnasta ja tekee raportin, jonka aitouden kuka tahansa voi tarkistaa.">
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/sivusto.css">
+<script src="/sivusto.js" defer></script>
+</head>
+<body data-sivu="etusivu">
+<header class="leveys yla">
+  <a class="logo" href="/" aria-label="AKVERI – etusivulle"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46.5" fill="none" stroke="currentColor" stroke-width="6"/><circle cx="50" cy="50" r="37" fill="none" stroke="currentColor" stroke-opacity=".38" stroke-width="1.8" stroke-dasharray="2 4"/><path d="M33 71 L50 28 L67 71" fill="none" stroke="currentColor" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><line x1="40.5" y1="57" x2="59.5" y2="57" stroke="#6CC193" stroke-width="7.5" stroke-linecap="round"/></svg><span>AKVERI</span></a>
+  <nav class="valikko" aria-label="Päävalikko"><a href="/#miten">Miten mittaus tehdään</a><a href="/#autot">Tuetut autot</a><a href="/#hinnat">Hinnat</a><a href="/tarkista">Tarkista raportti</a><a href="/yhteystiedot">Yhteystiedot</a></nav>
+</header>
+<main>
+
+<section class="leveys sankari">
+  <div>
+    <p class="ylaotsikko">Sähköauton akun kuntomittaus</p>
+    <h1>Akun kunto mitattuna, ei arvioituna.</h1>
+    <p class="johdanto">AKVERI lukee ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta ja tekee mittauksesta selkeän raportin. Jokaisessa raportissa on tunnus, jolla ostaja voi tarkistaa sen aitouden.</p>
+    <div class="toiminnot">
+      <a class="nappi" id="play-linkki" href="/#miten">Lataa Google Playsta</a>
+      <a class="nappi toissijainen" href="/tarkista">Tarkista raportti</a>
+    </div>
+    <p class="huomio" id="play-huomio">AKVERI-sovellus tulee saataville Google Playhin. Ilmoitamme julkaisusta tällä sivulla.</p>
+  </div>
+  <div class="kortti raporttikuva" aria-label="Esimerkki raportin yhteenvedosta">
+    <div class="otsake"><span>Täysi akkutesti</span><span class="merkki neutraali">Esimerkki</span></div>
+    <div class="rivi"><span>Akun kunto</span><span class="iso">93,7 %</span></div>
+    <div class="rivi"><span>Käytettävä kapasiteetti</span><b>72,6 kWh</b></div>
+    <div class="rivi"><span>Kennojännitteiden hajonta</span><b>11 mV</b></div>
+    <div class="rivi"><span>Raportin tunnus</span><b class="tunnus">AK-7H2QK-M4XPC</b></div>
+  </div>
+</section>
+
+<section class="osio" id="miten"><div class="leveys">
+  <h2>Miten mittaus tehdään</h2>
+  <p class="selite">Mittaus tehdään auton omalla akunhallinnalla. AKVERI ei arvioi kuntoa ajotyylin, iän tai kilometrien perusteella, vaan käyttää auton itse mittaamia ja laskemia arvoja.</p>
+  <div class="ruudukko">
+    <div class="kortti"><span class="numero">1</span><h3>Kytke sovitin</h3><p>OBDLink-sovitin kytketään auton diagnostiikkaliitäntään ja puhelimeen. Sovellus tunnistaa auton ja tarkistaa, että akun tiedot välittyvät.</p></div>
+    <div class="kortti"><span class="numero">2</span><h3>Tee mittaus</h3><p>Valitse mittaus: pikatarkastus, kapasiteettimittaus, täysi akkutesti tai ajo- ja kuormitustesti. Sovellus ohjaa vaihe vaiheelta.</p></div>
+    <div class="kortti"><span class="numero">3</span><h3>Saat raportin</h3><p>Raportti kertoo akun kunnon, kapasiteetin, kennojen tasaisuuden ja mittauksen tarkkuuden. Raakadata säilyy muuttumattomana.</p></div>
+    <div class="kortti"><span class="numero">4</span><h3>Ostaja tarkistaa</h3><p>Raportin QR-koodi avaa tarkistussivun, jolla näkyvät rekisteröidyt tulokset. Muokattu tai keksitty raportti ei läpäise tarkistusta.</p></div>
+  </div>
+</div></section>
+
+<section class="osio" id="autot"><div class="leveys">
+  <h2>Tuetut autot</h2>
+  <p class="selite">AKVERI tukee yleisimpiä sähköautoja. Tarkka mallilista ja kunkin mallin mittaustavat näkyvät sovelluksessa ennen mittausta.</p>
+  <div class="merkit"><span>Tesla</span><span>Hyundai</span><span>Kia</span><span>Nissan Leaf</span><span>Volkswagen ID.</span><span>Škoda Enyaq</span><span>Audi Q4 e-tron</span><span>Cupra Born</span></div>
+  <ul class="lista">
+    <li>Sovittimet: OBDLink EX ja SX (USB) sekä OBDLink MX+ ja LX (Bluetooth).</li>
+    <li>Puhelin: Android 10 tai uudempi.</li>
+  </ul>
+</div></section>
+
+<section class="osio" id="hinnat"><div class="leveys">
+  <h2>Hinnat</h2>
+  <p class="selite">Mittaukset maksetaan krediiteillä, jotka ostetaan sovelluksessa Google Playn kautta. Yksi krediitti kattaa yhden mittauksen ja sen raportin. Kuukausimaksua ei ole.</p>
+  <div class="ruudukko">
+    <div class="kortti"><h3>Krediitit</h3><p class="hinnasto" id="hinnasto">Hinnat näkyvät sovelluksessa ennen ostoa.</p></div>
+    <div class="kortti"><h3>Jos mittaus keskeytyy</h3><p>Jos mittaus keskeytyy pian alun jälkeen, krediitti palautuu tilillesi automaattisesti (<span id="hyvitysaika">60</span> min). Jos mittaus keskeytyy myöhemmin AKVERIsta johtuvasta syystä, lähetä sovelluksesta hyvityspyyntö, niin palautamme krediitin.</p></div>
+    <div class="kortti"><h3>Uudelleenlaskenta</h3><p>Kun sovellus päivittyy, aiemman mittauksen voi laskea uudelleen ja raportin tulostaa uudelleen ilman uutta krediittiä.</p></div>
+  </div>
+</div></section>
+
+<section class="osio" id="tarkista"><div class="leveys">
+  <h2>Tarkista raportti</h2>
+  <p class="selite">Kirjoita raportin tunnus (esim. AK-7H2QK-M4XPC). Tunnus on raportin ensimmäisellä sivulla QR-koodin vieressä.</p>
+  <form class="rivi-lomake" action="/tarkista" method="get" id="tarkistuslomake"><label class="vh" for="tunnus-etusivu">Raportin tunnus</label><input id="tunnus-etusivu" name="tunnus" placeholder="AK-XXXXX-XXXXX" autocomplete="off" required><button class="nappi" type="submit">Tarkista</button></form>
+</div></section>
+
+</main>
+<footer class="ala">
+  <div class="leveys">
+    <div><b data-yt="nimi">[yrityksen nimi]</b><span data-yt-rivi="yTunnus"> · Y-tunnus <span data-yt="yTunnus"></span></span><br><span data-yt="osoite"></span></div>
+    <nav aria-label="Alatunniste"><a href="/ehdot">Käyttöehdot</a><a href="/tietosuoja">Tietosuojaseloste</a><a href="/yhteystiedot">Yhteystiedot</a><a href="/tarkista">Tarkista raportti</a></nav>
+  </div>
+</footer>
+</body>
+</html>

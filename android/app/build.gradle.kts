@@ -82,6 +82,7 @@ chaquopy {
             install("pillow")
             install("matplotlib")
             install("reportlab")
+            install("certifi")
         }
         extractPackages("akux")
     }
@@ -96,6 +97,8 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("com.github.mik3y:usb-serial-for-android:3.8.0")
+    // Krediittien osto Google Playssa. Palvelin (akveri.fi) tarkistaa jokaisen oston Googlelta ennen kuin krediitit lisätään.
+    implementation("com.android.billingclient:billing-ktx:7.1.1")
 
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")

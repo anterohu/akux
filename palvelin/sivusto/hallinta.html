@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Hallinta – AKVERI</title>
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/sivusto.css">
+<script src="/qr.js" defer></script>
+<script src="/hallinta.js" defer></script>
+</head>
+<body>
+<header class="leveys yla hallinta">
+  <a class="logo" href="/hallinta"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46.5" fill="none" stroke="currentColor" stroke-width="6"/><path d="M33 71 L50 28 L67 71" fill="none" stroke="currentColor" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><line x1="40.5" y1="57" x2="59.5" y2="57" stroke="#6CC193" stroke-width="7.5" stroke-linecap="round"/></svg><span>AKVERI · Hallinta</span></a>
+  <nav class="valikko piilossa" id="ylavalikko"><a href="/" target="_blank" rel="noopener">Sivusto</a><button class="nappi pieni toissijainen" id="ulos" type="button">Kirjaudu ulos</button></nav>
+</header>
+<main class="leveys hallinta">
+
+<section id="nakyma-alustus" class="piilossa">
+  <div class="kortti proosa">
+    <h1>Hallinnan käyttöönotto</h1>
+    <p>Luo hallinnan tunnus. Tarvitset alkutunnuksen, jonka Hallintatyökalu näyttää AKVERI-välilehdellä, sekä puhelimeen todennussovelluksen (esim. Google Authenticator tai Microsoft Authenticator).</p>
+    <form id="alustuslomake">
+      <label for="a-alkutunnus">Alkutunnus</label><input id="a-alkutunnus" autocomplete="off" spellcheck="false" required>
+      <label for="a-salasana">Uusi salasana (vähintään 12 merkkiä)</label><input id="a-salasana" type="password" autocomplete="new-password" required minlength="12">
+      <label for="a-salasana2">Salasana uudelleen</label><input id="a-salasana2" type="password" autocomplete="new-password" required minlength="12">
+      <p><button class="nappi" type="submit">Jatka</button></p>
+    </form>
+    <form id="alustusvahvistus" class="piilossa">
+      <p>Lue QR-koodi todennussovelluksella ja kirjoita sen näyttämä kuusinumeroinen koodi.</p>
+      <div class="qr" id="a-qr"></div>
+      <p class="paivays">Jos QR-koodin lukeminen ei onnistu, syötä avain käsin: <code id="a-avain"></code></p>
+      <label for="a-koodi">Vahvistuskoodi</label><input id="a-koodi" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+      <p><button class="nappi" type="submit">Ota käyttöön</button></p>
+    </form>
+    <div class="ilmoitus" id="alustusilmoitus" role="status"></div>
+  </div>
+</section>
+
+<section id="nakyma-kirjautuminen" class="piilossa">
+  <form class="kortti proosa" id="kirjautumislomake">
+    <h1>Kirjaudu hallintaan</h1>
+    <label for="k-salasana">Salasana</label><input id="k-salasana" type="password" autocomplete="current-password" required>
+    <label for="k-koodi">Vahvistuskoodi</label><input id="k-koodi" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+    <p><button class="nappi" type="submit">Kirjaudu</button></p>
+    <div class="ilmoitus" id="kirjautumisilmoitus" role="status"></div>
+  </form>
+</section>
+
+<section id="nakyma-hallinta" class="piilossa">
+  <nav class="valilehdet" id="valilehdet" aria-label="Hallinnan näkymät">
+    <button type="button" data-v="yleiskatsaus" class="valittu">Yleiskatsaus</button>
+    <button type="button" data-v="tilit">Tilit ja krediitit</button>
+    <button type="button" data-v="testit">Testit ja hyvitykset</button>
+    <button type="button" data-v="ostot">Ostot</button>
+    <button type="button" data-v="viestit">Viestit</button>
+    <button type="button" data-v="asetukset">Sivusto ja ehdot</button>
+    <button type="button" data-v="lataukset">Omat lataukset</button>
+    <button type="button" data-v="kirjanpito">Kirjanpito</button>
+    <button type="button" data-v="tunnus">Tunnus</button>
+  </nav>
+  <div class="ilmoitus" id="ilmoitus" role="status"></div>
+
+  <div data-nakyma="yleiskatsaus">
+    <div class="tunnusluvut" id="tunnusluvut"></div>
+    <div class="kortti" id="huomiot"></div>
+  </div>
+
+  <div data-nakyma="tilit" class="piilossa">
+    <form class="rivi-lomake" id="tilihaku"><label class="vh" for="tili-haku">Hae tiliä</label><input id="tili-haku" placeholder="Tilitunnus tai muistiinpano"><button class="nappi" type="submit">Hae</button></form>
+    <p class="paivays">Tilitunnus näkyy sovelluksen Krediitit-näkymässä. Omat krediittisi (esim. Windows-versiota varten) lisäät omalle tilillesi tästä.</p>
+    <div class="taulukko"><table id="tilitaulu"></table></div>
+    <div class="kortti piilossa" id="tilitiedot"></div>
+  </div>
+
+  <div data-nakyma="testit" class="piilossa">
+    <form class="rivi-lomake" id="testihaku"><label class="vh" for="testi-haku">Hae testiä</label><input id="testi-haku" placeholder="Testin tai tilin tunnus">
+      <label class="vh" for="testi-suodatin">Suodatin</label><select id="testi-suodatin"><option value="">Kaikki</option><option value="hyvityspyynnot">Avoimet hyvityspyynnöt</option><option value="varattu">Kesken</option><option value="valmis">Rekisteröity</option><option value="peruttu">Peruttu</option><option value="mitatoity">Mitätöity</option></select>
+      <button class="nappi" type="submit">Hae</button></form>
+    <div class="taulukko"><table id="testitaulu"></table></div>
+  </div>
+
+  <div data-nakyma="ostot" class="piilossa">
+    <p class="paivays">Google Playn ostot. Testiostot (lisenssitestaajat) on merkitty erikseen. Google Playssa perutut ostot tarkistetaan automaattisesti kahdesti vuorokaudessa.</p>
+    <p><button class="nappi pieni toissijainen" id="perutut" type="button">Tarkista perutut ostot nyt</button></p>
+    <div class="taulukko"><table id="ostotaulu"></table></div>
+  </div>
+
+  <div data-nakyma="viestit" class="piilossa"><div class="taulukko"><table id="viestitaulu"></table></div></div>
+
+  <div data-nakyma="asetukset" class="piilossa">
+    <form class="kortti" id="ytlomake">
+      <h2>Yhteystiedot</h2>
+      <p class="paivays">Näkyvät sivuston alatunnisteessa, yhteystietosivulla, käyttöehdoissa ja tietosuojaselosteessa.</p>
+      <label for="yt-nimi">Yrityksen nimi</label><input id="yt-nimi" maxlength="120">
+      <label for="yt-ytunnus">Y-tunnus</label><input id="yt-ytunnus" maxlength="9" placeholder="1234567-8">
+      <label for="yt-osoite">Osoite</label><input id="yt-osoite" maxlength="200">
+      <label for="yt-sahkoposti">Sähköposti</label><input id="yt-sahkoposti" type="email" maxlength="120">
+      <label for="yt-puhelin">Puhelin</label><input id="yt-puhelin" maxlength="40">
+      <p><button class="nappi" type="submit">Tallenna yhteystiedot</button></p>
+    </form>
+    <form class="kortti" id="myyntilomake">
+      <h2>Lataus ja hinnat</h2>
+      <label for="as-play">Google Play -linkki</label><input id="as-play" placeholder="https://play.google.com/store/apps/details?id=fi.akux.app">
+      <p class="paivays">Kun linkki on tyhjä, etusivulla lukee "Tulossa Google Playhin". Asennustiedostoja ei jaeta sivustolla.</p>
+      <label for="as-hinnasto">Hinnasto etusivulle</label><textarea id="as-hinnasto" maxlength="2000" placeholder="1 mittaus 19,90 €&#10;5 mittausta 79,00 €"></textarea>
+      <p class="paivays">Hinnat asetetaan Play Consolessa. Pidä tämä teksti samana kuin Play Consolen hinnat.</p>
+      <label for="as-hyvitysaika">Automaattisen perumisen aika (minuuttia)</label><input id="as-hyvitysaika" type="number" min="10" max="1440">
+      <h3>Tuotteet</h3>
+      <p class="paivays">Play Consolen kertakäyttöisten tuotteiden tunnukset ja montako krediittiä kukin antaa. Tunnusten pitää vastata Play Consolea täsmälleen.</p>
+      <div class="taulukko"><table id="tuotetaulu"></table></div>
+      <p><button class="nappi pieni toissijainen" type="button" id="lisaa-tuote">Lisää tuote</button></p>
+      <p><button class="nappi" type="submit">Tallenna</button></p>
+    </form>
+    <form class="kortti" id="asiakirjalomake">
+      <h2>Käyttöehdot ja tietosuojaseloste</h2>
+      <label for="ak-tyyppi">Asiakirja</label><select id="ak-tyyppi"><option value="ehdot">Käyttöehdot</option><option value="tietosuoja">Tietosuojaseloste</option></select>
+      <label for="ak-teksti">Teksti</label><textarea id="ak-teksti" class="iso-teksti"></textarea>
+      <p class="paivays">Muotoilu: "## Otsikko" aloittaa otsikon, tyhjä rivi erottaa kappaleet ja "- " aloittaa luettelon. {{nimi}}, {{yTunnus}}, {{osoite}}, {{sahkoposti}} ja {{puhelin}} täytetään yhteystiedoista. Kun teksti on tyhjä, sivulla näkyy oletusteksti. Tallennus päivittää voimassaolopäivän.</p>
+      <p><button class="nappi" type="submit">Tallenna asiakirja</button></p>
+    </form>
+  </div>
+
+  <div data-nakyma="lataukset" class="piilossa">
+    <p class="paivays">Vain sinun ladattavissasi. Tiedostot viedään palvelimelle Hallintatyökalun AKVERI-välilehdeltä. Niihin ei ole linkkiä julkisilta sivuilta, ja lataus vaatii kirjautumisen.</p>
+    <div class="taulukko"><table id="lataustaulu"></table></div>
+  </div>
+
+  <div data-nakyma="kirjanpito" class="piilossa">
+    <p class="paivays" id="kirjanpitotila"></p>
+    <div class="taulukko"><table id="kirjanpitotaulu"></table></div>
+  </div>
+
+  <div data-nakyma="tunnus" class="piilossa">
+    <form class="kortti proosa" id="salasanalomake">
+      <h2>Vaihda salasana</h2>
+      <label for="s-nykyinen">Nykyinen salasana</label><input id="s-nykyinen" type="password" autocomplete="current-password" required>
+      <label for="s-uusi">Uusi salasana (vähintään 12 merkkiä)</label><input id="s-uusi" type="password" autocomplete="new-password" required minlength="12">
+      <p><button class="nappi" type="submit">Vaihda salasana</button></p>
+    </form>
+    <div class="kortti proosa"><h2>Varmuuskopio</h2><p>Palvelin ottaa varmuuskopion tietokansioon kerran vuorokaudessa ja säilyttää 30 uusinta. Hallintatyökalu voi lisäksi ladata kopion omalle koneellesi.</p><p><button class="nappi toissijainen" type="button" id="varmuuskopio">Ota varmuuskopio nyt</button></p></div>
+  </div>
+</section>
+</main>
+</body>
+</html>

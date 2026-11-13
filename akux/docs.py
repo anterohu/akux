@@ -134,6 +134,40 @@ OHJE = [
         ],
     },
     {
+        "id": "krediitit", "otsikko": "Krediitit ja raportin tarkistus",
+        "osat": [
+            ("p", "Yksi krediitti kattaa yhden mittauksen ja sen raportin. Krediitit ostetaan Android-sovelluksen "
+                  "<b>Krediitit</b>-sivulla Google Playn kautta. Krediitti veloitetaan, kun mittaus aloitetaan. "
+                  "Esittelytilan mittaukset eivät käytä krediittejä."),
+            ("ul", [
+                "<b>Raportin tunnus:</b> jokainen mittaus saa tunnuksen (esimerkiksi AK-7H2QK-M4XPC). Tunnus ja QR-koodi ovat "
+                "raportin ensimmäisellä sivulla. QR-koodi avaa sivun akveri.fi/v/tunnus, jolla raportin vastaanottaja näkee "
+                "rekisteröidyt tulokset ja voi verrata auton valmistenumeroa.",
+                "<b>Rekisteröinti:</b> valmis mittaus rekisteröidään akveri.fi-palveluun automaattisesti. Jos verkkoyhteyttä ei ole, "
+                "rekisteröinti tehdään heti, kun yhteys palaa. Mittauksen aloittaminen vaatii verkkoyhteyden.",
+                "<b>Keskeytys:</b> jos keskeytät mittauksen tunnin kuluessa alusta, krediitti palautuu automaattisesti. "
+                "Jos mittaus keskeytyy myöhemmin AKVERIsta johtuvasta syystä, lähetä mittauksen sivulta hyvityspyyntö.",
+                "<b>Akun kunto ennen mittausta:</b> akun kunto ja kapasiteetti näkyvät mittauksen aikana ja raportissa, eivät "
+                "yhteyden muodostamisen jälkeen ilman mittausta.",
+                "<b>Uudelleenlaskenta:</b> kun AKVERI päivittyy, aiemman mittauksen voi laskea uudelleen ilman uutta krediittiä. "
+                "Tarkistussivun tulos päivittyy samalla.",
+            ]),
+            ("p", "<b>Mitä tietoja akveri.fi-palveluun lähetetään</b>"),
+            ("ul", [
+                "Satunnainen tilitunnus, jolla krediitit pidetään tallessa. Tiliin ei liitetä nimeä, sähköpostia eikä puhelinnumeroa.",
+                "Google Play -oston tunniste, jolla palvelu tarkistaa maksun Googlelta. Maksukortin tietoja AKVERI ei näe.",
+                "Mittauksen yhteenveto: mittauksen tyyppi ja aika, auton merkki ja malli, valmistenumeron kolme ensimmäistä ja kuusi "
+                "viimeistä merkkiä (koko numero vain tiivisteenä), mittarilukema, akun kunto ja kapasiteetti, mittaajan "
+                "riippumattomuusvalinta, ohjelman versio ja raakadatan tarkiste.",
+                "Hyvityspyynnössä kirjoittamasi kuvaus ja mittauksen tapahtumaloki.",
+            ]),
+            ("p", "Rekisterikilpeä, auton omistajaa, mittaajan nimeä, lisätietoja, yrityksen tietoja, kuvia eikä mittausdataa "
+                  "lähetetä. Ne pysyvät vain tällä laitteella ja mittaustiedostossa. Tarkemmin: akveri.fi/tietosuoja."),
+            ("note", "Tili on tallennettu ohjelman tietoihin. Varmuuskopio sisältää tilin, joten kun palautat varmuuskopion uuteen "
+                     "laitteeseen, krediitit siirtyvät mukana. Säilytä varmuuskopio huolellisesti."),
+        ],
+    },
+    {
         "id": "autot", "otsikko": "Autot",
         "osat": [
             ("p", "Jokainen mitattava auto tallennetaan kerran. Ohjelma tunnistaa valmistenumerosta mallin, "
@@ -342,9 +376,8 @@ OHJE = [
     {
         "id": "yllapito", "otsikko": "Päivitys ja varmuuskopiot",
         "osat": [
-            ("p", "<b>Päivitys:</b> uusin versio julkaistaan GitHubin Releases-sivulla, jonne pääsee myös "
-                  "<b>Ylläpito</b>-sivulta. Windowsissa ladataan ja ajetaan AKVERI-asennus-x.y.z.exe, Androidissa "
-                  "asennetaan AKVERI-x.y.z.apk vanhan päälle. Autot, mittaukset, raportit ja asetukset säilyvät."),
+            ("p", "<b>Päivitys:</b> Androidissa Google Play päivittää AKVERIn. Windows-version uusi asennusohjelma "
+                  "ajetaan vanhan päälle. Autot, mittaukset, raportit, asetukset ja krediitit säilyvät."),
             ("p", "<b>Mittaustiedostot:</b> jokainen valmis mittaus tallennetaan automaattisesti mittaustiedostona "
                   "(.akveri) ja PDF-raporttina. Windowsissa oletuskansio on Tiedostot/AKVERI/Mittaukset, Androidissa "
                   "Lataukset/AKVERI. Kansion voi vaihtaa asetuksista. Mittaustiedosto sisältää kaikki mittauksen tiedot "

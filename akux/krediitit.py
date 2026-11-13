@@ -1,0 +1,250 @@
+"""Krediitit ja testiluvat (akveri.fi).
+
+Yksi krediitti = yksi mittaus. Oikeasta autosta tehtävä mittaus alkaa vasta, kun palvelin on antanut testiluvan
+(krediitti veloitetaan). Lupa on raportin tunnus, ja raportin QR-koodi avaa sen tarkistussivun.
+
+Peruminen: lupa on perumisajan (oletus 60 min) sisällä peruttavissa, jos mittaus keskeytetään, ja krediitti
+palautuu. Jotta keskeyttäminen ei antaisi akun kuntoa ilmaiseksi, reaaliaikainen kunto- ja kapasiteettiarvio
+näytetään vain käynnissä olevassa mittauksessa ja vasta perumisajan jälkeen. Valmista mittausta ei voi perua.
+Perutun luvan mittauksesta ei tehdä raporttia, ja tarkistussivu näyttää luvan perutuksi.
+
+Esittelytilan (simuloitu auto) mittaukset eivät tarvitse lupaa. Niiden raportteihin tulee ESIMERKKI-leima.
+Ennen versiota 2.0 tehdyillä mittauksilla ei ole lupaa: niiden raportissa kerrotaan, ettei raporttia voi tarkistaa.
+"""
+from __future__ import annotations
+
+import json
+import ssl
+import threading
+import time
+import urllib.error
+import urllib.request
+
+OLETUSOSOITE = "https://akveri.fi"
+OLETUS_PERUMISAIKA_MIN = 60
+
+# Live-tiedot, joista akun kunnon tai kapasiteetin voi päätellä. Näytetään vain, kun mittaukseen on oikeus.
+KUNTOKENTAT = ("bol_kwh", "nfp_kwh", "nominal_remaining_kwh", "expected_remaining_kwh", "ideal_remaining_kwh",
+               "to_charge_complete_kwh", "buffer_kwh", "bms_soh_pct", "viite_kwh", "viite_lahde", "full_charge_complete")
+
+
+class PalveluVirhe(Exception):
+    def __init__(self, viesti: str, status: int = 0):
+        super().__init__(viesti)
+        self.status = status
+
+
+def _ssl_konteksti():
+    try:
+        import certifi  # noqa: PLC0415
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:  # noqa: BLE001
+        return ssl.create_default_context()
+
+
+def _http(method: str, url: str, headers: dict, body: bytes | None, aikaraja: float):
+    req = urllib.request.Request(url, data=body, method=method, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=aikaraja, context=_ssl_konteksti()) as r:
+            return r.status, json.loads(r.read().decode("utf-8") or "{}")
+    except urllib.error.HTTPError as e:
+        try:
+            return e.code, json.loads(e.read().decode("utf-8") or "{}")
+        except (ValueError, OSError):
+            return e.code, {}
+
+
+# ---------------------------------------------------------------- luvan tila
+def luvan_tila(t: dict) -> str:
+    """esimerkki | vanha | osa | tuotu | varattu | rekisteroity | ei_rekisteroitavissa | peruttu | peru_odottaa"""
+    if t.get("demo"):
+        return "esimerkki"
+    if not t.get("lupa"):
+        return "vanha"
+    if t.get("lupa_tila") == "osa":
+        return "osa"
+    return t.get("lupa_tila") or "varattu"
+
+
+def tulos_naytettavissa(t: dict) -> bool:
+    """Perutun luvan mittauksen tulosta ja raporttia ei näytetä."""
+    return luvan_tila(t) not in ("peruttu", "peru_odottaa")
+
+
+def live_kunto_sallittu(t: dict | None, simuloitu: bool, nyt: float | None = None) -> bool:
+    """Reaaliaikainen kuntoarvio: esittelytilassa aina, oikeassa autossa vain käynnissä olevassa luvallisessa mittauksessa
+    perumisajan jälkeen."""
+    if simuloitu:
+        return True
+    if not t or luvan_tila(t) != "varattu":
+        return bool(t) and luvan_tila(t) == "rekisteroity"
+    return (nyt or time.time()) > float(t.get("lupa_peruttavissa") or 0)
+
+
+def peruttavissa(t: dict, nyt: float | None = None) -> bool:
+    return luvan_tila(t) == "varattu" and (nyt or time.time()) <= float(t.get("lupa_peruttavissa") or 0)
+
+
+def muotoile_tunnus(t: str | None) -> str:
+    return f"{t[:2]}-{t[2:7]}-{t[7:]}" if t and len(t) == 12 else (t or "")
+
+
+class Krediitit:
+    """akveri.fi-palvelun asiakas. Tilin tunnus ja avain tallennetaan ohjelman asetuksiin."""
+
+    def __init__(self, storage, http=_http):
+        self.storage = storage
+        self.http = http
+        self.lock = threading.Lock()
+        self._rekisteroinnit: set[int] = set()
+
+    @property
+    def osoite(self) -> str:
+        # Palvelun osoitetta ei voi vaihtaa käyttöliittymästä. Kehityksessä sen voi ohittaa ympäristömuuttujalla.
+        import os  # noqa: PLC0415
+        return (os.environ.get("AKVERI_PALVELU") or OLETUSOSOITE).rstrip("/")
+
+    def _kutsu(self, method: str, polku: str, body: dict | None = None, tunnistus=True, aikaraja=20.0) -> dict:
+        headers = {"Accept": "application/json", "User-Agent": "AKVERI"}
+        if tunnistus:
+            s = self.varmista_tili()
+            headers["Authorization"] = f"AKVERI {s['tili']}.{s['avain']}"
+        data = None
+        if body is not None:
+            data = json.dumps(body).encode("utf-8")
+            headers["Content-Type"] = "application/json"
+        try:
+            status, d = self.http(method, self.osoite + polku, headers, data, aikaraja)
+        except (urllib.error.URLError, OSError, ValueError) as e:
+            raise PalveluVirhe("AKVERI-palveluun ei saatu yhteyttä. Tarkista verkkoyhteys ja yritä uudelleen.") from e
+        if status >= 400:
+            raise PalveluVirhe(d.get("virhe") or f"AKVERI-palvelu vastasi virheellä ({status}).", status)
+        return d
+
+    def varmista_tili(self) -> dict:
+        with self.lock:
+            s = self.storage.settings()
+            if s.get("tili") and s.get("tili_avain"):
+                return {"tili": s["tili"], "avain": s["tili_avain"]}
+            d = self._kutsu("POST", "/api/v1/tili", {}, tunnistus=False)
+            self.storage.save_settings({"tili": d["tili"], "tili_avain": d["avain"]})
+            return {"tili": d["tili"], "avain": d["avain"]}
+
+    def tilanne(self) -> dict:
+        d = self._kutsu("GET", "/api/v1/saldo")
+        d["tuotteet"] = self._kutsu("GET", "/api/v1/tuotteet", tunnistus=False).get("tuotteet", [])
+        return d
+
+    def osto(self, tuote: str, ostotunnus: str) -> dict:
+        return self._kutsu("POST", "/api/v1/osto", {"tuote": tuote, "ostotunnus": ostotunnus}, aikaraja=40.0)
+
+    def varaa(self, versio: str, alusta: str) -> dict:
+        return self._kutsu("POST", "/api/v1/testi/varaa", {"versio": versio, "alusta": alusta})
+
+    def peru(self, tunnus: str, syy: str) -> dict:
+        return self._kutsu("POST", "/api/v1/testi/peru", {"tunnus": tunnus, "syy": syy})
+
+    def hyvityspyynto(self, tunnus: str, syy: str, tiedot: str) -> dict:
+        return self._kutsu("POST", "/api/v1/testi/hyvityspyynto", {"tunnus": tunnus, "syy": syy, "tiedot": tiedot})
+
+    # ------------------------------------------------------------ mittauksen elinkaari
+    def kiinnita(self, tid: int, lupa: dict):
+        """Tallentaa saadun luvan mittaukselle."""
+        perumisaika = float(lupa.get("hyvitysaikaMin") or OLETUS_PERUMISAIKA_MIN) * 60
+        self.storage.update_test(tid, lupa=lupa["tunnus"], lupa_tila="varattu", lupa_varattu=time.time(),
+                                 lupa_testi=1 if lupa.get("testi") else None,
+                                 lupa_peruttavissa=time.time() + perumisaika - 120)  # pieni varmuusmarginaali kellolle
+
+    def peru_mittauksen_lupa(self, tid: int, syy: str) -> str:
+        """Perii keskeytyneen mittauksen luvan, jos se on vielä mahdollista. Palauttaa tilan selitteen."""
+        t = self.storage.test(tid) or {}
+        if luvan_tila(t) != "varattu":
+            return ""
+        if not peruttavissa(t):
+            return "hyvitettavissa"
+        try:
+            self.peru(t["lupa"], syy)
+        except PalveluVirhe as e:
+            if e.status == 409:
+                return "hyvitettavissa"
+            self.storage.update_test(tid, lupa_tila="peru_odottaa")
+            return "peru_odottaa"
+        self.storage.update_test(tid, lupa_tila="peruttu")
+        return "peruttu"
+
+    def yhteenveto(self, t: dict) -> dict:
+        r = t.get("tulos") or {}
+        y = r.get("yhteenveto") or {}
+        v = self.storage.vehicle(t.get("vehicle_id")) or {}
+        ajo = r.get("ajoneuvo") or {}
+        from .recorder import TYYPIT  # noqa: PLC0415
+        aloitettu = t.get("aloitettu") or time.time()
+        return {
+            "tyyppi": TYYPIT.get(t.get("tyyppi"), t.get("tyyppi") or ""),
+            "merkki": v.get("merkki") or ajo.get("merkki") or "", "malli": v.get("malli") or ajo.get("malli") or "",
+            "vin": (ajo.get("vin") or v.get("vin") or "").upper(),
+            "mittarilukema": t.get("mittarilukema"), "kunto_pct": y.get("kunto_pct"), "kapasiteetti_kwh": y.get("kapasiteetti_kwh"),
+            "mitattu": aloitettu, "paattynyt": t.get("paattynyt"),
+            "raporttinumero": f"{time.strftime('%Y', time.localtime(aloitettu))}-{int(t['id']):05d}",
+            "riippumaton": None if t.get("riippumaton") is None else bool(t["riippumaton"]),
+        }
+
+    def rekisteroi(self, tid: int, versio: str) -> bool:
+        """Rekisteröi valmiin mittauksen raportin. Palauttaa True, kun raportti on rekisteröity (myös aiemmin)."""
+        t = self.storage.test(tid) or {}
+        if luvan_tila(t) not in ("varattu", "rekisteroity") or t.get("tila") != "valmis" or not t.get("tarkiste"):
+            return luvan_tila(t) == "rekisteroity"
+        with self.lock:
+            if tid in self._rekisteroinnit:
+                return False
+            self._rekisteroinnit.add(tid)
+        try:
+            self._kutsu("POST", "/api/v1/testi/raportti", {"tunnus": t["lupa"], "tarkiste": t["tarkiste"],
+                                                            "yhteenveto": self.yhteenveto(t), "versio": versio})
+            self.storage.update_test(tid, lupa_tila="rekisteroity")
+            return True
+        finally:
+            with self.lock:
+                self._rekisteroinnit.discard(tid)
+
+    def odottavat(self) -> list[dict]:
+        """Valmiit mittaukset, joiden raportti odottaa rekisteröintiä, ja perumiset, jotka odottavat yhteyttä."""
+        return [t for t in self.storage.tests()
+                if t.get("lupa") and ((t.get("lupa_tila") == "varattu" and t.get("tila") == "valmis")
+                                      or t.get("lupa_tila") == "peru_odottaa")]
+
+
+def suodata_live(snap: dict, sallittu: bool) -> dict:
+    """Poistaa kunnon ja kapasiteetin paljastavat arvot, kun mittaukseen ei ole oikeutta."""
+    if sallittu:
+        return snap
+    out = {k: v for k, v in snap.items() if k not in KUNTOKENTAT}
+    out["kunto_piilotettu"] = True
+    return out
+
+
+def kasittele_odottavat(krediitit: "Krediitit", versio: str, valmis=None) -> int:
+    """Rekisteröi odottavat raportit ja lähettää odottavat perumiset. valmis(tid) kutsutaan rekisteröinnin jälkeen."""
+    tehty = 0
+    for t in krediitit.odottavat():
+        try:
+            if t.get("lupa_tila") == "peru_odottaa":
+                try:
+                    krediitit.peru(t["lupa"], "Mittaus keskeytettiin (lähetetty, kun yhteys palasi)")
+                    krediitit.storage.update_test(t["id"], lupa_tila="peruttu")
+                except PalveluVirhe as e:
+                    if e.status != 409:
+                        raise
+                    krediitit.storage.update_test(t["id"], lupa_tila="varattu")
+            elif krediitit.rekisteroi(t["id"], versio):
+                if valmis:
+                    valmis(t["id"])
+            tehty += 1
+        except PalveluVirhe as e:
+            if e.status in (403, 404, 409):
+                # Palvelin hylkäsi rekisteröinnin (esim. lupa peruttu tai kuuluu toiselle tilille): ei yritetä uudelleen.
+                krediitit.storage.update_test(t["id"], lupa_tila="ei_rekisteroitavissa")
+                krediitit.storage.add_event(t["id"], time.time(), f"Raporttia ei voitu rekisteröidä: {e}")
+                continue
+            break          # ei yhteyttä: yritetään myöhemmin uudelleen
+    return tehty

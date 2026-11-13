@@ -93,7 +93,10 @@ OLETUSASETUKSET = {
     "ilmoitus_ongelmat": True,
     "mittaus_tallennus": True,
     "mittaus_kansio": "",
-    "qr_osoite": "",
+    # akveri.fi-tili (krediitit). Avain näkyy vain ohjelmalle, ei käyttöliittymälle. Varmuuskopio sisältää tilin,
+    # joten palautus uudelle laitteelle siirtää myös krediitit.
+    "tili": "",
+    "tili_avain": "",
     "raportin_ulkoasu": "b",
     "ajo_lepo_min": 15,
     "ajo_loppu_soc": 10,
@@ -207,6 +210,11 @@ class Storage:
         if "riippumaton" not in tcols:
             # 1 = mittaaja on riippumaton, 0 = ei riippumaton, tyhjä = ei valittu (aiemmat mittaukset)
             self.db.execute("ALTER TABLE tests ADD COLUMN riippumaton INTEGER")
+        # 2.0: testilupa (akveri.fi) ja esittelytilan merkintä. Vanhoilla mittauksilla sarakkeet jäävät tyhjiksi.
+        for col, typ in (("lupa", "TEXT"), ("lupa_tila", "TEXT"), ("lupa_varattu", "REAL"),
+                         ("lupa_peruttavissa", "REAL"), ("lupa_testi", "INTEGER"), ("demo", "INTEGER")):
+            if col not in tcols:
+                self.db.execute(f"ALTER TABLE tests ADD COLUMN {col} {typ}")
 
     def close(self):
         with self.lock:
@@ -373,10 +381,14 @@ class Storage:
         with self.lock:
             cur = self.db.execute(
                 "INSERT INTO tests (vehicle_id, tyyppi, tila, aloitettu, paattynyt, mittarilukema, mittaaja, "
-                "lisatiedot, tarkiste, riippumaton) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "lisatiedot, tarkiste, riippumaton, lupa, lupa_tila, demo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (t["vehicle_id"], tyyppi, t["tila"], t["aloitettu"], t.get("paattynyt"), t.get("mittarilukema"),
                  t.get("mittaaja") or "", t.get("lisatiedot") if lisatiedot is None else lisatiedot, t.get("tarkiste"),
-                 t.get("riippumaton")))
+                 t.get("riippumaton"),
+                 # Osa saa saman testiluvan tunnuksen viitteeksi. Rekisteröity ja tarkistettava raportti on koko mittauksen raportti.
+                 t.get("lupa"), "osa" if t.get("lupa") else None, t.get("demo")))
+            if t.get("lupa_testi"):
+                self.db.execute("UPDATE tests SET lupa_testi=1 WHERE id=?", (cur.lastrowid,))
             new = cur.lastrowid
             for table in ("samples", "snapshots", "events"):
                 cols = [r[1] for r in self.db.execute(f"PRAGMA table_info({table})") if r[1] != "test_id"]

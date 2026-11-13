@@ -1,4 +1,4 @@
-# AKVERI 1.9
+# AKVERI 2.0
 
 AKVERI lukee sähköauton ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta OBDLink-sovittimella ja tekee tuloksista selkeän ja yksityiskohtaisen PDF-raportin ostajalle, asiakkaalle tai omaan käyttöön. Kaikki mittausarvot ovat auton akunhallinnan luovuttamia.
 
@@ -6,19 +6,21 @@ Tuetut autot: Model 3 ja Model Y (kaikki vuosimallit ja akkutyypit), Model S ja 
 
 Muut merkit (versiosta 1.8 alkaen): Hyundai Ioniq Electric, Kona Electric, Ioniq 5 ja Ioniq 6, Kia e-Niro, e-Soul ja EV6, Nissan Leaf (24, 30, 40 ja 62 kWh) sekä Volkswagen-konsernin MEB-alustan autot (Volkswagen ID.3, ID.4 ja ID.5, Škoda Enyaq, Audi Q4 e-tron ja Cupra Born). Näiden autojen akunhallinta vastaa vain kyselyihin, joten auton on oltava mittauksen aikana päällä tai latauksessa. Muiden merkkien tukea ei ole vielä varmistettu oikealla autolla. Erot Teslaan on kuvattu ohjelman ohjeissa kohdassa Muut merkit.
 
-## Asennus
+## Asennus ja krediitit
 
-Valmiit ohjelmat ovat GitHubin **Releases**-sivulla: https://github.com/anterohu/akux/releases/latest
+**Android (10 tai uudempi):** AKVERI asennetaan Google Playsta. Mittaukset maksetaan krediiteillä, jotka ostetaan sovelluksen **Krediitit**-sivulla. Yksi krediitti kattaa yhden mittauksen ja sen raportin. Esittelytila ei käytä krediittejä.
 
-**Windows:** lataa `AKVERI-asennus-x.y.z.exe` ja aja se. AKVERI avautuu omaan sovellusikkunaansa, eikä selainta tarvita. Asennus lisää pikakuvakkeen työpöydälle ja Käynnistä-valikkoon. Jos Windows näyttää ilmoituksen *Windows suojasi tietokonettasi*, valitse **Lisätietoja → Suorita silti**. Ilmoitus tulee vain asennusohjelmasta kerran jokaista uutta versiota kohden, ei itse ohjelmasta.
+**Windows:** Windows-versiota ei toistaiseksi jaeta asiakkaille. Omistaja lataa sen akveri.fi/hallinta-sivun kohdasta **Omat lataukset**. Windows-versio käyttää samaa krediittijärjestelmää: krediitit lisätään tilille hallinnassa.
+
+**Raportin tarkistus:** jokaisella mittauksella on tunnus (esim. AK-7H2QK-M4XPC). Raportin QR-koodi avaa sivun akveri.fi/v/tunnus, jolla vastaanottaja näkee rekisteröidyt tulokset. Mittauksen aloittaminen vaatii verkkoyhteyden. Valmis raportti rekisteröidään automaattisesti, tarvittaessa heti kun yhteys palaa.
+
+**akveri.fi-palvelin:** kansio `palvelin/` (ks. `palvelin/README.md`). Julkaisupaketti `akveri-palvelin-x.y.z.zip` viedään palvelimelle Hallintatyökalun AKVERI-välilehdeltä.
 
 **Tuetut sovittimet:** OBDLink EX ja SX (USB) sekä OBDLink MX+ ja LX (Bluetooth). Bluetooth-sovitin paritetaan ensin Windowsin tai puhelimen Bluetooth-asetuksista, minkä jälkeen se näkyy AKVERIn sovitinlistassa. Tavalliset ELM327-sovittimet eivät pysy Teslan väylän perässä, joten AKVERI ei hyväksy niitä. OBDLink CX (Bluetooth Low Energy) ei ole vielä tuettu.
 
-**Android (10 tai uudempi):** lataa `AKVERI-x.y.z.apk` puhelimeen ja avaa se. Android kysyy kerran luvan asentaa sovelluksia tästä lähteestä. Kytke OBDLink EX välikaapelilla auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen ja salli AKVERIlle pääsy sovittimeen. Diagnostiikkaliitin on keskikonsolin takapäässä: vuosien 2019–2020 autoissa 20-pinninen ja 2021 alkaen 26-pinninen. Jalkatilan OBD-liitäntä ei välitä akun tietoja. Kapasiteettimittaukseen (8–14 h) tarvitaan OTG-sovitin, jossa on PD-latausportti, jotta puhelin latautuu mittauksen ajan.
+**Kytkentä puhelimeen:** kytke OBDLink EX välikaapelilla auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen ja salli AKVERIlle pääsy sovittimeen. Teslan diagnostiikkaliitin on keskikonsolin takapäässä: vuosien 2019–2020 autoissa 20-pinninen ja 2021 alkaen 26-pinninen. Jalkatilan OBD-liitäntä ei välitä akun tietoja. Kapasiteettimittaukseen (8–14 h) tarvitaan OTG-sovitin, jossa on PD-latausportti, jotta puhelin latautuu mittauksen ajan.
 
-**Päivitys:** lataa uusi versio samasta paikasta ja asenna se vanhan päälle. Autot, mittaukset, raportit ja asetukset säilyvät. Mitään tiedostoja ei tarvitse poistaa, siirtää eikä nimetä uudelleen.
-
-**Vaihtoehto Windowsissa, rakennus omalla koneella:** lataa Releases-sivulta lähdekoodi (zip), pura se ja aja `Asenna.bat`. Tällöin AKVERI rakennetaan omalla koneellasi, eikä SmartScreen kysy mitään. Molemmat tavat asentavat ohjelman samaan paikkaan ja käyttävät samoja tietoja.
+**Päivitys:** Google Play päivittää sovelluksen. Windowsissa asenna uusi versio vanhan päälle. Autot, mittaukset, raportit ja asetukset säilyvät. Mitään tiedostoja ei tarvitse poistaa, siirtää eikä nimetä uudelleen.
 
 ## Mittaustiedostot
 
@@ -64,7 +66,7 @@ Raportti on kaksiosainen. Pääsivut on tarkoitettu asiakkaalle, tekninen liite 
 
 ## Päivittäminen
 
-Lataa uusi versio Releases-sivulta ja asenna se vanhan päälle (katso Asennus). Ylläpito-sivulla on suora linkki julkaisuihin.
+Androidissa Google Play päivittää AKVERIn. Windowsissa asenna uusi versio vanhan päälle (katso Asennus).
 
 Versiosta 1.7.0 alkaen ohjelma ja sen kansiot ovat AKVERI-nimisiä. Päivitys siirtää aiemman Akux-version tiedot (`%APPDATA%\Akux` ja `Tiedostot\Akux`) automaattisesti uusiin kansioihin ensimmäisellä käynnistyskerralla. Käsin ei tarvitse siirtää eikä poistaa mitään.
 

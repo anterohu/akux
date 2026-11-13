@@ -512,6 +512,20 @@ def draw_seal(c, cx, cy, r, bottom_text):
     draw_mark(c, cx, cy, 50 * k, ring=False)
 
 
+def draw_stamp(c, teksti):
+    """Selvä vino leima (esim. ESIMERKKI), joka erottaa raportin, jota ei voi tarkistaa akveri.fi:ssä."""
+    if not teksti:
+        return
+    c.saveState()
+    c.setFillColor(colors.Color(0xB4 / 255, 0x23 / 255, 0x18 / 255, alpha=0.10))
+    c.translate(W / 2, H / 2)
+    c.rotate(35)
+    size = 96 if len(teksti) <= 10 else 64
+    c.setFont("Inter-SemiBold", size)
+    c.drawCentredString(0, -size * 0.35, teksti)
+    c.restoreState()
+
+
 def draw_watermark(c, style):
     """Vino, läpikuultava AKVERI-vesileima sivun päälle. style: iso, toisto, rivit tai ei."""
     if style not in ("iso", "toisto", "rivit"):
@@ -571,7 +585,9 @@ class ReportDoc(BaseDocTemplate):
                       topPadding=0, bottomPadding=0)
         first = Frame(M, 58 * mm, CW, top - 58 * mm, id="f1", leftPadding=0, rightPadding=0,
                       topPadding=0, bottomPadding=0)
-        wm = lambda c, d: draw_watermark(c, ctx.get("vesileima"))  # noqa: E731
+        def wm(c, d):
+            draw_watermark(c, ctx.get("vesileima"))
+            draw_stamp(c, ctx.get("leima"))
         self.addPageTemplates([PageTemplate(id="first", frames=[first], onPage=self._first, onPageEnd=wm),
                                PageTemplate(id="page", frames=[frame], onPage=self._decorate, onPageEnd=wm)])
 
@@ -672,6 +688,10 @@ class ReportDoc(BaseDocTemplate):
         c.setFont("Inter", 7.4)
         c.setFillColor(MUTED)
         c.drawRightString(W - M, y - 11, f"Testi nro {ctx['report_no']}  ·  {ctx['date']}")
+        if ctx.get("tunnus"):
+            c.setFont("Inter-Medium", 7.4)
+            c.setFillColor(INK)
+            c.drawRightString(W - M, y - 20, f"Raportin tunnus {ctx['tunnus']}")
         c.setStrokeColor(LINE)
         c.setLineWidth(0.8)
         c.line(M, line_y, W - M, line_y)
@@ -687,6 +707,9 @@ class ReportDoc(BaseDocTemplate):
 # ----------------------------------------------------------------------
 def build(storage, tid: int, out_path: Path | None = None) -> Path:
     test = storage.test(tid)
+    from . import krediitit as _kr
+    if test and not _kr.tulos_naytettavissa(test):
+        raise ValueError("Mittauksen testilupa on peruttu ja krediitti palautettu, joten raporttia ei tehdä.")
     r = test["tulos"] or {}
     if "virhe" in r or "keskeneräinen" in r or not r.get("yhteenveto"):
         raise ValueError("Mittauksesta ei ole valmista tulosta.")
@@ -727,14 +750,21 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         "footer": s.get("raportin_alatunniste") or f"{VERSIO}  ·  Tiedot: auton akunhallinta",
     }
     _y = r.get("yhteenveto") or {}
-    qr_url = (s.get("qr_osoite") or "").strip()
-    if qr_url.startswith(("https://", "http://")):
-        from urllib.parse import urlencode
-        ctx["qr"] = qr_url + ("&" if "?" in qr_url else "?") + urlencode(
-            {"raportti": report_no, "tarkiste": (test.get("tarkiste") or "")[:16]})
-        ctx["qr_label"] = "Tarkista raportti"
+    # Raportin tarkistus akveri.fi:ssä (ks. krediitit.py). Osoite on kiinteä: raportin QR-koodi ei voi osoittaa muualle.
+    from . import krediitit as _kr
+    lupa_tila = _kr.luvan_tila(test)
+    if lupa_tila in ("varattu", "rekisteroity", "osa", "tuotu", "ei_rekisteroitavissa"):
+        ctx["tunnus"] = _kr.muotoile_tunnus(test["lupa"])
+        ctx["qr"] = "https://akveri.fi/v/" + test["lupa"]
+        ctx["qr_label"] = ("Koko mittauksen tarkistus: " if lupa_tila == "osa" else "Tarkista: ") + "akveri.fi/v/" + ctx["tunnus"]
+        if test.get("lupa_testi"):
+            ctx["leima"] = "TESTIMITTAUS"
+    elif lupa_tila == "esimerkki":
+        ctx["leima"] = "ESIMERKKI"
+        ctx["qr_label"] = "Esimerkkiraportti, ei oikea mittaus"
     else:
-        ctx["qr_label"] = "Raportin tunnistetiedot"
+        ctx["leima"] = "EI TARKISTETTAVISSA"
+        ctx["qr_label"] = "Ei tarkistettavissa akveri.fi:ssä"
     ctx["qr"] = ctx.get("qr") or "\n".join(x for x in (
         f"AKVERI-TESTI {report_no}",
         test_kind,

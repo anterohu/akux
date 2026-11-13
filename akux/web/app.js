@@ -311,8 +311,11 @@ views.yleiskuva = {
       stat("Akun jännite", L.pack_v != null ? n(L.pack_v) : "–", "V", L.pack_i != null ? `Virta ${n(L.pack_i)} A` : ""),
       stat("Teho", L.power_kw != null ? n(Math.abs(L.power_kw)) : "–", "kW", L.power_kw == null ? "" : (L.power_kw < -0.3 ? "Lataus" : (L.power_kw > 0.3 ? "Purku" : "Levossa"))),
       stat("Akun lämpötila", L.temp_min != null ? `${n(L.temp_min)}–${n(L.temp_max)}` : "–", "°C", ""),
-      stat("Täyden akun energia", L.nfp_kwh != null ? n(L.nfp_kwh) : "–", "kWh", L.kyselyalusta ? "Akunhallinnan kuntoarviosta" : "Teslan akunhallinta"),
-      stat("Akun kunto", soh != null ? n(soh) : "–", "%", L.viite_kwh ? `Uutena ${n(L.viite_kwh)} kWh, ${esc(L.viite_lahde || "")}` : "Alkuperäistä kapasiteettia ei tiedetä"),
+      ...(L.kunto_piilotettu ? [
+        stat("Täyden akun energia", "–", "kWh", "Näkyy mittauksen aikana"),
+        stat("Akun kunto", "–", "%", "Näkyy mittauksen aikana ja raportissa")] : [
+        stat("Täyden akun energia", L.nfp_kwh != null ? n(L.nfp_kwh) : "–", "kWh", L.kyselyalusta ? "Akunhallinnan kuntoarviosta" : "Teslan akunhallinta"),
+        stat("Akun kunto", soh != null ? n(soh) : "–", "%", L.viite_kwh ? `Uutena ${n(L.viite_kwh)} kWh, ${esc(L.viite_lahde || "")}` : "Alkuperäistä kapasiteettia ei tiedetä")]),
       stat("Kennoryhmien ero", L.brick_delta_mv != null ? n(L.brick_delta_mv, 0) : "–", "mV", L.bricks_seen ? `${L.bricks_seen}/${L.brick_count || "–"} ryhmää luettu` : ""),
       stat("Mittarilukema", L.odometer_km != null ? n(L.odometer_km, 0) : "–", "km", L.vin || ""),
     ].join("");
@@ -534,7 +537,7 @@ views.mittaus = {
     $("#mStart").onclick = () => $("#mIndep").value === "" ? alert("Valitse, onko mittaaja riippumaton. Valinta näkyy raportissa.") : act(() => api("/api/mittaukset", { method: "POST", body: {
       ajoneuvo_id: Number($("#mVeh").value), tyyppi: this.type, mittarilukema: $("#mOdo").value,
       mittaaja: $("#mWho").value, lisatiedot: $("#mNote").value,
-      riippumaton: $("#mIndep").value === "" ? null : $("#mIndep").value === "1" } }), "Mittaus aloitettu").then(poll);
+      riippumaton: $("#mIndep").value === "" ? null : $("#mIndep").value === "1" } }), S && S.yhteys.simuloitu ? "Esittelymittaus aloitettu" : "Mittaus aloitettu, krediitti käytetty").then(poll);
   },
   updateNew(S) {
     const w = $("#mWarn"), st = $("#mStart");
@@ -548,7 +551,7 @@ views.mittaus = {
     if (w.innerHTML !== msg) w.innerHTML = msg;
     const ready = S.yhteys.kaynnissa && S.vaylatesti && S.vaylatesti.kunnossa && this.type;
     st.disabled = !ready;
-    $("#mStartHint").textContent = !this.type ? "Valitse mittauksen tyyppi." : "";
+    $("#mStartHint").textContent = !this.type ? "Valitse mittauksen tyyppi." : (S.yhteys.simuloitu ? "Esittelytilan mittaus ei käytä krediittiä." : "Mittaus käyttää yhden krediitin. Jos keskeytät mittauksen tunnin kuluessa, krediitti palautuu.");
   },
   renderActive() {
     $("#mBody").innerHTML = `
@@ -564,7 +567,10 @@ views.mittaus = {
       <div class="card"><h2>Huomiot</h2><div id="aNotes" class="small muted">Ei huomioita.</div></div>`;
     $("#aCancel").onclick = () => {
       if (!confirm("Keskeytetäänkö mittaus? Keskeytetystä mittauksesta ei tehdä raporttia.")) return;
-      act(() => api("/api/mittaukset/aktiivinen/keskeyta", { method: "POST" }), "Mittaus keskeytetty").then(() => { this.lastId = null; poll(); });
+      act(() => api("/api/mittaukset/aktiivinen/keskeyta", { method: "POST" })).then(r => {
+        toast({ peruttu: "Mittaus keskeytetty. Krediitti palautui tilillesi.", peru_odottaa: "Mittaus keskeytetty. Krediitti palautuu, kun verkkoyhteys palaa.",
+          hyvitettavissa: "Mittaus keskeytetty. Jos keskeytys johtui AKVERIsta, pyydä hyvitystä mittauksen sivulla." }[r.lupa] || "Mittaus keskeytetty");
+        this.lastId = null; poll(); });
     };
     $("#aPause").onclick = () => act(() => api("/api/mittaukset/aktiivinen/tauko", { method: "POST" }),
       "Mittaus tallennettu. Jatka sitä myöhemmin Mittaus-sivulta.").then(() => { this.lastId = null; poll(); });
@@ -859,6 +865,7 @@ views.mittaukset = {
         ${(r.huomiot || []).length ? `<h3>Huomiot</h3><ul class="small">${r.huomiot.map(h => `<li>${esc(h)}</li>`).join("")}</ul>` : ""}
       </div>
       ${r.kennot ? `<div class="card"><h2>${esc(r.kennot_otsikko || "Kennoryhmät")}</h2>${cellSvg(r.kennot.jannitteet, r.kennot.poikkeama_raja_mv || 15)}${r.kennot.selite ? `<p class="muted small">${esc(r.kennot.selite)}</p>` : ""}</div>` : ""}` : ""}
+      ${lupaKortti(t)}
       <div class="grid g2" style="margin-top:16px">
         <div class="card"><h2>Tietojen eheys</h2><p class="small muted">Kaikki vastaanotetut viestit on tallennettu muuttamattomina. Tarkistus laskee raakadatan tarkisteen uudelleen ja vertaa sitä raporttiin merkittyyn.</p>
           <div class="small" style="word-break:break-all"><span class="muted">Tarkiste</span> ${esc(t.tarkiste || "–")}</div>
@@ -878,6 +885,8 @@ views.mittaukset = {
         ${t.tyyppi === "taysi" ? `<button class="btn sm" id="tSplit">Jaa kapasiteettimittaukseksi ja ajotestiksi</button>` : ""}
         <span id="tCalcRes" class="small"></span></div></div>` : ""}
       <div class="row" style="margin-top:16px"><span class="spacer"></span><button class="btn danger sm" id="tDel">Poista mittaus</button></div>`;
+    if ($("#tRefund")) $("#tRefund").onclick = () => act(() => api(`/api/mittaukset/${id}/hyvityspyynto`, { method: "POST", body: { syy: $("#tRefundTxt").value } }),
+      "Hyvityspyyntö lähetetty. Saat krediitin takaisin, kun pyyntö on käsitelty.").then(() => this.renderOne(id));
     $("#tIndep").onchange = e => act(() => api(`/api/mittaukset/${id}/riippumattomuus`, { method: "POST",
       body: { riippumaton: e.target.value === "" ? null : e.target.value === "1" } }), "Tallennettu");
     const rc = $("#tRecalc");
@@ -925,6 +934,75 @@ views.ohjeet = {
 // =====================================================================
 // ASETUKSET
 // =====================================================================
+// ---------- testilupa ja krediitit ----------
+const LUPA_TILAT = {
+  rekisteroity: ["good", "Rekisteröity", "Raportti on rekisteröity. Vastaanottaja voi tarkistaa sen QR-koodilla tai osoitteessa akveri.fi/v/"],
+  varattu: ["warn", "Odottaa rekisteröintiä", "Raportti rekisteröidään tarkistettavaksi, kun mittaus on valmis ja verkkoyhteys on käytettävissä. Tarkistusosoite: akveri.fi/v/"],
+  peruttu: ["bad", "Peruttu", "Testilupa peruttiin ja krediitti palautui. Mittauksesta ei tehdä raporttia."],
+  peru_odottaa: ["warn", "Peruminen odottaa", "Lupa perutaan ja krediitti palautuu, kun verkkoyhteys palaa."],
+  osa: ["good", "Osa mittauksesta", "Tämä on osa täydestä akkutestistä. Tarkistettava raportti on koko mittauksen raportti: akveri.fi/v/"],
+  tuotu: ["", "Avattu tiedostosta", "Mittaus on avattu mittaustiedostosta. Raportti rekisteröidään sillä laitteella, jolla mittaus tehtiin. Tarkistusosoite: akveri.fi/v/"],
+  ei_rekisteroitavissa: ["bad", "Rekisteröinti hylätty", "AKVERI-palvelu ei hyväksynyt raportin rekisteröintiä. Syy näkyy tapahtumissa. Ota tarvittaessa yhteyttä asiakaspalveluun."],
+  esimerkki: ["", "Esittelytila", "Esittelytilan mittaus. Raporttiin tulee ESIMERKKI-leima, eikä sitä voi tarkistaa akveri.fi:ssä."],
+  vanha: ["", "Ei tarkistettavissa", "Mittaus on tehty ennen raporttien tarkistuspalvelua (versio 2.0), joten raporttia ei voi tarkistaa akveri.fi:ssä."],
+};
+function lupaKortti(t) {
+  const l = t.lupa || {};
+  const [cls, otsikko, teksti] = LUPA_TILAT[l.tila] || LUPA_TILAT.vanha;
+  const linkki = l.tunnus && ["rekisteroity", "varattu", "osa", "tuotu"].includes(l.tila) ? `<a href="https://akveri.fi/v/${esc(l.tunnus)}" target="_blank" rel="noopener">${esc(l.tunnus)}</a>` : "";
+  return `<div class="card" style="margin-top:16px"><h2>Raportin tarkistus ${cls ? `<span class="pill ${cls}">${otsikko}</span>` : `<span class="pill">${otsikko}</span>`}</h2>
+    <p class="small">${esc(teksti)}${linkki}</p>
+    ${l.testi ? `<div class="notice warn">Testimittaus: tehty testitilillä, ei kuluttanut krediittiä. Raporttiin tulee TESTIMITTAUS-leima, eikä sitä voi käyttää todistuksena.</div>` : ""}
+    ${l.tunnus ? `<p class="small muted">Raportin tunnus ${esc(l.tunnus)}</p>` : ""}
+    ${l.hyvitettavissa ? `<h3>Pyydä hyvitystä</h3><p class="small muted">Jos mittaus keskeytyi AKVERIsta johtuvasta syystä (esimerkiksi ohjelma pysähtyi tai yhteys katkesi ohjelman virheen vuoksi), kerro mitä tapahtui. Mittauksen tapahtumaloki lähetetään pyynnön mukana.</p>
+      <textarea id="tRefundTxt" rows="3" style="width:100%" maxlength="1500" placeholder="Mitä tapahtui?"></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn sm primary" id="tRefund">Lähetä hyvityspyyntö</button></div>` : ""}</div>`;
+}
+
+views.krediitit = {
+  async render() {
+    view.innerHTML = `<div class="head"><div><h1>Krediitit</h1><div class="muted">Yksi krediitti = yksi mittaus ja sen tarkistettava raportti</div></div></div><div id="kBody"><div class="card">Haetaan…</div></div>`;
+    let d;
+    try { d = await api("/api/krediitit"); }
+    catch (e) { $("#kBody").innerHTML = `<div class="notice warn"><b>Krediittitilannetta ei saatu.</b> ${esc(e.message)}</div>`; return; }
+    const ostot = ANDROID && window.AkuxAndroid.osta;
+    $("#kBody").innerHTML = `
+      <div class="grid g3">
+        ${stat("Krediittejä", d.saldo, "", d.avoimetLuvat ? `${d.avoimetLuvat} mittausta kesken` : "")}
+      </div>
+      ${d.testitili ? `<div class="notice warn" style="margin-top:16px"><b>Testitili.</b> Mittaukset eivät kuluta krediittejä. Raportteihin tulee TESTIMITTAUS-leima, ja tarkistussivu näyttää ne testimittauksina.</div>` : ""}
+      <div class="card" style="margin-top:16px"><h2>Osta krediittejä</h2>
+        ${ostot ? `<p class="small muted">Maksu tehdään Google Playssa. Krediitit tulevat tilillesi heti, kun Google on vahvistanut maksun.</p>
+          <div class="row" id="kTuotteet">${(d.tuotteet || []).map(p => `<button class="btn primary" data-tuote="${esc(p.tuote)}">${p.krediitit} ${p.krediitit === 1 ? "mittaus" : "mittausta"}</button>`).join("")}</div>
+          <p class="small muted" id="kHinnat">Hinnat näkyvät Google Playn ostoikkunassa.</p>`
+        : `<p class="small">Krediitit ostetaan AKVERIn Android-sovelluksessa Google Playn kautta. Tällä laitteella käytetään tilin krediittejä.</p>`}
+        <div id="kViesti"></div>
+      </div>
+      <div class="card"><h2>Tili</h2>
+        <dl class="kv"><dt>Tilitunnus</dt><dd><code>${esc(d.tili)}</code></dd></dl>
+        <p class="small muted">Tilitunnus yksilöi tämän laitteen krediitit. Kerro se asiakaspalvelulle, jos kysyt ostosta tai hyvityksestä. Tilin salaista avainta ei näytetä.</p>
+        <p class="small muted">Jos mittaus keskeytyy ${d.hyvitysaikaMin || 60} minuutin kuluessa alusta, krediitti palautuu automaattisesti. Myöhemmin keskeytyneestä mittauksesta voit lähettää hyvityspyynnön mittauksen sivulta.</p></div>`;
+    $$("[data-tuote]").forEach(b => (b.onclick = () => {
+      $("#kViesti").innerHTML = "";
+      try { window.AkuxAndroid.osta(b.dataset.tuote, d.tili); } catch (e) { toast("Ostoa ei voitu aloittaa.", true); }
+    }));
+  },
+};
+
+// Android-sovellus kutsuu tätä, kun Google Play on käsitellyt oston (myös sovelluksen käynnistyessä keskeneräisille ostoille).
+window.akveriOsto = async function (tuote, ostotunnus) {
+  try {
+    const r = await api("/api/krediitit/osto", { method: "POST", body: { tuote, ostotunnus } });
+    if (r.odottaa) { toast("Maksu odottaa vahvistusta. Krediitit tulevat tilillesi, kun Google on vahvistanut maksun."); return; }
+    try { window.AkuxAndroid.kuluta(ostotunnus); } catch (e) { /* kulutetaan seuraavalla käynnistyksellä */ }
+    if (r.hyvitetty) toast(`${r.hyvitetty} ${r.hyvitetty === 1 ? "krediitti" : "krediittiä"} lisätty. Saldo ${r.saldo}.`);
+    if (current === views.krediitit) views.krediitit.render();
+  } catch (e) {
+    toast("Oston kirjaus epäonnistui: " + e.message + " Osto on tallessa Google Playssa, ja se kirjataan uudelleen, kun avaat sovelluksen.", true);
+  }
+};
+window.akveriOstoVirhe = function (viesti) { if (viesti) toast(viesti, true); };
+
 views.asetukset = {
   async render() {
     const s = await api("/api/asetukset");
@@ -962,9 +1040,8 @@ views.asetukset = {
           ${[["1", "Mukana raportin lopussa (oletus)"], ["0", "Ei liitettä, vain pääsivut"]].map(([k, t]) => `<option value="${k}" ${((s.tekninen_liite === false) ? "0" : "1") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
       </div>
 
-      <div class="card"><h2>Raportin QR-koodi</h2>
-        <p class="small muted">QR-koodi sisältää oletuksena raportin tunnistetiedot: raportin numeron, valmistenumeron, kunnon, kapasiteetin ja raakadatan tarkisteen. Jos annat verkko-osoitteen, QR-koodi vie siihen osoitteeseen, ja raportin numero ja tarkiste lisätään linkin loppuun.</p>
-        <label class="f"><span>Verkko-osoite (valinnainen)</span><input name="qr_osoite" value="${esc(s.qr_osoite || "")}" placeholder="https://"></label>
+      <div class="card"><h2>Raportin tarkistus</h2>
+        <p class="small muted">Jokaisella mittauksella on oma tunnus, joka tulee raporttiin. Raportin QR-koodi avaa tarkistussivun akveri.fi/v/tunnus, jolla raportin vastaanottaja näkee rekisteröidyt tulokset ja voi verrata auton valmistenumeroa.</p>
       </div>
 
       <div class="card"><h2>Mittausten tallennus</h2>
@@ -1068,8 +1145,8 @@ views.yllapito = {
       <div class="grid g2">
         <div class="card"><h2>Päivitys</h2>
           <p class="small">Käytössä on versio <b>${esc(info.versio)}</b>.</p>
-          <p class="small muted">Uusin versio julkaistaan GitHubin Releases-sivulla. ${ANDROID ? "Lataa AKVERI-x.y.z.apk ja asenna se vanhan päälle." : "Lataa AKVERI-asennus-x.y.z.exe ja aja se. Asennus sulkee AKVERIn, päivittää sen ja säilyttää tiedot."} Autot, mittaukset, raportit ja asetukset säilyvät.</p>
-          <div class="row"><a class="btn primary" href="https://github.com/anterohu/akux/releases/latest" target="_blank" rel="noopener">Avaa julkaisut</a></div></div>
+          <p class="small muted">${ANDROID ? "Google Play päivittää AKVERIn automaattisesti." : "Asenna uusi versio vanhan päälle. Asennus sulkee AKVERIn, päivittää sen ja säilyttää tiedot."} Autot, mittaukset, raportit, asetukset ja krediitit säilyvät.</p>
+          ${ANDROID ? `<div class="row"><a class="btn primary" href="https://play.google.com/store/apps/details?id=fi.akux.app" target="_blank" rel="noopener">Avaa Google Play</a></div>` : ""}</div>
         <div class="card"><h2>Varmuuskopiot</h2>
           <p class="small muted">Ohjelma tekee varmuuskopion automaattisesti kerran viikossa ja säilyttää viisi uusinta. Tallenna kopio välillä myös muistitikulle tai pilvipalveluun.</p>
           <div class="row"><a class="btn" href="/api/yllapito/varmuuskopio" id="bNow">Tee varmuuskopio nyt</a>
@@ -1180,3 +1257,5 @@ $("#quitM").onclick = e => { e.preventDefault(); document.body.classList.remove(
 route();
 poll();
 pollTimer = setInterval(poll, 1000);
+// Google Play: kesken jääneet ostot kirjataan, kun käyttöliittymä on valmis
+if (ANDROID && window.AkuxAndroid.palautaOstot) setTimeout(() => { try { window.AkuxAndroid.palautaOstot(); } catch (e) { /* ei Google Playta */ } }, 1500);

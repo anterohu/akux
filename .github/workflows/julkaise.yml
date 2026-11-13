@@ -36,6 +36,11 @@ jobs:
           name: Akux-windows
           run-id: ${{ inputs.ajo }}
           github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: akveri-palvelin
+          run-id: ${{ inputs.ajo }}
+          github-token: ${{ github.token }}
       - name: Lue versio
         run: |
           V=$(python3 -c "import re;print(re.search(r'VERSIO = \"([^\"]+)\"', open('akux/__init__.py').read()).group(1))")
@@ -49,14 +54,16 @@ jobs:
           name: AKVERI ${{ env.VERSIO }}
           make_latest: true
           body: |
-            **Windows:** lataa AKVERI-asennus-${{ env.VERSIO }}.exe ja avaa se. Jos Windows näyttää ilmoituksen *Windows suojasi tietokonettasi*, valitse Lisätietoja → Suorita silti.
+            Sisäinen julkaisu. Asiakkaat asentavat AKVERIn Google Playsta, eikä näitä tiedostoja jaeta asiakkaille.
 
-            **Android:** lataa AKVERI-${{ env.VERSIO }}.apk puhelimeen ja avaa se. Android 10 tai uudempi.
-
-            Päivitys asennetaan samalla tavalla vanhan version päälle. Autot, mittaukset, raportit ja asetukset säilyvät.
+            **Google Play:** AKVERI-${{ env.VERSIO }}.aab ladataan Play Consoleen (Tuotanto → Luo uusi julkaisu).
+            **Windows (omistajalle):** AKVERI-asennus-${{ env.VERSIO }}.exe viedään akveri.fi:n Omat lataukset -kohtaan Hallintatyökalun AKVERI-välilehdeltä.
+            **akveri.fi-palvelin:** akveri-palvelin-${{ env.VERSIO }}.zip viedään palvelimelle Hallintatyökalun AKVERI-välilehdeltä.
 
             Ennen julkaisua on ajettu kaikki testit, Windows-asennus ja päivitys oikealla Windows-koneella sekä Android-sovelluksen kokonaistesti emulaattorissa.
           files: |
             AKVERI-*.apk
+            AKVERI-*.aab
             AKVERI-asennus-*.exe
+            akveri-palvelin-*.zip
           overwrite_files: true

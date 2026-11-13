@@ -13,6 +13,7 @@ from . import profiles
 from .sources import ObdLinkSource, PolledSource
 from .simulator import BatterySimulator
 from .storage import Storage
+from . import krediitit as krediittimoduuli
 
 
 def _keep_awake(on: bool):
@@ -36,6 +37,8 @@ class App:
         except Exception:  # noqa: BLE001
             pass
         self.storage = Storage(data_dir)
+        self.krediitit = krediittimoduuli.Krediitit(self.storage)
+        self._seuraava_rekisterointi = 0.0
         self.decoder = TeslaDecoder()
         self.recorder = Recorder(self)
         self.source = None
@@ -138,9 +141,95 @@ class App:
             _keep_awake(False)
 
     def start_test(self, **kw):
-        tid = self.recorder.start(**kw)
+        """Aloittaa mittauksen. Oikeasta autosta mittaus vaatii testiluvan (yksi krediitti), esittelytilassa ei."""
+        if self.source and self.source.simulated:
+            tid = self.recorder.start(**kw)
+            self.storage.update_test(tid, demo=1)
+            _keep_awake(True)
+            return tid
+        from . import VERSIO
+        from .server import platform_name
+        try:
+            lupa = self.krediitit.varaa(VERSIO, platform_name())
+        except krediittimoduuli.PalveluVirhe as e:
+            raise RuntimeError(str(e)) from None
+        try:
+            tid = self.recorder.start(**kw)
+        except Exception:
+            # Mittaus ei alkanut: lupa perutaan heti, jolloin krediitti palautuu.
+            try:
+                self.krediitit.peru(lupa["tunnus"], "Mittaus ei alkanut")
+            except krediittimoduuli.PalveluVirhe:
+                pass
+            raise
+        self.krediitit.kiinnita(tid, lupa)
+        self.storage.add_event(tid, time.time(), f"Testilupa {lupa.get('tunnusNaytto') or lupa['tunnus']}" + (
+            " (testitili: ei kuluta krediittiä, raportti merkitään testimittaukseksi)" if lupa.get("testi") else f" (krediittejä jäljellä {lupa.get('saldo')})"))
         _keep_awake(True)
         return tid
+
+    def live_kunto_sallittu(self) -> bool:
+        src = self.source
+        t = self.storage.test(self.recorder.test_id) if self.recorder.active and self.recorder.test_id else None
+        return krediittimoduuli.live_kunto_sallittu(t, bool(src and src.simulated))
+
+    def peru_lupa(self, tid: int, syy: str) -> str:
+        """Keskeytetyn mittauksen lupa perutaan, jos se on vielä mahdollista (krediitti palautuu)."""
+        try:
+            tila = self.krediitit.peru_mittauksen_lupa(tid, syy)
+        except Exception:  # noqa: BLE001
+            return ""
+        if tila == "peruttu":
+            self.storage.add_event(tid, time.time(), "Testilupa peruttiin, krediitti palautui tilille.")
+        elif tila == "peru_odottaa":
+            self.storage.add_event(tid, time.time(), "Testiluvan peruminen lähetetään, kun verkkoyhteys palaa.")
+        elif tila == "hyvitettavissa":
+            self.storage.add_event(tid, time.time(), "Perumisaika on kulunut. Jos mittaus keskeytyi AKVERIsta johtuvasta syystä, lähetä hyvityspyyntö.")
+        return tila
+
+    def mittaus_valmis(self, tid: int, result: dict):
+        """Kutsutaan, kun mittaus on valmis ja analysoitu. Luvallisen mittauksen rekisteröinti vaatii verkkoa, joten se
+        tehdään taustalla. Esittelytilan mittaus käsitellään heti."""
+        if krediittimoduuli.luvan_tila(self.storage.test(tid) or {}) == "varattu":
+            threading.Thread(target=self._jalkikasittely, args=(tid, result), name="akveri-valmis", daemon=True).start()
+        else:
+            self._jalkikasittely(tid, result)
+
+    def _jalkikasittely(self, tid: int, result: dict):
+        from . import VERSIO
+        y = (result or {}).get("yhteenveto") or {}
+        if y.get("kunto_pct") is not None:
+            kwh = y.get("kapasiteetti_kwh")
+            txt = f"Akun kunto {y['kunto_pct']:.1f} %".replace(".", ",") + \
+                  (f", kapasiteetti {kwh:.1f} kWh".replace(".", ",") if kwh else "") + ". Raportti on valmis."
+        else:
+            txt = "Mittaus on valmis. Avaa tulos ohjelmasta."
+        t = self.storage.test(tid) or {}
+        if krediittimoduuli.luvan_tila(t) == "varattu":
+            try:
+                self.krediitit.rekisteroi(tid, VERSIO)
+                self.storage.add_event(tid, time.time(), "Raportti rekisteröity akveri.fi-palveluun.")
+            except krediittimoduuli.PalveluVirhe as e:
+                self.storage.add_event(tid, time.time(), f"Raportin rekisteröinti odottaa: {e}")
+                txt += " Raportti rekisteröidään tarkistettavaksi, kun verkkoyhteys on käytettävissä."
+        self.notify("valmis", "Mittaus valmis", txt)
+        if self.settings.get("mittaus_tallennus", True):
+            try:
+                from . import mittaustiedosto
+                paths = mittaustiedosto.save_to_folder(self.storage, tid)
+                if paths:
+                    self.storage.add_event(tid, time.time(), f"Mittaustiedosto ja raportti tallennettu: {paths[0].parent}")
+            except Exception as e:  # noqa: BLE001
+                self.storage.add_event(tid, time.time(), f"Mittaustiedoston tallennus epäonnistui: {e}")
+
+    def _rekisteroi_odottavat(self):
+        from . import VERSIO
+        try:
+            krediittimoduuli.kasittele_odottavat(
+                self.krediitit, VERSIO,
+                lambda tid: self.storage.add_event(tid, time.time(), "Raportti rekisteröity akveri.fi-palveluun."))
+        except Exception:  # noqa: BLE001
+            pass
 
     def resume_test(self, tid: int):
         t = self.storage.test(tid) or {}
@@ -153,7 +242,11 @@ class App:
         return tid
 
     def tick(self):
-        """Kutsutaan säännöllisesti: tallentaa puskurit ja vapauttaa lepotilan eston."""
+        """Kutsutaan säännöllisesti: tallentaa puskurit, vapauttaa lepotilan eston ja rekisteröi odottavat raportit."""
+        if time.time() >= self._seuraava_rekisterointi:
+            self._seuraava_rekisterointi = time.time() + 120
+            if self.krediitit.odottavat():
+                threading.Thread(target=self._rekisteroi_odottavat, name="akveri-rekisterointi", daemon=True).start()
         if self.recorder.active:
             self.recorder.flush()
             if (self.source and not self.source.simulated and self.last_frame_wall
