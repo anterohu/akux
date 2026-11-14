@@ -616,9 +616,19 @@ class ReportDoc(BaseDocTemplate):
             qy = self.ctx["hdr_line"] - 2 * mm - size
             renderPDF.draw(d, c, W - M - size + 1.5 * mm, qy)
             c.saveState()
-            c.setFont("Inter", 5.6)
-            c.setFillColor(MUTED)
-            c.drawRightString(W - M, qy - 2.6 * mm, self.ctx.get("qr_label") or "Raportin tunnistetiedot")
+            if self.ctx.get("tarkistus_url"):
+                # Rekisteröity raportti: QR-koodi ja osoite avaavat tarkistussivun myös PDF:stä
+                c.setFont("Inter-Medium", 6.4)
+                c.setFillColor(INK)
+                c.drawRightString(W - M, qy - 2.8 * mm, "Tarkista raportin aitous")
+                c.setFont("Inter", 6.2)
+                c.setFillColor(MUTED)
+                c.drawRightString(W - M, qy - 5.4 * mm, self.ctx["tarkistus_teksti"])
+                c.linkURL(self.ctx["tarkistus_url"], (W - M - size + 1.5 * mm, qy - 6.5 * mm, W - M, qy + size), relative=0)
+            else:
+                c.setFont("Inter", 5.6)
+                c.setFillColor(MUTED)
+                c.drawRightString(W - M, qy - 2.6 * mm, self.ctx.get("qr_label") or "Raportin tunnistetiedot")
             c.restoreState()
         c.saveState()
         y = 36 * mm
@@ -795,6 +805,8 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
         ctx["tunnus"] = _kr.muotoile_tunnus(test["lupa"])
         ctx["qr"] = "https://akveri.fi/v/" + test["lupa"]
         ctx["qr_label"] = ("Koko mittauksen tarkistus: " if lupa_tila == "osa" else "Tarkista: ") + "akveri.fi/v/" + ctx["tunnus"]
+        ctx["tarkistus_url"] = ctx["qr"]
+        ctx["tarkistus_teksti"] = "akveri.fi/v/" + ctx["tunnus"]
         if test.get("lupa_testi"):
             ctx["leima"] = "TESTIMITTAUS"
     elif lupa_tila == "esimerkki":
@@ -916,29 +928,27 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
     ]))
     E.append(kt)
     E.append(Spacer(1, 2.2 * mm))
-    src_line = "Kaikki mittausarvot ovat auton oman akunhallinnan luovuttamia."
+    src_line = ""
     _pt = next((x for x in (r.get("paatulos"), r.get("yhdistetty"), r.get("kapasiteetti"), r.get("purku"))
                 if x and x.get("valmis") and x.get("ero_bms_pct") is not None), None)
     if bms.get("nfp_kwh") and _pt:
         from .analysis import bms_vertailu
         _, _lause = bms_vertailu(_pt["ero_bms_pct"], _pt.get("epavarmuus_kwh"), _pt.get("taysi_kwh"))
         src_line = (f"Vertailu: {_BRAND['gen']} akunhallinnan oma arvio täyden akun energiasta "
-                    f"<b>{fmt(bms['nfp_kwh'])} kWh</b> {_lause} (ero {fmt(_pt['ero_bms_pct'])} %). " + src_line)
+                    f"<b>{fmt(bms['nfp_kwh'])} kWh</b> {_lause} (ero {fmt(_pt['ero_bms_pct'])} %).")
     elif bms.get("nfp_kwh"):
         src_line = (f"{_BRAND['gen']} akunhallinnan oma arvio täyden akun energiasta "
-                    f"<b>{fmt(bms['nfp_kwh'])} kWh</b>. " + src_line)
-    E.append(P(src_line, "small"))
+                    f"<b>{fmt(bms['nfp_kwh'])} kWh</b>.")
+    if src_line:
+        E.append(P(src_line, "small"))
     E.append(Spacer(1, 4 * mm))
     if summ.get("tulkinta"):
-        box = Table([[P("MITÄ TULOS TARKOITTAA", "label")], [P(summ["tulkinta"], "smallink")]], colWidths=[CW])
-        box.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), PANEL), ("LINEBEFORE", (0, 0), (0, -1), 2.2, ACCENT),
-            ("LEFTPADDING", (0, 0), (-1, -1), 4 * mm), ("RIGHTPADDING", (0, 0), (-1, -1), 4 * mm),
-            ("TOPPADDING", (0, 0), (-1, 0), 3 * mm), ("BOTTOMPADDING", (0, -1), (-1, -1), 3 * mm),
-            ("TOPPADDING", (0, 1), (-1, 1), 1), ("BOTTOMPADDING", (0, 0), (-1, 0), 1),
-        ]))
-        E.append(box)
-    E.append(Spacer(1, 5 * mm))
+        # Tulos selkokielellä: ensimmäinen lause lihavoituna, loput sen jatkona (ei erillistä laatikkoa)
+        _osat = summ["tulkinta"].split(". ", 1)
+        _eka = _osat[0] + ("." if len(_osat) > 1 else "")
+        _loput = _osat[1] if len(_osat) > 1 else ""
+        E.append(Paragraph(f"<b>{_t(_eka)}</b> {_t(_loput)}", ST["body"]))
+    E.append(Spacer(1, 6 * mm))
 
     # Ajoneuvo ja mittaus
     odo = veh.get("mittarilukema_km")
@@ -974,22 +984,6 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
     E.append(P("Ajoneuvo ja mittaus", "h3"))
     E.append(two)
     E.append(Spacer(1, 5 * mm))
-    # Raportin aitous: pääsivu riittää luovutukseen, kun ostaja voi tarkistaa sen akveri.fi:ssä.
-    if ctx.get("tunnus"):
-        aitous = (f"Raportin tunnus <b>{ctx['tunnus']}</b>. Tarkista raportti osoitteessa "
-                  f"<b>akveri.fi/v/{ctx['tunnus']}</b> tai QR-koodilla. Tarkistussivulla näkyvät samat tiedot kuin tässä raportissa.")
-    elif lupa_tila == "esimerkki":
-        aitous = "Esimerkkiraportti, ei oikea mittaus"
-    else:
-        aitous = "Raporttia ei ole rekisteröity akveri.fi-palveluun, joten sen aitoutta ei voi tarkistaa."
-    abox = Table([[P("RAPORTIN AITOUS", "label")], [P(aitous, "smallink")]], colWidths=[CW])
-    abox.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), PANEL), ("LINEBEFORE", (0, 0), (0, -1), 2.2, ACCENT),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4 * mm), ("RIGHTPADDING", (0, 0), (-1, -1), 4 * mm),
-        ("TOPPADDING", (0, 0), (-1, 0), 2.5 * mm), ("BOTTOMPADDING", (0, -1), (-1, -1), 2.5 * mm),
-        ("TOPPADDING", (0, 1), (-1, 1), 1), ("BOTTOMPADDING", (0, 0), (-1, 0), 1),
-    ]))
-    E.append(abox)
 
     # Arviot
     rows = [[P("Kohde", "label"), P("Tulos", "label"), P("Luokka", "label"), P("Selite", "label")]]
@@ -1753,10 +1747,11 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
 
 
 def sivunumero(report_no: str, sivu: int, sivuja: int) -> str:
-    """Alatunnisteen sivumerkintä. Pääsivu on itsenäinen raportti (ei sivunumeroa); muut sivut ovat lisätietoja."""
+    """Alatunnisteen sivumerkintä. Pääsivu on itsenäinen raportti, joten siinä on vain testin numero. Lisäsivut
+    yhdistyvät siihen testin numerolla ja raportin tunnuksella, ja niissä on tavallinen sivunumero."""
     if sivu == 1:
-        return f"Testi nro {report_no}  ·  Pääsivu, lisätiedot {sivuja - 1} sivua" if sivuja > 1 else f"Testi nro {report_no}"
-    return f"Testi nro {report_no}  ·  Lisätiedot, sivu {sivu - 1}/{sivuja - 1}"
+        return f"Testi nro {report_no}"
+    return f"Testi nro {report_no}  ·  Sivu {sivu}/{sivuja}"
 
 
 VARMENNUS = f"Tulokset on luettu auton akunhallinnasta, ja {NIMI} on laskenut ja varmentanut ne. " \
@@ -1764,8 +1759,7 @@ VARMENNUS = f"Tulokset on luettu auton akunhallinnasta, ja {NIMI} on laskenut ja
 
 
 def _numbered_canvas(report_no: str):
-    """Pääsivulla raportin numero ja lisätietosivujen määrä, muilla sivuilla "Lisätiedot, sivu 2/12": irrallinen sivu
-    yhdistyy raporttiin ja puuttuva sivu huomataan."""
+    """Pääsivulla testin numero, muilla sivuilla "Testi nro 2026-00001 · Sivu 3/14" (ks. sivunumero)."""
     from reportlab.pdfgen.canvas import Canvas
 
     class NumberedCanvas(Canvas):
@@ -1784,8 +1778,6 @@ def _numbered_canvas(report_no: str):
                 self.saveState()
                 self.setFont("Inter", 6.8)
                 self.setFillColor(MUTED)
-                # Pääsivu on itsenäinen raportti; muut sivut ovat sen lisätietoja ja numeroidaan erikseen, jotta
-                # irrallinen sivu yhdistyy raporttiin ja puuttuva sivu huomataan.
                 self.drawRightString(W - M, 10 * mm, sivunumero(report_no, self._pageNumber, n))
                 self.restoreState()
                 super().showPage()
