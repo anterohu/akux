@@ -74,7 +74,7 @@ const KIELET = {
     ala: ['Användarvillkor', 'Dataskydd', 'Kontakt'], ytunnus: 'FO-nummer', kieliValikko: 'Språk', alatunniste: 'Sidfot', logo: 'AKVERI – startsida', paavalikko: 'Huvudmeny'
   }
 };
-const MERKIT = ['Tesla', 'Hyundai', 'Kia', 'Nissan Leaf', 'Volkswagen ID.', 'Škoda Enyaq', 'Audi Q4 e-tron', 'Cupra Born'];
+const MERKIT = ['Tesla', 'Hyundai', 'Kia', 'Nissan Leaf', 'Volkswagen ID.', 'Škoda Enyaq', 'Audi Q4 e-tron', 'Cupra Born', 'MG4', 'MG5', 'MG ZS EV'];
 const JARJESTYS = ['fi', 'en', 'sv'];
 // Alasivujen osoitteet kielittäin (sivut.js kirjoittaa sivut, server.js reitittää osoitteet).
 const SIVUPOLUT = {

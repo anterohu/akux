@@ -121,7 +121,7 @@
         $('#tilasto-maara').textContent = 'Rivejä ' + d.rivit.length + '.';
         taulu($('#mallitaulu'), ['Merkki', 'Malli', '#Mittauksia', '#Kunto keskim. %', '#Pienin %', '#Suurin %', '#Testitileiltä'], mallit(d.rivit), function (m) {
           var tr = el('tr'); solu(tr, m.merkki); solu(tr, m.malli);
-          [m.n, m.ka, m.min, m.max, m.testi].forEach(function (x) { solu(tr, x === null ? '–' : x, 'luku'); });
+          [m.n, m.ka, m.min, m.max, m.testi].forEach(function (x) { solu(tr, x === null ? '–' : String(x).replace('.', ','), 'luku'); });
           return tr;
         });
       }).catch(virhe());

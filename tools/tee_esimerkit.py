@@ -31,6 +31,7 @@ AUTOT = [
     ("enyaq-77", "Škoda Enyaq 80 77 kWh", "ESIM-308", "2.2.2022", 69100, ["kapasiteetti"], 0.11),
     ("q4-77", "Audi Q4 40 e-tron 77 kWh", "ESIM-309", "30.11.2022", 44200, ["ajotesti"], 0.95),
     ("born-58", "Cupra Born 58 kWh", "ESIM-310", "14.4.2022", 51600, ["kapasiteetti"], 0.11),
+    ("mg4-64", "MG4 Electric 64 kWh", "ESIM-311", "21.3.2023", 38900, ["kapasiteetti"], 0.11),
 ]
 SETTINGS = {"lepo_alku_min": 30, "lepo_loppu_min": 30, "ajo_lepo_min": 15, "itsepurkaus_lepo_min": 30,
             "itsepurkaus_tunnit": 9, "kuormitus_tapahtumat": 6, "mittaus_tallennus": False,
@@ -46,11 +47,17 @@ def wait(cond, timeout):
     raise TimeoutError
 
 
-def main():
+def main(vain=None):
+    """vain: lista esittelyautoja (esim. mg4-64), jolloin vain niiden esimerkit tehdään uudelleen."""
     OUT.mkdir(parents=True, exist_ok=True)
-    for f in OUT.glob("*.ak*"):
-        f.unlink()
     for auto, nimi, reg, kayttoon, km, extra, soc in AUTOT:
+        if vain and auto not in vain:
+            continue
+        for f in OUT.glob(f"{reg}_*.ak*"):
+            f.unlink()
+    for auto, nimi, reg, kayttoon, km, extra, soc in AUTOT:
+        if vain and auto not in vain:
+            continue
         tmp = tempfile.mkdtemp()
         app = App(tmp)
         app.storage.save_settings(SETTINGS)
@@ -112,4 +119,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:] or None)
