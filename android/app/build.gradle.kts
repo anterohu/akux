@@ -110,6 +110,8 @@ chaquopy {
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-ktx:1.9.3")
+    // Play Billing tuo mukanaan vanhan Fragment-kirjaston; registerForActivityResult (tiedoston valinta) vaatii vähintään 1.3.0.
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
     implementation("com.github.mik3y:usb-serial-for-android:3.8.0")
     // Krediittien osto Google Playssa. Palvelin (akveri.fi) tarkistaa jokaisen oston Googlelta ennen kuin krediitit lisätään.
     implementation("com.android.billingclient:billing-ktx:8.0.0")
