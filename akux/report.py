@@ -569,13 +569,14 @@ def draw_watermark(c, style):
 
 # ----------------------------------------------------------------------
 HDR_TOP = H - 8 * mm
-LOGO_KOOT = {"pieni": (9 * mm, 40 * mm, 7.5 * mm), "normaali": (11 * mm, 55 * mm, 9 * mm),
-             "suuri": (14 * mm, 70 * mm, 11.5 * mm)}      # yrityksen logo: korkeus, enimmäisleveys; AKVERI-logo
+# Yrityksen logo: korkeus, enimmäisleveys; AKVERI-logo. Koko on kaikille sama ja valittu niin, että logo näkyy
+# selvästi. Tyhjät reunat on rajattu pois logoa tallennettaessa. Hyvin leveä logo saa enintään 75 mm leveyden.
+LOGO_KOOT = {"normaali": (13 * mm, 75 * mm, 9 * mm)}
 
 
 def header_line(ctx) -> float:
     """Ylätunnisteen viivan korkeus: logo on sivun yläreunassa, ja sisältö alkaa logon koon mukaan."""
-    hgt, _, akv = LOGO_KOOT.get(ctx.get("logo_koko"), LOGO_KOOT["normaali"])
+    hgt, _, akv = LOGO_KOOT["normaali"]
     logo = ctx.get("logo")
     if logo and Path(logo).exists():
         h = hgt
@@ -683,7 +684,7 @@ class ReportDoc(BaseDocTemplate):
         line_y = ctx["hdr_line"]
         y = line_y + 7 * mm
         logo = ctx.get("logo")
-        hgt, maxw, akv = LOGO_KOOT.get(ctx.get("logo_koko"), LOGO_KOOT["normaali"])
+        hgt, maxw, akv = LOGO_KOOT["normaali"]
         x0 = M
         if not ctx["company"] and not (logo and Path(logo).exists()):
             # Ilman yrityksen tietoja otsikkona on AKVERI-logo; mittaavan yrityksen tiedoilla vain yrityksen omat
@@ -788,14 +789,16 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
     dc = r.get("pikalataus") or {}
     itse = r.get("itsepurkaus") or {}
 
+    # Yksityisessä käytössä raportissa ei ole yrityksen tietoja eikä logoa, vaikka ne olisi joskus täytetty.
+    yritys = s.get("kaytto") != "henkilo"
     company_line = "  ·  ".join(x for x in (s.get("yritys_osoite"), s.get("yritys_puhelin"),
-                                            s.get("yritys_sahkoposti"), s.get("yritys_www")) if x)
+                                            s.get("yritys_sahkoposti"), s.get("yritys_www")) if x) if yritys else ""
     report_no = f"{time.strftime('%Y', time.localtime(test['aloitettu']))}-{tid:05d}"
     from .recorder import TYYPIT
     test_kind = TYYPIT.get(tyyppi, "Akun tarkastus")
     title = test_kind
     ctx = {
-        "company": s.get("yritys_nimi"), "company_line": company_line, "logo": s.get("logo"),
+        "company": s.get("yritys_nimi") if yritys else "", "company_line": company_line, "logo": s.get("logo") if yritys else "",
         "title": test_kind, "report_no": report_no, "vesileima": s.get("vesileima") or "toisto", "date": _date(test.get("paattynyt") or test["aloitettu"], False),
         "measured": _date(test["aloitettu"], False),
         "logo_koko": s.get("logo_koko") or "normaali",

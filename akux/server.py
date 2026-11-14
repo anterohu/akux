@@ -43,6 +43,45 @@ def _backups(d):
     return sorted(found.values(), key=lambda p: p.stat().st_mtime)
 
 
+# Asetukset, joita vain kehittäjä muuttaa (testitili tai kehitysversio). Asiakkaalla ovat käytössä oletusarvot.
+# AKVERI on kaikkien käytössä samanlainen: raporttien ulkoasu ja mittaustapa ovat kaikille samat.
+KEHITTAJAN_ASETUKSET = ("lepo_alku_min", "lepo_loppu_min", "kapasiteetti_lahto_soc_max", "lampotila_min", "lampotila_max",
+                        "ajo_lepo_min", "ajo_loppu_soc", "pika_ajo_soc", "kuormitus_tapahtumat", "itsepurkaus_lepo_min",
+                        "itsepurkaus_tunnit", "raportin_ulkoasu", "vesileima", "kennokuvaaja", "tekninen_liite",
+                        "logo_koko", "raportin_alatunniste", "mittaus_tallennus", "mittaus_kansio", "puhelin_kaytossa",
+                        "ilmoitukset_kaytossa", "ilmoitus_osoite", "ilmoitus_vaiheet", "ilmoitus_valmis", "ilmoitus_ongelmat")
+# Asiakkaan muutettavat asetukset (Asetukset-sivu). Muut avaimet hylätään.
+ASIAKKAAN_ASETUKSET = ("kieli", "kaytto", "mittaaja", "yritys_nimi", "yritys_ytunnus", "yritys_osoite", "yritys_puhelin",
+                       "yritys_sahkoposti", "yritys_www", "portti", "yhteys_malli")
+
+
+def rajaa_logo(data: bytes) -> bytes:
+    """Logo raporttia varten: tyhjät (läpinäkyvät tai valkoiset) reunat rajataan pois, jotta logo näkyy raportissa
+    mahdollisimman suurena, ja kuva pienennetään enintään 1200 pikseliin. Tallennetaan PNG-muodossa."""
+    import io  # noqa: PLC0415
+    from PIL import Image, ImageChops  # noqa: PLC0415
+    try:
+        im = Image.open(io.BytesIO(data))
+        im.load()
+    except Exception as e:  # noqa: BLE001
+        raise ValueError("Kuvaa ei voitu lukea. Käytä PNG- tai JPEG-kuvaa.") from e
+    im = im.convert("RGBA")
+    # Näkyvä alue: ei läpinäkyvä eikä lähes valkoinen
+    tausta = Image.new("RGBA", im.size, (255, 255, 255, 255))
+    yhdistetty = Image.alpha_composite(tausta, im).convert("RGB")
+    ero = ImageChops.difference(yhdistetty, Image.new("RGB", im.size, (255, 255, 255))).convert("L")
+    ala = ero.point(lambda v: 255 if v > 12 else 0).getbbox()
+    if not ala:
+        raise ValueError("Kuvassa ei ole näkyvää logoa.")
+    reuna = max(2, round(min(ala[2] - ala[0], ala[3] - ala[1]) * 0.02))
+    ala = (max(0, ala[0] - reuna), max(0, ala[1] - reuna), min(im.width, ala[2] + reuna), min(im.height, ala[3] + reuna))
+    im = im.crop(ala)
+    im.thumbnail((1200, 1200))
+    out = io.BytesIO()
+    im.save(out, "PNG", optimize=True)
+    return out.getvalue()
+
+
 class ApiError(Exception):
     def __init__(self, msg, code=400):
         super().__init__(msg)
@@ -160,6 +199,8 @@ class Api:
         return meta
 
     def testi_ilmoitus(self, q, body):
+        if not self.app.krediitit.esittely_sallittu():
+            raise ApiError("Puhelinilmoitukset eivät ole käytössä.", 403)
         if body.get("osoite") is not None:
             self.app.storage.save_settings({"ilmoitus_osoite": body["osoite"].strip()})
         ok, msg = self.app.notifier.send("valmis", "AKVERI – testi-ilmoitus",
@@ -718,9 +759,19 @@ class Api:
             s.pop(k, None)
         return s
 
-    def tallenna_asetukset(self, q, body):
+    def tallenna_asetukset(self, q, body):  # noqa: C901
         for k in ("puhelin_avain", "tili", "tili_avain", "palvelu_osoite", "esittely"):
             body.pop(k, None)
+        if "kaytto" in body and body["kaytto"] not in ("henkilo", "yritys"):
+            body.pop("kaytto")
+        # Mittaustavan raja-arvot ja raportin ulkoasu ovat kehittäjän päätettäviä: asiakas ei voi muuttaa niitä.
+        # Testitileillä (akveri.fi:n hallinta) ja kehitysversiossa ne näkyvät Asetuksissa kohdassa Kehittäjän asetukset.
+        if not self.app.krediitit.esittely_sallittu():
+            for k in [k for k in body if k not in ASIAKKAAN_ASETUKSET]:
+                body.pop(k, None)
+        for k in ("mittaaja", "yritys_nimi", "yritys_ytunnus", "yritys_osoite", "yritys_puhelin", "yritys_sahkoposti", "yritys_www"):
+            if k in body:
+                body[k] = str(body[k] or "").strip()[:120]
         if "kieli" in body:
             if body["kieli"] not in kielet.KIELET:
                 body.pop("kieli")
@@ -807,9 +858,17 @@ class Api:
                 self.app.storage.save_settings({"logo": ""})
                 return {"ok": True}
             raise ApiError("Logon on oltava PNG- tai JPEG-kuva.")
-        ext = "png" if m.group(1) == "png" else "jpg"
-        path = self.app.storage.dir / f"logo.{ext}"
-        path.write_bytes(base64.b64decode(m.group(2)))
+        try:
+            data = rajaa_logo(base64.b64decode(m.group(2)))
+        except ValueError as e:
+            raise ApiError(str(e))
+        for vanha in self.app.storage.dir.glob("logo.*"):
+            try:
+                vanha.unlink()
+            except OSError:
+                pass
+        path = self.app.storage.dir / "logo.png"
+        path.write_bytes(data)
         self.app.storage.save_settings({"logo": str(path)})
         return {"ok": True}
 

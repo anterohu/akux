@@ -20,7 +20,7 @@ OHJE = [
                 "ja Cupra Born. Katso kohta <b>Muut merkit</b>.",
             ]),
             ("ol", [
-                "Avaa <b>Asetukset</b> ja täytä yrityksen tiedot, mittaajan nimi ja logo. Tiedot näkyvät jokaisessa raportissa.",
+                "Avaa <b>Asetukset</b> ja valitse käyttötapa. Yksityisessä käytössä raporttiin tulee nimesi, yrityksellä yrityksen tiedot ja logo.",
                 "Kytke OBDLink-sovitin välikaapelilla auton diagnostiikkaliittimeen ja USB-kaapelilla tietokoneeseen. Bluetooth-mallit (MX+, LX) paritetaan ensin Windowsin Bluetooth-asetuksista.",
                 "Herätä auto ja paina <b>Yleiskuva</b>-sivulla <b>Yhdistä autoon</b>.",
                 "Lisää auto. Ohjelma lukee valmistenumeron autosta ja tunnistaa mallin.",
@@ -305,8 +305,7 @@ OHJE = [
                   "tunnusluvut, tulokset luokkineen, mittauksen tulos kaavioineen ja kennoryhmien jännitteet. Kaikkien "
                   "kennoryhmien jännitteet ovat lisäsivulla taulukkona. "
                   "<b>Teknisessä liitteessä</b> ovat mittauksen vaiheet, mittaustarkkuuden erittely, "
-                  "akunhallinnan tiedot, menetelmäkuvaus ja sanasto. Liitteen voi "
-                  "jättää pois asetuksista, jolloin asiakas saa vain pääsivut."),
+                  "akunhallinnan tiedot, menetelmäkuvaus ja sanasto."),
             ("ul", [
                 "<b>Akun kunto (SOH)</b> on nykyinen kapasiteetti prosentteina alkuperäisestä. Luokat noudattavat AVILOOn käytäntöä: vähintään 90 % on erinomainen, 80–90 % hyvä ja alle 80 % heikentynyt. Alle 70 % alittaa Teslan akkutakuun rajan.",
                 "<b>Kennoryhmien jännite-ero</b> levossa: alle 15 mV erinomainen, alle 30 mV hyvä ja alle 50 mV tyydyttävä. Suurempi ero tai yksittäinen poikkeava ryhmä kannattaa tarkistaa.",
@@ -328,25 +327,6 @@ OHJE = [
                 "<b>Mittauksen suorittaja</b> (nimi tai yritys) kirjoitetaan mittausta aloitettaessa. Se näkyy raportissa ja akveri.fi:n tarkistussivulla, eikä sitä voi muuttaa raportin rekisteröinnin jälkeen.",
                 "<b>Vastuunrajaus</b> on etusivun alareunassa: raportti kuvaa akun tilaa mittaushetkellä, se ei ole takuu, ja ohjelmiston toimittaja ei vastaa mittauksen suorittamisesta eikä tuloksiin perustuvista päätöksistä.",
                 "<b>Testin numero</b> ja sivunumero muodossa <b>Sivu 3/14</b> ovat jokaisen sivun alareunassa, joten irrallinen sivu yhdistyy oikeaan raporttiin ja puuttuva sivu huomataan. Raakadatan tarkiste on teknisessä liitteessä.",
-                "<b>Kennoryhmien kuvaaja</b> valitaan asetuksista: <b>ryhmät numerojärjestyksessä</b> (oletus) tai <b>moduulikartta</b>, joka näyttää ryhmät akun moduuleittain, jolloin poikkeavan ryhmän moduuli näkyy suoraan. Moduulikartta on käytössä malleille, joiden moduulijako on varmistettu (Model 3, Model S ja Model X).",
-            ]),
-        ],
-    },
-    {
-        "id": "puhelin", "otsikko": "Käyttö puhelimella",
-        "osat": [
-            ("p", "Sovitin on kytketty tietokoneeseen, ja puhelimella seurataan ja ohjataan mittausta. "
-                  "Puhelin ja tietokone tarvitsevat yhteisen verkon."),
-            ("ol", [
-                "Valitse <b>Asetukset</b>-sivulla <b>Salli käyttö puhelimella</b> ja tallenna.",
-                "Paina <b>Käynnistä uudelleen</b>. Asetukset-sivulle tulee puhelimen osoite ja suojakoodi.",
-                "Avaa osoite puhelimen selaimella. Suojakoodia ei kysytä samalla puhelimella uudelleen.",
-                "Jos Windows kysyy palomuurin lupaa, salli yhteys yksityisissä verkoissa.",
-            ]),
-            ("ul", [
-                "<b>Kodin Wi-Fi:</b> tietokone ja puhelin samassa Wi-Fi-verkossa.",
-                "<b>Puhelimen yhteyspiste:</b> yhdistä tietokone puhelimen yhteyspisteeseen. Toimii myös asiakkaan luona ilman Wi-Fiä.",
-                "<b>Tailscale:</b> jos tietokoneessa on Tailscale, mittausta voi seurata mistä tahansa.",
             ]),
         ],
     },
@@ -370,36 +350,18 @@ OHJE = [
         ],
     },
     {
-        "id": "ilmoitukset", "otsikko": "Puhelinilmoitukset",
-        "osat": [
-            ("p", "Ohjelma voi lähettää puhelimeen ilmoituksen, kun mittauksen vaihe vaihtuu, kun mittaus on valmis "
-                  "tai kun mittauksessa on ongelma, esimerkiksi lataus keskeytyy. Ilmoitukset kulkevat ntfy-palvelun "
-                  "kautta. Voit käyttää omaa ntfy-palvelinta tai maksutonta ntfy.sh-palvelua."),
-            ("ol", [
-                "Asenna puhelimeen ntfy-sovellus.",
-                "Keksi aiheelle pitkä ja yksilöllinen nimi, esimerkiksi akux-oma-7f3k9, ja tilaa se sovelluksessa.",
-                "Kirjoita <b>Asetukset</b>-sivulle aiheen osoite, esimerkiksi https://ntfy.sh/akux-oma-7f3k9, ja valitse ilmoituslajit.",
-                "Paina <b>Lähetä testi-ilmoitus</b> ja tarkista, että ilmoitus tulee puhelimeen.",
-            ]),
-            ("note", "ntfy.sh:n aiheet ovat julkisia kaikille, jotka tietävät aiheen nimen. Käytä vaikeasti arvattavaa nimeä tai omaa palvelinta."),
-        ],
-    },
-    {
         "id": "yllapito", "otsikko": "Päivitys ja varmuuskopiot",
         "osat": [
             ("p", "<b>Päivitys:</b> Androidissa Google Play päivittää AKVERIn. Windows-version uusi asennusohjelma "
                   "ajetaan vanhan päälle. Autot, mittaukset, raportit, asetukset ja krediitit säilyvät."),
             ("p", "<b>Mittaustiedostot:</b> jokainen valmis mittaus tallennetaan automaattisesti mittaustiedostona "
                   "(.akveri) ja PDF-raporttina. Windowsissa oletuskansio on Tiedostot/AKVERI/Mittaukset, Androidissa "
-                  "Lataukset/AKVERI. Kansion voi vaihtaa asetuksista. Mittaustiedosto sisältää kaikki mittauksen tiedot "
+                  "Lataukset/AKVERI. Mittaustiedosto sisältää kaikki mittauksen tiedot "
                   "ja raakadatan, ja sen voi avata millä tahansa laitteella, jolle AKVERI on asennettu, kohdasta "
                   "<b>Mittaukset → Avaa mittaustiedosto</b>. Myös aiempien versioiden .akux-tiedostot avautuvat."),
             ("p", "<b>Varmuuskopio:</b> ohjelma tekee varmuuskopion automaattisesti kerran viikossa ja säilyttää "
-                  "viisi uusinta. Voit tehdä varmuuskopion myös itse ja tallentaa sen esimerkiksi muistitikulle. "
-                  "Palautuksessa nykyiset tiedot siirretään ensin talteen, joten mitään ei menetetä."),
-            ("p", "<b>Laaduntarkistus</b> tarkistaa ohjelmatiedostot, tietokannan, levytilan, sovittimen, viestien "
-                  "purun, mittauslaskennan, raportin muodostuksen ja kaikkien tallennettujen mittausten raakadatan. "
-                  "Aja tarkistus päivityksen jälkeen ja aina, jos ohjelma toimii oudosti."),
+                  "viisi uusinta. Voit tehdä varmuuskopion myös itse <b>Asetukset</b>-sivulla ja tallentaa sen "
+                  "esimerkiksi muistitikulle. Palautuksessa nykyiset tiedot siirretään ensin talteen, joten mitään ei menetetä."),
         ],
     },
     {
@@ -409,7 +371,6 @@ OHJE = [
                 "<b>Sovitinta ei löydy:</b> irrota ja kytke USB-kaapeli uudelleen ja paina Päivitä portit. Jos sovitin ei vieläkään näy, asenna FTDI:n VCP-ajuri valmistajan sivuilta (ftdichip.com).",
                 "<b>Väylä on hiljaa:</b> auto on lepotilassa. Herätä auto avaamalla ovi tai käynnistämällä ilmastointi.",
                 "<b>Akun tiedot puuttuvat yhteystestistä:</b> paina <b>Kartoita väylä</b>. Jos liitännässä liikkuu vain muutama viesti, kuten nopeus ja virtatila, sovitin on kytketty jalkatilan liitäntään. Kytke se diagnostiikkaliittimeen välikaapelilla.",
-                "<b>Puhelin ei saa yhteyttä:</b> tarkista, että puhelin ja tietokone ovat samassa verkossa ja että Windowsin palomuuri sallii yhteyden.",
                 "<b>Ohjelma ei käynnisty:</b> aja asennus uudelleen. Tiedot säilyvät.",
             ]),
         ],

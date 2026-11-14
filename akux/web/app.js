@@ -186,7 +186,7 @@ views.yleiskuva = {
   async renderStart() {
     const [st, { ajoneuvot }, { mittaukset }, E] = await Promise.all([api("/api/asetukset"), api("/api/ajoneuvot"), api("/api/mittaukset"), esittelySallittu()]);
     const steps = [
-      [!!st.yritys_nimi, "Täytä yrityksen tiedot raportteja varten", "#/asetukset"],
+      [!!(st.kaytto || st.yritys_nimi), "Valitse käyttötapa: yksityinen tai yritys", "#/asetukset"],
       [!!(S && S.yhteys.kaynnissa) || mittaukset.length > 0, E ? "Yhdistä autoon tai kokeile esittelytilaa" : "Yhdistä autoon", null],
       [ajoneuvot.length > 0, "Lisää auto", "#/autot/uusi"],
       [mittaukset.some(m => m.tila === "valmis"), "Tee ensimmäinen pikatarkastus", "#/mittaus"],
@@ -1036,70 +1036,66 @@ window.akveriOstoVirhe = function (viesti) { if (viesti) toast(viesti, true); };
 
 views.asetukset = {
   async render() {
-    const s = await api("/api/asetukset");
-    const ph = s.puhelin || {};
-    view.innerHTML = `<div class="head"><div><h1>Asetukset</h1><div class="muted">Raporttien yritystiedot, mittauksen raja-arvot, puhelinkäyttö ja ilmoitukset</div></div>
-      <button class="btn primary" id="sSave">Tallenna asetukset</button></div>
+    const [s, E, info] = await Promise.all([api("/api/asetukset"), esittelySallittu(), api("/api/tietoja")]);
+    // Käyttötapa: aiemmissa asennuksissa valintaa ei ole, jolloin yritys, jos yrityksen nimi on täytetty
+    const kaytto = s.kaytto || (s.yritys_nimi ? "yritys" : "henkilo");
+    const valinta = (name, arvo, opts) => `<select name="${name}">${opts.map(([k, t]) => `<option value="${k}" ${arvo === k ? "selected" : ""}>${t}</option>`).join("")}</select>`;
+    view.innerHTML = `<div class="head"><div><h1>Asetukset</h1></div>
+      <button class="btn primary" id="sSave">Tallenna</button></div>
     <div id="sForm">
       <div class="card"><h2>Kieli</h2>
         <label class="f"><span>Ohjelman ja raporttien kieli</span><select id="sKieli">${[["fi", "Suomi"], ["en", "English"], ["sv", "Svenska"]].map(([k, t]) => `<option value="${k}" ${KIELI === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
-        <p class="small muted">Uudet raportit tehdään valitulla kielellä. Jo tehdyn raportin voi tulostaa uudelleen uudella kielellä.</p>
       </div>
-      <div class="card"><h2>Yritys ja raportit</h2>
-        <p class="small muted">Tiedot näkyvät jokaisen raportin yläreunassa.</p>
-        <div class="grid g2">
-          <label class="f"><span>Yrityksen nimi</span><input name="yritys_nimi" value="${esc(s.yritys_nimi)}"></label>
-          <label class="f"><span>Y-tunnus</span><input name="yritys_ytunnus" value="${esc(s.yritys_ytunnus)}"></label>
-          <label class="f"><span>Osoite</span><input name="yritys_osoite" value="${esc(s.yritys_osoite)}" placeholder="Katuosoite, postinumero ja toimipaikka"></label>
-          <label class="f"><span>Puhelin</span><input name="yritys_puhelin" value="${esc(s.yritys_puhelin)}"></label>
-          <label class="f"><span>Sähköposti</span><input name="yritys_sahkoposti" value="${esc(s.yritys_sahkoposti)}"></label>
-          <label class="f"><span>Verkkosivu</span><input name="yritys_www" value="${esc(s.yritys_www)}"></label>
-          <label class="f"><span>Mittauksen suorittaja</span><input name="mittaaja" maxlength="80" value="${esc(s.mittaaja)}" placeholder="Nimi tai yritys"><small class="muted">Ehdotetaan jokaiseen uuteen mittaukseen.</small></label>
-          <label class="f"><span>Raportin alatunniste</span><input name="raportin_alatunniste" value="${esc(s.raportin_alatunniste)}" placeholder="Valinnainen"></label>
+      <div class="card"><h2>Raporttien tiedot</h2>
+        <div class="valinta" role="radiogroup">
+          <label class="check"><input type="radio" name="kaytto" value="henkilo" ${kaytto === "henkilo" ? "checked" : ""}><span><b>Yksityinen käyttö</b><span class="small muted">Raportissa on AKVERIn tunnus ja nimesi mittaajana.</span></span></label>
+          <label class="check"><input type="radio" name="kaytto" value="yritys" ${kaytto === "yritys" ? "checked" : ""}><span><b>Yritys</b><span class="small muted">Yrityksen nimi, yhteystiedot ja logo raportin yläreunassa.</span></span></label>
         </div>
-        <div class="row"><label class="btn sm" style="cursor:pointer">Valitse logo<input type="file" id="sLogo" accept="image/png,image/jpeg" hidden></label>
+        <div id="sYritys" class="grid g2" style="margin-top:14px" ${kaytto === "yritys" ? "" : "hidden"}>
+            <label class="f"><span>Yrityksen nimi</span><input name="yritys_nimi" maxlength="80" value="${esc(s.yritys_nimi)}"></label>
+            <label class="f"><span>Y-tunnus</span><input name="yritys_ytunnus" maxlength="20" value="${esc(s.yritys_ytunnus)}"></label>
+            <label class="f"><span>Osoite</span><input name="yritys_osoite" maxlength="120" value="${esc(s.yritys_osoite)}" placeholder="Katuosoite, postinumero ja toimipaikka"></label>
+            <label class="f"><span>Puhelin</span><input name="yritys_puhelin" maxlength="40" value="${esc(s.yritys_puhelin)}"></label>
+            <label class="f"><span>Sähköposti</span><input name="yritys_sahkoposti" maxlength="80" value="${esc(s.yritys_sahkoposti)}"></label>
+            <label class="f"><span>Verkkosivu</span><input name="yritys_www" maxlength="80" value="${esc(s.yritys_www)}"></label>
+        </div>
+        <div class="grid g2" style="margin-top:14px">
+          <label class="f"><span id="sNimiOtsikko">${kaytto === "yritys" ? "Mittauksen suorittaja" : "Nimesi"}</span><input name="mittaaja" maxlength="80" value="${esc(s.mittaaja)}" placeholder="Etunimi Sukunimi"></label>
+        </div>
+        <div id="sLogoRivi" class="row" ${kaytto === "yritys" ? "" : "hidden"}><label class="btn sm" style="cursor:pointer">Valitse logo<input type="file" id="sLogo" accept="image/png,image/jpeg" hidden></label>
           <span class="small muted">${s.logo ? "Logo on käytössä raporteissa." : "Logoa ei ole valittu. Käytä PNG- tai JPEG-kuvaa."}</span>
-          ${s.logo ? `<label class="f" style="margin:0 0 0 12px"><span>Logon koko raportissa</span><select name="logo_koko">${[["pieni", "Pieni"], ["normaali", "Normaali"], ["suuri", "Suuri"]].map(([k, t]) => `<option value="${k}" ${(s.logo_koko || "normaali") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>` : ""}
           ${s.logo ? `<button class="btn sm" id="sLogoDel" type="button">Poista logo</button>` : ""}</div>
       </div>
-
-      <div class="card"><h2>Raportin etusivu</h2>
-        <label class="f"><span>Kunnon esitystapa</span><select name="raportin_ulkoasu">
-          ${[["b", "Kaarimittari (oletus)"], ["a", "Akkukuva ja luokka-asteikko"], ["c", "Tumma tunnuslukukaista"]].map(([k, t]) => `<option value="${k}" ${(s.raportin_ulkoasu || "b") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
-        <label class="f"><span>Vesileima</span><select name="vesileima">
-          ${[["toisto", "Pienet toistuvat (oletus)"], ["iso", "Suuri vino AKVERI"], ["rivit", "Harvat vinot rivit"], ["ei", "Ei vesileimaa"]].map(([k, t]) => `<option value="${k}" ${(s.vesileima || "toisto") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
-        <label class="f"><span>Kennoryhmien kuvaaja</span><select name="kennokuvaaja">
-          ${[["numerot", "Ryhmät numerojärjestyksessä (oletus)"], ["moduulit", "Moduulikartta"]].map(([k, t]) => `<option value="${k}" ${((s.kennokuvaaja === "moduulit") ? "moduulit" : "numerot") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
-        <p class="small muted">Moduulikartta näyttää kennoryhmät akun moduuleittain. Se on käytössä malleille, joiden moduulijako on varmistettu (Model 3, Model S ja Model X). Muille malleille raporttiin tulee ryhmät numerojärjestyksessä.</p>
-        <label class="f"><span>Tekninen liite</span><select name="tekninen_liite">
-          ${[["1", "Mukana raportin lopussa (oletus)"], ["0", "Ei liitettä, vain pääsivut"]].map(([k, t]) => `<option value="${k}" ${((s.tekninen_liite === false) ? "0" : "1") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
-      </div>
-
-      <div class="card"><h2>Raportin tarkistus</h2>
-        <p class="small muted">Jokaisella mittauksella on oma tunnus, joka tulee raporttiin. Raportin QR-koodi avaa tarkistussivun akveri.fi/v/tunnus, jolla raportin vastaanottaja näkee rekisteröidyt tulokset ja voi verrata auton valmistenumeroa.</p>
-      </div>
-
-      <div class="card"><h2>Mittausten tallennus</h2>
-        <p class="small muted">Jokainen valmis mittaus tallennetaan mittaustiedostona (.akveri) ja PDF-raporttina. Mittaustiedosto sisältää kaikki mittauksen tiedot ja raakadatan, ja sen voi avata millä tahansa koneella, jolle AKVERI on asennettu, kohdasta Mittaukset → Avaa mittaustiedosto.</p>
-        <label class="check"><input type="checkbox" name="mittaus_tallennus" ${s.mittaus_tallennus ? "checked" : ""}><span>Tallenna jokainen valmis mittaus automaattisesti</span></label>
-        ${ANDROID ? `<p class="small">Tallennuskansio: <b>${esc(s.mittaus_kansio_oletus)}</b></p>` :
-          `<label class="f"><span>Tallennuskansio</span><input name="mittaus_kansio" value="${esc(s.mittaus_kansio)}" placeholder="${esc(s.mittaus_kansio_oletus)}"><small class="muted">Jätä tyhjäksi, niin tiedostot tallentuvat kansioon ${esc(s.mittaus_kansio_oletus)}. Voit käyttää myös pilvikansiota, esimerkiksi OneDrivea.</small></label>`}
-      </div>
-
-      <div class="card"><h2>Kapasiteettimittaus</h2>
-        <p class="small muted">Oletusarvot vastaavat suositeltua mittaustapaa. Muuta niitä vain, jos siihen on syy.</p>
+    </div>
+    <div class="card"><h2>Varmuuskopio</h2>
+      <p class="small muted">Ohjelma tekee varmuuskopion automaattisesti kerran viikossa. Tallenna kopio välillä myös muualle.</p>
+      <div class="row"><a class="btn" href="/api/yllapito/varmuuskopio" id="bNow">Tee varmuuskopio nyt</a>
+        <label class="btn" style="cursor:pointer">Palauta varmuuskopio<input type="file" id="rFile" accept=".zip" hidden></label></div>
+      <div id="rRes" style="margin-top:12px"></div>
+      <div id="bList" style="margin-top:12px"></div></div>
+    <div class="card"><h2>Tietoja</h2>
+      <dl class="kv"><dt>Versio</dt><dd>${esc(info.nimi)} ${esc(info.versio)}</dd>
+        <dt>Päivitykset</dt><dd>${ANDROID ? "Google Play päivittää AKVERIn automaattisesti." : "Asenna uusi versio vanhan päälle. Tiedot säilyvät."}</dd></dl>
+      <details class="small muted" style="margin-top:10px"><summary>Tavaramerkit ja aineistot</summary>
+        <p>Viestimäärittelyt perustuvat Tesla-omistajien yhteisön ylläpitämään avoimeen aineistoon. Muiden merkkien kyselyt perustuvat avoimiin aineistoihin (OBD-PIDs-for-HKMC-EVs, evDash, Open Vehicle Monitoring System, Battery-Emulator ja py-nissan-leaf-obd-ble). Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä; Hyundai, Ioniq ja Kona Hyundai Motor Companyn; Kia, EV6, e-Niro ja e-Soul Kia Corporationin; Nissan ja Leaf Nissan Motor Co:n; Volkswagen, ID.3, ID.4 ja ID.5 Volkswagen AG:n; Škoda ja Enyaq Škoda Auto a.s:n; Audi ja Q4 e-tron Audi AG:n sekä Cupra ja Born SEAT S.A:n tavaramerkkejä.</p></details>
+      <p class="small muted" style="margin-top:8px">AKVERI ei ole minkään autonvalmistajan tekemä eikä hyväksymä.</p></div>
+    ${E ? `<div class="card kehittaja"><h2>Kehittäjän työkalut</h2>
+      <p class="small muted">Näkyy vain testitileillä. Asiakkaan ohjelmassa käytetään oletusarvoja.</p>
+      <div id="kForm">
+        <h3>Raportti</h3>
+        <div class="grid g3">
+          <label class="f"><span>Kunnon esitystapa</span>${valinta("raportin_ulkoasu", s.raportin_ulkoasu || "b", [["b", "Kaarimittari (oletus)"], ["a", "Akkukuva ja luokka-asteikko"], ["c", "Tumma tunnuslukukaista"]])}</label>
+          <label class="f"><span>Vesileima</span>${valinta("vesileima", s.vesileima || "toisto", [["toisto", "Pienet toistuvat (oletus)"], ["iso", "Suuri vino AKVERI"], ["rivit", "Harvat vinot rivit"], ["ei", "Ei vesileimaa"]])}</label>
+          <label class="f"><span>Kennoryhmien kuvaaja</span>${valinta("kennokuvaaja", s.kennokuvaaja === "moduulit" ? "moduulit" : "numerot", [["numerot", "Ryhmät numerojärjestyksessä (oletus)"], ["moduulit", "Moduulikartta"]])}</label>
+          <label class="f"><span>Tekninen liite</span>${valinta("tekninen_liite", (s.tekninen_liite === false) ? "0" : "1", [["1", "Mukana (oletus)"], ["0", "Ei liitettä"]])}</label>
+        </div>
+        <h3>Mittausten raja-arvot</h3>
         <div class="grid g3">
           <label class="f"><span>Lepo ennen latausta (min)</span><input name="lepo_alku_min" inputmode="numeric" value="${esc(s.lepo_alku_min)}"></label>
           <label class="f"><span>Lepo latauksen jälkeen (min)</span><input name="lepo_loppu_min" inputmode="numeric" value="${esc(s.lepo_loppu_min)}"></label>
           <label class="f"><span>Lähtövaraus enintään (%)</span><input name="kapasiteetti_lahto_soc_max" inputmode="numeric" value="${esc(s.kapasiteetti_lahto_soc_max)}"></label>
           <label class="f"><span>Akun lämpötila vähintään (°C)</span><input name="lampotila_min" inputmode="numeric" value="${esc(s.lampotila_min)}"></label>
           <label class="f"><span>Akun lämpötila enintään (°C)</span><input name="lampotila_max" inputmode="numeric" value="${esc(s.lampotila_max)}"></label>
-        </div>
-      </div>
-
-      <div class="card"><h2>Ajo-, kuormitus- ja itsepurkaustestit</h2>
-        <p class="small muted">Oletusarvot vastaavat suositeltua mittaustapaa. Lyhyemmät lepojaksot ja ajot heikentävät tarkkuutta.</p>
-        <div class="grid g3">
           <label class="f"><span>Lepo ennen ajoa ja sen jälkeen (min)</span><input name="ajo_lepo_min" inputmode="numeric" value="${esc(s.ajo_lepo_min)}"></label>
           <label class="f"><span>Ajotestin loppuvaraus enintään (%)</span><input name="ajo_loppu_soc" inputmode="numeric" value="${esc(s.ajo_loppu_soc)}"></label>
           <label class="f"><span>Pika-ajotestin varauksen lasku (%-yks.)</span><input name="pika_ajo_soc" inputmode="numeric" value="${esc(s.pika_ajo_soc)}"></label>
@@ -1107,39 +1103,24 @@ views.asetukset = {
           <label class="f"><span>Lepo ennen itsepurkaustestiä (min)</span><input name="itsepurkaus_lepo_min" inputmode="numeric" value="${esc(s.itsepurkaus_lepo_min)}"></label>
           <label class="f"><span>Itsepurkaustestin seisonta (h)</span><input name="itsepurkaus_tunnit" inputmode="numeric" value="${esc(s.itsepurkaus_tunnit)}"></label>
         </div>
+        <div class="row"><button class="btn" id="kSave" type="button">Tallenna kehittäjän asetukset</button></div>
       </div>
-
-      <div class="grid ${ANDROID ? "" : "g2"}">
-        ${ANDROID ? "" : `<div class="card"><h2>Käyttö puhelimella</h2>
-          <label class="check"><input type="checkbox" name="puhelin_kaytossa" ${s.puhelin_kaytossa ? "checked" : ""}><span>Salli käyttö puhelimella samassa verkossa</span></label>
-          ${!!s.puhelin_kaytossa !== !!ph.kaytossa ? `<div class="notice warn small">Muutos tulee voimaan, kun ohjelma käynnistetään uudelleen.<div style="margin-top:8px"><button class="btn sm" id="sRestart" type="button">Tallenna ja käynnistä uudelleen</button></div></div>` : ""}
-          ${ph.kaytossa ? `<p class="small">Avaa puhelimen selaimella:</p>
-            ${(ph.osoitteet || []).map(u => `<div class="addr">${esc(u)}</div>`).join("") || `<div class="small muted">Tietokone ei ole yhteydessä verkkoon.</div>`}
-            <p class="small muted" style="margin-top:8px">Suojakoodi <b>${esc(ph.avain)}</b>. Koodi kysytään kerran kullakin puhelimella.</p>`
-          : `<p class="small muted">Kun käyttö on sallittu, puhelimen osoite ja suojakoodi näkyvät tässä. <a href="#/ohjeet/puhelin">Lue lisää</a></p>`}
-        </div>`}
-        <div class="card"><h2>Puhelinilmoitukset</h2>
-          <label class="check"><input type="checkbox" name="ilmoitukset_kaytossa" ${s.ilmoitukset_kaytossa ? "checked" : ""}><span>Lähetä ilmoitukset puhelimeen</span></label>
-          <label class="f"><span>Ilmoitusaiheen osoite (ntfy)</span><input name="ilmoitus_osoite" id="nUrl" value="${esc(s.ilmoitus_osoite)}" placeholder="https://ntfy.sh/akveri-oma-aihe"></label>
-          <label class="check"><input type="checkbox" name="ilmoitus_vaiheet" ${s.ilmoitus_vaiheet ? "checked" : ""}><span>Mittauksen vaihe vaihtuu</span></label>
-          <label class="check"><input type="checkbox" name="ilmoitus_valmis" ${s.ilmoitus_valmis ? "checked" : ""}><span>Mittaus on valmis</span></label>
-          <label class="check"><input type="checkbox" name="ilmoitus_ongelmat" ${s.ilmoitus_ongelmat ? "checked" : ""}><span>Ongelma: lataus keskeytyy tai yhteys katkeaa</span></label>
-          <div class="row" style="margin-top:10px"><button class="btn sm" id="nTest" type="button">Lähetä testi-ilmoitus</button><a class="small" href="#/ohjeet/ilmoitukset">Ohje käyttöönottoon</a></div>
-        </div>
-      </div>
-    </div>`;
-    const save = () => act(() => api("/api/asetukset", { method: "POST", body: form($("#sForm")) }), "Asetukset tallennettu");
+      <div class="row" style="margin-top:14px"><h3 style="margin:0">Laaduntarkistus</h3><span class="spacer"></span><button class="btn" id="qRun" type="button">Aja tarkistus</button></div>
+      <div id="qRes"></div>
+      <div class="row" style="margin-top:14px"><h3 style="margin:0">Tapahtumaloki</h3><span class="spacer"></span><button class="btn sm" id="lLoad" type="button">Näytä loki</button></div>
+      <pre id="lBox" class="log" hidden></pre>
+    </div>` : ""}`;
+    const paivitaKaytto = () => {
+      const yritys = $('input[name="kaytto"]:checked').value === "yritys";
+      $("#sYritys").hidden = !yritys;
+      $("#sLogoRivi").hidden = !yritys;
+      $("#sNimiOtsikko").textContent = yritys ? "Mittauksen suorittaja" : "Nimesi";
+    };
+    $$('input[name="kaytto"]').forEach(r => (r.onchange = paivitaKaytto));
+    $("#sSave").onclick = () => act(() => api("/api/asetukset", { method: "POST", body: form($("#sForm")) }), "Asetukset tallennettu").then(() => this.render());
     $("#sKieli").onchange = async e => {
       try { await api("/api/kieli", { method: "POST", body: { kieli: e.target.value } }); } catch (x) { toast(x.message, true); return; }
       asetaKieli(e.target.value); location.reload();
-    };
-    $("#sSave").onclick = () => save().then(() => this.render());
-    $("#nTest").onclick = () => act(() => api("/api/ilmoitus/testi", { method: "POST", body: { osoite: $("#nUrl").value } }), "Testi-ilmoitus lähetetty. Tarkista puhelin.");
-    const rs = $("#sRestart");
-    if (rs) rs.onclick = async () => {
-      await save();
-      await act(() => api("/api/uudelleen", { method: "POST" }), "Ohjelma käynnistyy uudelleen…");
-      waitRestart();
     };
     $("#sLogo").onchange = e => {
       const f = e.target.files[0];
@@ -1150,76 +1131,10 @@ views.asetukset = {
     };
     const del = $("#sLogoDel");
     if (del) del.onclick = () => act(() => api("/api/logo", { method: "POST", body: { poista: true } }), "Logo poistettu").then(() => this.render());
+    this.varmuuskopiot();
+    if (E) this.kehittaja();
   },
-};
-
-function waitRestart() {
-  let n = 0;
-  const t = setInterval(async () => {
-    n++;
-    try { await api("/api/tila"); clearInterval(t); location.reload(); } catch (e) { if (n > 40) clearInterval(t); }
-  }, 1000);
-}
-async function upload(path, file) {
-  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: file });
-  let d = {};
-  try { d = await r.json(); } catch (e) { /* */ }
-  if (!r.ok) throw new Error(d.virhe || `Virhe ${r.status}`);
-  return d;
-}
-function sizeTxt(b) { return b > 1e6 ? n(b / 1e6, 1) + " Mt" : n(b / 1e3, 0) + " kt"; }
-
-// =====================================================================
-// YLLÄPITO
-// =====================================================================
-const STATUS = { ok: ["good", "Kunnossa"], varoitus: ["warn", "Huomioitava"], virhe: ["bad", "Virhe"], info: ["", "Tieto"] };
-
-views.yllapito = {
-  async render() {
-    const info = await api("/api/tietoja");
-    view.innerHTML = `<div class="head"><div><h1>Ylläpito</h1><div class="muted">Laaduntarkistus, päivitykset ja varmuuskopiot</div></div></div>
-      <div class="card"><div class="row"><h2 style="margin:0">Laaduntarkistus</h2><span class="spacer"></span><button class="btn primary" id="qRun">Aja tarkistus</button></div>
-        <p class="small muted" style="margin-top:8px">Tarkistaa ohjelmatiedostot, tietokannan, levytilan, sovittimen, viestien purun, mittauslaskennan, raportin muodostuksen ja tallennettujen mittausten raakadatan. Tarkistus kestää noin puoli minuuttia eikä muuta tietojasi.</p>
-        <div id="qRes"></div></div>
-      <div class="grid g2">
-        <div class="card"><h2>Päivitys</h2>
-          <p class="small">Käytössä on versio <b>${esc(info.versio)}</b>.</p>
-          <p class="small muted">${ANDROID ? "Google Play päivittää AKVERIn automaattisesti." : "Asenna uusi versio vanhan päälle. Asennus sulkee AKVERIn, päivittää sen ja säilyttää tiedot."} Autot, mittaukset, raportit, asetukset ja krediitit säilyvät.</p>
-          ${ANDROID ? `<div class="row"><a class="btn primary" href="https://play.google.com/store/apps/details?id=fi.akveri.app" target="_blank" rel="noopener">Avaa Google Play</a></div>` : ""}</div>
-        <div class="card"><h2>Varmuuskopiot</h2>
-          <p class="small muted">Ohjelma tekee varmuuskopion automaattisesti kerran viikossa ja säilyttää viisi uusinta. Tallenna kopio välillä myös muistitikulle tai pilvipalveluun.</p>
-          <div class="row"><a class="btn" href="/api/yllapito/varmuuskopio" id="bNow">Tee varmuuskopio nyt</a>
-            <label class="btn" style="cursor:pointer">Palauta varmuuskopio<input type="file" id="rFile" accept=".zip" hidden></label></div>
-          <div id="rRes" style="margin-top:12px"></div>
-          <div id="bList" style="margin-top:12px"></div></div>
-      </div>
-      <div class="card"><div class="row"><h2 style="margin:0">Tapahtumaloki</h2><span class="spacer"></span><button class="btn sm" id="lLoad">Näytä loki</button></div>
-        <pre id="lBox" class="log" hidden></pre></div>
-      <div class="card"><h2>Tietoja ohjelmasta</h2><dl class="kv">
-        <dt>Ohjelma</dt><dd>${esc(info.nimi)} ${esc(info.versio)}</dd>
-        <dt>Tietojen sijainti</dt><dd style="word-break:break-all">${ANDROID ? "Sovelluksen oma tallennustila (AKVERI)" : esc(info.datakansio)}</dd>
-        <dt>Järjestelmä</dt><dd>${esc(info.jarjestelma)}</dd></dl>
-        <p class="small muted" style="margin-top:12px">${ANDROID ? "Tiedot säilyvät sovelluksen omassa tallennustilassa. Raportit ja varmuuskopiot tallentuvat myös Lataukset/AKVERI-kansioon, kun avaat ne. " : ""}Viestimäärittelyt perustuvat Tesla-omistajien yhteisön ylläpitämään avoimeen aineistoon. Muiden merkkien kyselyt perustuvat avoimiin aineistoihin (OBD-PIDs-for-HKMC-EVs, evDash, Open Vehicle Monitoring System, Battery-Emulator ja py-nissan-leaf-obd-ble). Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä; Hyundai, Ioniq ja Kona Hyundai Motor Companyn; Kia, EV6, e-Niro ja e-Soul Kia Corporationin; Nissan ja Leaf Nissan Motor Co:n; Volkswagen, ID.3, ID.4 ja ID.5 Volkswagen AG:n; Škoda ja Enyaq Škoda Auto a.s:n; Audi ja Q4 e-tron Audi AG:n sekä Cupra ja Born SEAT S.A:n tavaramerkkejä. AKVERI ei ole minkään autonvalmistajan tekemä eikä hyväksymä.</p></div>`;
-
-    $("#qRun").onclick = async () => {
-      const b = $("#qRun");
-      b.disabled = true;
-      b.textContent = "Tarkistetaan…";
-      $("#qRes").innerHTML = `<div class="bar" style="margin-top:12px"><i class="indet"></i></div>`;
-      try {
-        const r = await api("/api/yllapito/tarkistus");
-        const [cls, lbl] = STATUS[r.tulos];
-        $("#qRes").innerHTML = `<div class="notice ${cls}" style="margin-top:12px"><b>${r.tulos === "ok" ? "Kaikki tarkistukset kunnossa." : (r.tulos === "varoitus" ? "Tarkistus valmis, huomioitavaa löytyi." : "Tarkistuksessa löytyi virheitä.")}</b> ${date(r.aika)}</div>
-          <table class="t"><tr><th>Tarkistus</th><th>Tulos</th><th class="hide-m">Tieto</th></tr>
-          ${r.tarkistukset.map(c => `<tr><td>${esc(c.nimi)}<div class="small muted show-m">${esc(c.tieto)}</div></td><td><span class="pill ${STATUS[c.tila][0]}">${STATUS[c.tila][1]}</span></td><td class="small muted hide-m">${esc(c.tieto)}</td></tr>`).join("")}</table>`;
-      } catch (e) {
-        $("#qRes").innerHTML = `<div class="notice bad" style="margin-top:12px">${esc(e.message)}</div>`;
-      }
-      b.disabled = false;
-      b.textContent = "Aja tarkistus uudelleen";
-    };
-
-
+  varmuuskopiot() {
     $("#rFile").onchange = async e => {
       const f = e.target.files[0];
       if (!f) return;
@@ -1241,15 +1156,35 @@ views.yllapito = {
       }
       e.target.value = "";
     };
-
     const list = async () => {
       const r = await api("/api/yllapito/varmuuskopiot");
-      $("#bList").innerHTML = r.varmuuskopiot.length ? `<table class="t"><tr><th>Varmuuskopio</th><th class="num">Koko</th><th></th></tr>
-        ${r.varmuuskopiot.map(b => `<tr><td>${date(b.aika)}</td><td class="num">${sizeTxt(b.koko)}</td><td class="num"><a class="btn sm" href="/api/yllapito/varmuuskopiot/${encodeURIComponent(b.nimi)}">Lataa</a></td></tr>`).join("")}</table>`
+      const b = $("#bList");
+      if (!b) return;
+      b.innerHTML = r.varmuuskopiot.length ? `<table class="t"><tr><th>Varmuuskopio</th><th class="num">Koko</th><th></th></tr>
+        ${r.varmuuskopiot.map(x => `<tr><td>${date(x.aika)}</td><td class="num">${sizeTxt(x.koko)}</td><td class="num"><a class="btn sm" href="/api/yllapito/varmuuskopiot/${encodeURIComponent(x.nimi)}">Lataa</a></td></tr>`).join("")}</table>`
         : `<div class="small muted">Varmuuskopioita ei ole vielä tehty.</div>`;
     };
     list();
     $("#bNow").onclick = () => { toast("Varmuuskopio tehdään…"); setTimeout(list, 2500); };
+  },
+  kehittaja() {
+    $("#kSave").onclick = () => act(() => api("/api/asetukset", { method: "POST", body: form($("#kForm")) }), "Kehittäjän asetukset tallennettu").then(() => this.render());
+    $("#qRun").onclick = async () => {
+      const b = $("#qRun");
+      b.disabled = true;
+      b.textContent = "Tarkistetaan…";
+      $("#qRes").innerHTML = `<div class="bar" style="margin-top:12px"><i class="indet"></i></div>`;
+      try {
+        const r = await api("/api/yllapito/tarkistus");
+        $("#qRes").innerHTML = `<div class="notice ${STATUS[r.tulos][0]}" style="margin-top:12px"><b>${r.tulos === "ok" ? "Kaikki tarkistukset kunnossa." : (r.tulos === "varoitus" ? "Tarkistus valmis, huomioitavaa löytyi." : "Tarkistuksessa löytyi virheitä.")}</b> ${date(r.aika)}</div>
+          <table class="t"><tr><th>Tarkistus</th><th>Tulos</th><th class="hide-m">Tieto</th></tr>
+          ${r.tarkistukset.map(c => `<tr><td>${esc(c.nimi)}<div class="small muted show-m">${esc(c.tieto)}</div></td><td><span class="pill ${STATUS[c.tila][0]}">${STATUS[c.tila][1]}</span></td><td class="small muted hide-m">${esc(c.tieto)}</td></tr>`).join("")}</table>`;
+      } catch (e) {
+        $("#qRes").innerHTML = `<div class="notice bad" style="margin-top:12px">${esc(e.message)}</div>`;
+      }
+      b.disabled = false;
+      b.textContent = "Aja tarkistus uudelleen";
+    };
     $("#lLoad").onclick = async () => {
       const r = await api("/api/yllapito/loki");
       const b = $("#lBox");
@@ -1259,6 +1194,25 @@ views.yllapito = {
     };
   },
 };
+const STATUS = { ok: ["good", "Kunnossa"], varoitus: ["warn", "Huomioitava"], virhe: ["bad", "Virhe"], info: ["", "Tieto"] };
+// Vanha Ylläpito-osoite avaa Asetukset
+views.yllapito = views.asetukset;
+
+function waitRestart() {
+  let n = 0;
+  const t = setInterval(async () => {
+    n++;
+    try { await api("/api/tila"); clearInterval(t); location.reload(); } catch (e) { if (n > 40) clearInterval(t); }
+  }, 1000);
+}
+async function upload(path, file) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: file });
+  let d = {};
+  try { d = await r.json(); } catch (e) { /* */ }
+  if (!r.ok) throw new Error(d.virhe || `Virhe ${r.status}`);
+  return d;
+}
+function sizeTxt(b) { return b > 1e6 ? n(b / 1e6, 1) + " Mt" : n(b / 1e3, 0) + " kt"; }
 
 // ---------- sulkeminen ----------
 async function quitApp() {

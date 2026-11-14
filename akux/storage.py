@@ -68,6 +68,9 @@ def default_data_dir() -> Path:
 
 OLETUSASETUKSET = {
     "kieli": None,  # fi, en tai sv; valitaan ensimmäisellä käynnistyksellä (kielet.py)
+    # Käyttötapa: "henkilo" (yksityinen käyttö, raportissa ei yrityksen tietoja) tai "yritys". Tyhjä = ei valittu
+    # (aiemmat asennukset: yrityksen tiedot näkyvät, jos ne on täytetty).
+    "kaytto": "",
     "yritys_nimi": "",
     "yritys_osoite": "",
     "yritys_ytunnus": "",
