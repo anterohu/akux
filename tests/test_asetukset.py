@@ -7,6 +7,7 @@ import io
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -103,3 +104,44 @@ if __name__ == "__main__":
     test_yksityinen_kaytto_ei_nayta_yritysta_raportissa()
     test_logon_reunat_rajataan()
     print("ok")
+
+
+def test_esittelytila_sulkeutuu_kun_testitili_poistuu():
+    """Kun testitili poistetaan palvelussa, käynnissä oleva esittelytila suljetaan eikä sitä voi käynnistää uudelleen."""
+    import os
+    from akveri.app import App
+    vanha = os.environ.pop("AKVERI_ESITTELY", None)
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            a = App(Path(d))
+            api = server.Api(a)
+            a.storage.save_settings({"esittely": True})
+            a.krediitit._kutsu = lambda *x, **k: {"testitili": True}
+            a.connect("demo", soc=0.6, accel=30)
+            assert a.source and a.source.simulated
+            assert api.tila({}, {})["yhteys"]["simuloitu"]
+            # Testitili poistettiin palvelussa
+            a.krediitit._kutsu = lambda *x, **k: {"testitili": False}
+            server.Api._esittely_tarkistettu = 0.0
+            for _ in range(50):
+                api.tila({}, {})
+                if not a.source:
+                    break
+                time.sleep(0.1)
+            assert a.source is None, "esittelytila jäi päälle"
+            assert not api.tila({}, {})["yhteys"]["simuloitu"]
+            try:
+                api.yhdista({}, {"tyyppi": "demo"})
+                raise AssertionError("esittelytila käynnistyi ilman testitiliä")
+            except server.ApiError:
+                pass
+    finally:
+        if vanha is not None:
+            os.environ["AKVERI_ESITTELY"] = vanha
+
+
+def test_valmistenumeron_merkki_ja_malli():
+    from akveri.server import Api
+    assert "Tesla" in Api._merkki_ristiriita("5YJ3E7EB1LF654321", "hy-ioniq-38")
+    assert Api._merkki_ristiriita("KMHC851JFLU012345", "hy-ioniq-38") is None
+    assert Api._merkki_ristiriita("KNACC81GFL5012345", "hy-kona-64") is None  # Kia ja Hyundai samaa konsernia
