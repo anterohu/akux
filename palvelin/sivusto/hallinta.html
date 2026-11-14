@@ -108,11 +108,22 @@
     <form class="kortti" id="postilomake">
       <h2>Sähköposti</h2>
       <p class="paivays" id="posti-tila"></p>
-      <label for="po-host">Sähköpostipalvelin</label><input id="po-host" placeholder="smtp.esimerkki.fi" maxlength="200">
+      <details class="posti-ohje"><summary>Pelkkä verkkotunnus ja sähköpostin ohjaus? Näin saat postin toimimaan</summary>
+        <ol>
+          <li><b>Vastaanotto:</b> ohjaa verkkotunnuksen osoitteet, esimerkiksi info@akveri.fi, palveluntarjoajasi hallinnassa omaan sähköpostiisi. Erillistä postilaatikkoa ei tarvita.</li>
+          <li><b>Lähetys:</b> pelkkä ohjaus ei lähetä postia. Luo tili sähköpostin lähetyspalveluun, esimerkiksi Brevoon (maksuton, 300 viestiä vuorokaudessa), ja lisää verkkotunnus akveri.fi palveluun lähettäjäksi.</li>
+          <li><b>DNS-tietueet:</b> lisää lähetyspalvelun antamat SPF- ja DKIM-tietueet verkkotunnuksen DNS-asetuksiin palveluntarjoajasi hallinnassa. Ilman niitä viestit päätyvät helposti roskapostiin.</li>
+          <li><b>Tähän lomakkeeseen:</b> valitse lähetyspalvelu, kopioi palvelun antama SMTP-käyttäjätunnus ja -avain ja anna lähettäjiksi verkkotunnuksen osoitteet, esimerkiksi noreply@akveri.fi ja info@akveri.fi.</li>
+          <li><b>Testi:</b> tallenna ja lähetä testiviesti. Jos viesti ei tule perille, tarkista roskapostikansio ja tämän sivun virheilmoitus.</li>
+        </ol>
+      </details>
+      <label for="po-palvelu">Lähetyspalvelu</label><select id="po-palvelu"><option value="">Valitse…</option><option value="brevo">Brevo</option><option value="gmail">Gmail (Google-tili)</option><option value="muu">Muu SMTP-palvelin</option></select>
+      <p class="paivays" id="po-palvelu-ohje"></p>
+      <label for="po-host">Lähetyspalvelin (SMTP)</label><input id="po-host" placeholder="smtp-relay.brevo.com" maxlength="200">
       <label for="po-port">Portti</label><input id="po-port" type="number" min="1" max="65535" value="587">
       <label class="valinta-rivi"><input type="checkbox" id="po-secure"> Salattu yhteys heti alusta (portti 465)</label>
       <label for="po-user">Käyttäjätunnus</label><input id="po-user" maxlength="200" autocomplete="off">
-      <label for="po-pass">Salasana</label><input id="po-pass" type="password" maxlength="500" autocomplete="new-password" placeholder="Jätä tyhjäksi, jos haluat säilyttää tallennetun">
+      <label for="po-pass">Salasana tai SMTP-avain</label><input id="po-pass" type="password" maxlength="500" autocomplete="new-password" placeholder="Jätä tyhjäksi, jos haluat säilyttää tallennetun">
       <label for="po-lahettaja">Ilmoitusten lähettäjä</label><input id="po-lahettaja" maxlength="200" placeholder="AKVERI &lt;noreply@akveri.fi&gt;">
       <p class="paivays">Automaattiset ilmoitukset (uudet yhteydenotot ja hyvityspyynnöt). Vastaukset niihin ohjataan omien viestien osoitteeseen.</p>
       <label for="po-omat">Omien viestien lähettäjä</label><input id="po-omat" maxlength="200" placeholder="AKVERI &lt;info@akveri.fi&gt;">

@@ -642,3 +642,19 @@ test('sähköposti: otsakkeisiin ei voi syöttää rivinvaihtoja', () => {
   assert.throws(() => posti.rakennaViesti({ from: 'a@b.fi', to: 'c@d.fi\r\nBcc: x@y.fi', subject: 'x', text: 'y' }), /rivinvaihto/);
   assert.match(posti.rakennaViesti({ from: 'AKVERI <a@b.fi>', to: 'c@d.fi', subject: 'Hei', text: 'x' }), /^From: AKVERI <a@b\.fi>\r\n/);
 });
+
+test('hallinnan sähköposti: ohje pelkälle verkkotunnukselle ja ohjaukselle sekä lähetyspalvelun valinta (sama kuin vuoropiste.fi:ssä)', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'sivusto', 'hallinta.html'), 'utf8');
+  const js = fs.readFileSync(path.join(__dirname, '..', 'sivusto', 'hallinta.js'), 'utf8');
+  assert.match(html, /class="posti-ohje"/);
+  assert.match(html, /SPF- ja DKIM-tietueet/);
+  assert.match(html, /<select id="po-palvelu">.*brevo.*gmail.*muu/s);
+  assert.match(js, /smtp-relay\.brevo\.com/);
+  assert.match(js, /smtp\.gmail\.com/);
+  // Sama ohjeteksti molemmissa hallinnoissa (verkkotunnusta lukuun ottamatta)
+  const vp = path.join(__dirname, '..', '..', '..', 'vuoro', 'myyja-tyokalut', 'vuoropiste-sivusto', 'sivusto', 'yllapito.html');
+  if (fs.existsSync(vp)) {
+    const ohje = (s) => (/<details class="posti-ohje">[\s\S]*?<\/details>/.exec(s) || [''])[0].replace(/akveri\.fi|vuoropiste\.fi/g, 'X').replace(/\s+/g, ' ');
+    assert.equal(ohje(html), ohje(fs.readFileSync(vp, 'utf8')));
+  }
+});
