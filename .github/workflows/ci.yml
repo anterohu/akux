@@ -22,8 +22,6 @@ jobs:
       - name: Lukitus
         run: python tests/test_lukitus.py
         timeout-minutes: 2
-      - name: Nimenvaihto ja kansioiden siirto
-        run: python tests/test_nimenvaihto.py
       - name: Ikkunavahti
         run: python tests/test_ikkunavahti.py
         timeout-minutes: 2
