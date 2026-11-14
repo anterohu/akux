@@ -218,10 +218,12 @@ def test_krediitit():
             vin = app.decoder.state.vin
             assert v["vin"].startswith(vin[:3]) and v["vin"].endswith(vin[-6:]) and vin not in json.dumps(v)
             assert palvelin.get(f"/api/v1/vahvistus/{t['lupa']}?vin={vin}")["vinTasmaa"] is True
-            # Palvelimelle lähtee vain yhteenveto: ei rekisterikilpeä, mittaajan nimeä eikä lisätietoja
+            # Palvelimelle lähtee vain yhteenveto: ei rekisterikilpeä, lisätietoja eikä koko valmistenumeroa.
+            # Mittauksen suorittaja näkyy tarkistussivulla (tietosuojaselosteen mukaisesti).
+            assert v["suorittaja"] == "Matti Mittaaja", v
             testit = palvelin.get("/api/hallinta/testit?haku=" + t["lupa"], True)["testit"]
             tallennettu = json.dumps(testit)
-            for salainen in ("XYZ-999", "Matti Mittaaja", "Salainen lisätieto", vin):
+            for salainen in ("XYZ-999", "Salainen lisätieto", vin):
                 assert salainen not in tallennettu, salainen
 
             # 5. Raportissa on tunnus ja QR-koodi tarkistussivulle
