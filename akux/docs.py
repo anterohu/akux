@@ -32,8 +32,9 @@ OHJE = [
     {
         "id": "yhdistaminen", "otsikko": "Yhdistäminen autoon",
         "osat": [
-            ("p", "Akun tiedot luetaan auton diagnostiikkaliittimestä OBDLink-sovittimella ja mallille sopivalla "
-                  "välikaapelilla. Auton sivulla <b>Kytkentä autoon</b> kertoo juuri sen auton liittimen."),
+            ("p", "Akun tiedot luetaan auton OBD-liitännästä OBDLink-sovittimella. Teslassa tarvitaan lisäksi mallille "
+                  "sopiva OBD-välikaapeli (haaroituskaapeli), muissa merkeissä sovitin kytketään suoraan. Auton sivulla "
+                  "<b>Kytkentä autoon</b> kertoo juuri sen auton liittimen."),
             ("ul", [
                 "<b>Tuetut sovittimet:</b> OBDLink EX ja SX (USB) sekä OBDLink MX+ ja LX (Bluetooth). AKVERI käyttää "
                 "OBDLinkin suodatusta, jolla vain akun tiedot välitetään. Tavalliset ELM327-sovittimet eivät pysy "
@@ -59,8 +60,11 @@ OHJE = [
             ("note", "Model 3:n ja Model Y:n jalkatilassa on myös tavallisen näköinen OBD-liitäntä. Se on tarkoitettu "
                      "kolmannen osapuolen laitteille, ja se välittää vain muutaman tiedon, kuten nopeuden ja virtatilan, "
                      "mutta ei akun tietoja. Yhteystesti ja väylän kartoitus kertovat tämän suoraan."),
+            ("note", "Välikaapeli kytketään auton diagnostiikkaliittimeen kaapelin valmistajan ohjeen mukaan, eikä auton "
+                     "johtoja leikata tai muuteta. Kytke ja irrota kaapeli auton ollessa pysäköitynä. Verhoilupaneelien "
+                     "irrotus ja kaapelin kytkentä tehdään omalla vastuulla."),
             ("ol", [
-                "Kytke sovitin auton liitäntään ja tietokoneeseen.",
+                "Kytke sovitin auton liitäntään ja puhelimeen tai tietokoneeseen.",
                 "Herätä auto avaamalla ovi tai käynnistämällä ilmastointi Tesla-sovelluksesta. Sovitin saa virtaa vain, kun auto on hereillä.",
                 "Valitse <b>Yleiskuva</b>-sivulla sovitin ja paina <b>Yhdistä autoon</b>.",
                 "Odota, että <b>Yhteystesti</b> näyttää kaikki tarvittavat tiedot vihreinä. Tämä kestää yleensä muutaman sekunnin.",
