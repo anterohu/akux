@@ -56,7 +56,8 @@ def _http(method: str, url: str, headers: dict, body: bytes | None, aikaraja: fl
 
 # ---------------------------------------------------------------- luvan tila
 def luvan_tila(t: dict) -> str:
-    """esimerkki | vanha | osa | tuotu | varattu | rekisteroity | ei_rekisteroitavissa | peruttu | peru_odottaa"""
+    """esimerkki | vanha | osa | tuotu | varattu | rekisteroity | ei_rekisteroitavissa | peruttu | peru_odottaa |
+    tarkistus_odottaa | tarkistettava (tulos ei läpäissyt järkevyystarkistusta: krediitit palautetaan)"""
     if t.get("demo"):
         return "esimerkki"
     if not t.get("lupa"):
@@ -77,7 +78,7 @@ def tulos_odottaa(t: dict, nyt: float | None = None) -> bool:
 def tulos_naytettavissa(t: dict, nyt: float | None = None) -> bool:
     """Perutun luvan mittauksen tulosta ja raporttia ei näytetä, eikä rekisteröintiä odottavan mittauksen tulosta
     perumisaikana (muuten lyhyen mittauksen tuloksen voisi katsoa ja perua luvan)."""
-    return luvan_tila(t) not in ("peruttu", "peru_odottaa") and not tulos_odottaa(t, nyt)
+    return luvan_tila(t) not in ("peruttu", "peru_odottaa", "tarkistus_odottaa", "tarkistettava") and not tulos_odottaa(t, nyt)
 
 
 def live_kunto_sallittu(t: dict | None, simuloitu: bool, nyt: float | None = None) -> bool:
@@ -241,6 +242,40 @@ class Krediitit:
         self.storage.update_test(tid, lupa_tila="peruttu")
         return "peruttu"
 
+    def hylkaa_epauskottava(self, tid: int, syyt: list[str]) -> str:
+        """Tulos ei läpäissyt järkevyystarkistusta: raporttia ei rekisteröidä, ja krediitit palautetaan. Lupa perutaan,
+        jos se on vielä mahdollista; muuten lähetetään hyvityspyyntö automaattisesti."""
+        self.storage.update_test(tid, lupa_tila="tarkistus_odottaa")
+        self.storage.add_event(tid, time.time(), "Tulosta ei voitu varmistaa: " + " ".join(syyt))
+        return self.laheta_hylkays(tid)
+
+    def laheta_hylkays(self, tid: int) -> str:
+        from .analysis import uskottavuus  # noqa: PLC0415
+        from . import VERSIO  # noqa: PLC0415
+        t = self.storage.test(tid) or {}
+        syyt = uskottavuus(t.get("tulos")) or ["Tulos ei läpäissyt järkevyystarkistusta."]
+        syy = "Tulos ei läpäissyt järkevyystarkistusta: " + " ".join(syyt)
+        y = self.yhteenveto(t)
+        tiedot = (f"Automaattinen hyvityspyyntö. Auto: {y.get('merkki')} {y.get('malli')}, malli "
+                  f"{(self.storage.vehicle(t.get('vehicle_id')) or {}).get('malli_id') or '-'}, mittaus {y.get('tyyppi')}, "
+                  f"AKVERI {VERSIO}. {syy}")
+        try:
+            self.peru(t["lupa"], syy[:300])
+        except PalveluVirhe as e:
+            if e.status != 409:
+                return "tarkistus_odottaa"             # ei yhteyttä: lähetetään myöhemmin uudelleen
+            try:
+                self.hyvityspyynto(t["lupa"], syy, tiedot)
+            except PalveluVirhe as e2:
+                if e2.status != 409:
+                    return "tarkistus_odottaa"
+            self.storage.update_test(tid, lupa_tila="tarkistettava")
+            self.storage.add_event(tid, time.time(), "Hyvityspyyntö lähetettiin automaattisesti. Krediitit palautetaan, kun ylläpito on käsitellyt sen.")
+            return "tarkistettava"
+        self.storage.update_test(tid, lupa_tila="peruttu")
+        self.storage.add_event(tid, time.time(), "Testilupa peruttiin, krediitit palautuivat tilille.")
+        return "peruttu"
+
     def yhteenveto(self, t: dict) -> dict:
         r = t.get("tulos") or {}
         y = r.get("yhteenveto") or {}
@@ -304,7 +339,7 @@ class Krediitit:
         """Valmiit mittaukset, joiden raportti odottaa rekisteröintiä, ja perumiset, jotka odottavat yhteyttä."""
         return [t for t in self.storage.tests()
                 if t.get("lupa") and ((t.get("lupa_tila") == "varattu" and t.get("tila") == "valmis")
-                                      or t.get("lupa_tila") == "peru_odottaa")]
+                                      or t.get("lupa_tila") in ("peru_odottaa", "tarkistus_odottaa"))]
 
 
 def suodata_live(snap: dict, sallittu: bool) -> dict:
@@ -321,7 +356,9 @@ def kasittele_odottavat(krediitit: "Krediitit", versio: str, valmis=None) -> int
     tehty = 0
     for t in krediitit.odottavat():
         try:
-            if t.get("lupa_tila") == "peru_odottaa":
+            if t.get("lupa_tila") == "tarkistus_odottaa":
+                krediitit.laheta_hylkays(t["id"])
+            elif t.get("lupa_tila") == "peru_odottaa":
                 try:
                     krediitit.peru(t["lupa"], "Mittaus keskeytettiin (lähetetty, kun yhteys palasi)")
                     krediitit.storage.update_test(t["id"], lupa_tila="peruttu")

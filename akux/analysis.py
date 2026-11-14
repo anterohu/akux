@@ -328,15 +328,41 @@ def _platform_notes(model, platform, ref_src, last) -> list[str]:
         if pm.RESOLUUTIO_MV and pm.RESOLUUTIO_MV > 1:
             out.append(f"Akunhallinta ilmoittaa kennojännitteet {pm.RESOLUUTIO_MV:.0f} mV:n tarkkuudella, joten "
                        "kennojen jännite-ero on arvioitu tämä tarkkuus huomioiden.")
-        if (model or {}).get("kyselyt_varmistettu") is False:
-            out.append("Tämän mallin akkutietojen kyselyt on varmistettu vain lähimmältä sisarmallilta. "
-                       "Tulos on kokeellinen.")
     if ref_src.startswith("Mallitaulukko") and (platform == "sx" or (model or {}).get("likiarvo")):
         out.append("Tämän mallin akunhallinta ei ilmoita akun alkuperäistä energiaa. Kunto on laskettu mallitaulukon "
                    "likiarvosta. Tarkempi tulos saadaan, kun auton tietoihin syötetään akun alkuperäinen kapasiteetti.")
-    if (model or {}).get("kokeellinen"):
-        out.append("Tämän mallin akkuviestejä ei ole julkisesti varmistettu. Tulos on kokeellinen.")
     return out
+
+
+# Järkevyystarkistus ennen raportin rekisteröintiä. Jos mitatut arvot ovat mahdottomia (esimerkiksi väärin valittu
+# automalli tai autosta luettu arvo on tulkittu väärin), raporttia ei tehdä ja krediitit palautetaan.
+USKOTTAVA_KUNTO_PCT = (40.0, 110.0)
+USKOTTAVA_KAPASITEETTI_YLI = 1.10          # mitattu kapasiteetti enintään 10 % yli akun koon uutena
+USKOTTAVA_KENNO_V = (2.0, 4.5)
+USKOTTAVA_ERO_MV = 1000.0
+
+
+def uskottavuus(r: dict | None) -> list[str]:
+    """Palauttaa syyt, joiden vuoksi mittauksen tulos ei ole uskottava. Tyhjä lista, kun tulos on uskottava."""
+    if not r:
+        return []
+    syyt = []
+    y = r.get("yhteenveto") or {}
+    kunto, kwh = y.get("kunto_pct"), y.get("kapasiteetti_kwh")
+    uutena = (r.get("viite") or {}).get("kwh")
+    if kunto is not None and not (USKOTTAVA_KUNTO_PCT[0] <= kunto <= USKOTTAVA_KUNTO_PCT[1]):
+        syyt.append(f"Akun kunnoksi saatiin {fmt(kunto)} %, mikä ei ole mahdollinen.")
+    if kwh and uutena and kwh > uutena * USKOTTAVA_KAPASITEETTI_YLI:
+        syyt.append(f"Mitattu kapasiteetti {fmt(kwh)} kWh on selvästi suurempi kuin akku uutena ({fmt(uutena)} kWh). "
+                    "Tarkista, että auton malli ja akun koko on valittu oikein.")
+    k = r.get("kennot") or {}
+    if k.get("lkm"):
+        lo, hi = k.get("min_v"), k.get("max_v")
+        if (lo is not None and lo < USKOTTAVA_KENNO_V[0]) or (hi is not None and hi > USKOTTAVA_KENNO_V[1]):
+            syyt.append("Kennoryhmien jännitteet ovat mahdollisen alueen ulkopuolella.")
+        elif (k.get("ero_mv") or 0) > USKOTTAVA_ERO_MV:
+            syyt.append("Kennoryhmien jännite-ero on mahdottoman suuri.")
+    return syyt
 
 
 def parse_date(txt):

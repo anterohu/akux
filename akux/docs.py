@@ -13,7 +13,6 @@ OHJE = [
                 "<b>Model S ja Model X</b>: vuodesta 2021 valmistetut samalla tavalla kuin Model 3. Vuosien 2012–2021 "
                 "Model S ja 2015–2021 Model X käyttävät omaa viestirakennettaan, jonka AKVERI tunnistaa itse. Niiden "
                 "akunhallinta ei ilmoita akun alkuperäistä kapasiteettia, joten se kannattaa syöttää auton tietoihin.",
-                "<b>Cybertruck</b>: auto tunnistetaan, mutta mittaus on kokeellinen.",
                 "<b>Hyundai ja Kia</b>: Ioniq Electric, Kona Electric, e-Niro, e-Soul, Ioniq 5, Ioniq 6 ja EV6.",
                 "<b>Nissan Leaf</b>: 24, 30, 40 ja 62 kWh.",
                 "<b>Volkswagen-konsernin MEB-alusta</b>: Volkswagen ID.3, ID.4 ja ID.5, Škoda Enyaq, Audi Q4 e-tron "
@@ -82,10 +81,8 @@ OHJE = [
                   "kytketään suoraan kuljettajan jalkatilan OBD-II-liitäntään, ja auton malli valitaan Yleiskuvan "
                   "Yhdistä-kohdan Auto-luettelosta ennen yhdistämistä."),
             ("ul", [
-                "<b>Tuetut mallit:</b> Hyundai Ioniq Electric 28 kWh, Kona Electric 39 ja 64 kWh, Kia e-Niro 39 ja "
-                "64 kWh, e-Soul 64 kWh sekä E-GMP-alustan Ioniq 5, Ioniq 6 ja Kia EV6. Ioniq Electric 38 kWh, "
-                "Kona 39 kWh ja e-Niro 39 kWh on merkitty kokeellisiksi, koska niiden kennomäärää tai kyselyjä ei "
-                "ole varmistettu.",
+                "<b>Tuetut mallit:</b> Hyundai Ioniq Electric 28 ja 38 kWh, Kona Electric 39 ja 64 kWh, Kia e-Niro 39 ja "
+                "64 kWh, e-Soul 64 kWh sekä E-GMP-alustan Ioniq 5, Ioniq 6 ja Kia EV6.",
                 "<b>Kytkentä:</b> sovitin kytketään suoraan kuljettajan jalkatilan OBD-II-liitäntään. Välikaapelia ei tarvita.",
                 "<b>Mallin valinta:</b> valitse Yleiskuvan Yhdistä-kohdan Auto-luettelosta auton malli ennen "
                 "yhdistämistä. Valmistenumerosta ei voi päätellä akun kokoa, joten malli valitaan myös auton tiedoissa.",

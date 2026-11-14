@@ -40,6 +40,23 @@
     (LATAA[v] || function () {})();
   }
 
+  // Anonyymin aineiston rivit malleittain: mittausten määrä ja kunnon vaihteluväli (eniten mittauksia ensin)
+  function mallit(rivit) {
+    var m = {};
+    rivit.forEach(function (r) {
+      var k = (r.merkki || '–') + '\u0000' + (r.malli || '–');
+      var x = m[k] || (m[k] = { merkki: r.merkki || '–', malli: r.malli || '–', n: 0, testi: 0, kunnot: [] });
+      x.n++; if (r.testi) x.testi++;
+      if (typeof r.kunto_pct === 'number') x.kunnot.push(r.kunto_pct);
+    });
+    return Object.keys(m).map(function (k) {
+      var x = m[k], kk = x.kunnot, pyor = function (v) { return Math.round(v * 10) / 10; };
+      return { merkki: x.merkki, malli: x.malli, n: x.n, testi: x.testi,
+        ka: kk.length ? pyor(kk.reduce(function (a, b) { return a + b; }, 0) / kk.length) : null,
+        min: kk.length ? pyor(Math.min.apply(null, kk)) : null, max: kk.length ? pyor(Math.max.apply(null, kk)) : null };
+    }).sort(function (a, b) { return b.n - a.n || a.merkki.localeCompare(b.merkki) || a.malli.localeCompare(b.malli); });
+  }
+
   function taulu(taulukko, otsikot, rivit, luoRivi) {
     tyhjenna(taulukko);
     var thead = el('thead'), tr = el('tr');
@@ -100,7 +117,14 @@
   }
   var LATAA = {
     tietosuoja: function () {
-      api('/tilasto').then(function (d) { $('#tilasto-maara').textContent = 'Rivejä ' + d.rivit.length + '.'; }).catch(virhe());
+      api('/tilasto').then(function (d) {
+        $('#tilasto-maara').textContent = 'Rivejä ' + d.rivit.length + '.';
+        taulu($('#mallitaulu'), ['Merkki', 'Malli', '#Mittauksia', '#Kunto keskim. %', '#Pienin %', '#Suurin %', '#Testitileiltä'], mallit(d.rivit), function (m) {
+          var tr = el('tr'); solu(tr, m.merkki); solu(tr, m.malli);
+          [m.n, m.ka, m.min, m.max, m.testi].forEach(function (x) { solu(tr, x === null ? '–' : x, 'luku'); });
+          return tr;
+        });
+      }).catch(virhe());
     },
     yleiskatsaus: function () {
       api('/yhteenveto').then(function (d) {

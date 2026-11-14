@@ -208,6 +208,14 @@ class App:
             txt = "Mittaus on valmis. Avaa tulos ohjelmasta."
         t = self.storage.test(tid) or {}
         if krediittimoduuli.luvan_tila(t) == "varattu":
+            from .analysis import uskottavuus  # noqa: PLC0415
+            syyt = uskottavuus(result or t.get("tulos"))
+            if syyt:
+                tila = self.krediitit.hylkaa_epauskottava(tid, syyt)
+                self.notify("ongelmat", "Tulosta ei voitu varmistaa",
+                            " ".join(syyt) + (" Krediitit palautuivat tilille." if tila == "peruttu" else
+                                              " Krediitit palautetaan, kun hyvitys on käsitelty."))
+                return
             try:
                 self.krediitit.rekisteroi(tid, VERSIO)
                 self.storage.add_event(tid, time.time(), "Raportti rekisteröity akveri.fi-palveluun.")

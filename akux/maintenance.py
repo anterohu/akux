@@ -185,6 +185,22 @@ def selftest(app, full: bool = True) -> dict:
         return "ok", "Tulos näytetään vasta rekisteröinnin jälkeen, ja anonyymissä aineistossa ei ole tunnisteita."
     out.append(_check("Krediittien suojaus ja anonyymi aineisto", krediittisuoja))
 
+    def jarkevyys():
+        # Mahdoton tulos (esim. väärin valittu malli) ei saa päätyä raportiksi, eikä sen tulosta näytetä.
+        from . import krediitit as kr  # noqa: PLC0415
+        from .analysis import uskottavuus  # noqa: PLC0415
+        hyva = {"yhteenveto": {"kunto_pct": 92.0, "kapasiteetti_kwh": 60.0}, "viite": {"kwh": 64.0},
+                "kennot": {"lkm": 98, "min_v": 3.6, "max_v": 3.62, "ero_mv": 20}}
+        vaara_malli = {**hyva, "viite": {"kwh": 39.2}}
+        mahdoton = {**hyva, "yhteenveto": {"kunto_pct": 160.0}}
+        if uskottavuus(hyva) or not uskottavuus(vaara_malli) or not uskottavuus(mahdoton):
+            return "virhe", "Järkevyystarkistus ei toimi."
+        for tila in ("tarkistus_odottaa", "tarkistettava"):
+            if kr.tulos_naytettavissa({"lupa": "x", "lupa_tila": tila, "tila": "valmis"}):
+                return "virhe", "Hylätyn mittauksen tulos näytettäisiin."
+        return "ok", "Mahdotonta tulosta ei rekisteröidä raportiksi, ja krediitit palautetaan automaattisesti."
+    out.append(_check("Tulosten järkevyystarkistus", jarkevyys))
+
     def disk():
         free = shutil.disk_usage(st.dir).free / 1e9
         if free < 1:

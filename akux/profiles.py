@@ -163,8 +163,7 @@ def connection_guide(malli_koodi: str | None, vuosimalli: int | None = None,
                 "varmistettu": False}
     if mk == "C":
         return {"liitin": "Cybertruck",
-                "ohje": "Cybertruckin akkuviestejä ei ole julkisesti selvitetty. AKVERI tunnistaa auton, mutta mittaus on "
-                        "kokeellinen ja voi jäädä vajaaksi. Kartoita väylä ennen mittausta.",
+                "ohje": "AKVERI ei vielä tue Cybertruckia.",
                 "varmistettu": False}
     return {"liitin": "Diagnostiikkaliitin",
             "ohje": "Kytke sovitin auton diagnostiikkaliittimeen mallille sopivalla välikaapelilla.",

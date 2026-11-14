@@ -130,7 +130,7 @@ def decode(vin: str) -> dict:
     if vin[3] == "R":
         out["huomautus"] = "Roadsterin (2008–2012) akkutietoja ei voi lukea diagnostiikkaliitännän kautta."
     elif vin[3] == "C":
-        out["huomautus"] = "Cybertruckin akkuviestejä ei ole julkisesti selvitetty, joten mittaus on kokeellinen."
+        out["huomautus"] = "AKVERI ei vielä tue Cybertruckia."
     elif vin[3] in "SX" and out["vuosimalli"] and out["vuosimalli"] <= 2020:
         out["alusta_arvio"] = "sx"
     return out

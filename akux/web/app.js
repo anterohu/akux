@@ -27,7 +27,7 @@ const MERKIT = ["Tesla", "Hyundai", "Kia", "Nissan", "Volkswagen", "Škoda", "Au
 const merkki = m => (m && m.merkki) || "Tesla";
 // Mallivalikon sisältö merkin mukaan; Teslan mallit ryhmitellään mallisarjoittain
 function malliOptions(mallit, brand, selected) {
-  const opt = m => `<option value="${m.id}" ${m.id === selected ? "selected" : ""}>${esc(m.nimi)}${m.kyselyt_varmistettu === false ? " (kokeellinen)" : ""}</option>`;
+  const opt = m => `<option value="${m.id}" ${m.id === selected ? "selected" : ""}>${esc(m.nimi)}</option>`;
   const list = mallit.filter(m => merkki(m) === brand);
   const first = `<option value="">${brand === "Tesla" ? "Tunnista automaattisesti" : "Valitse malli"}</option>`;
   if (brand === "Tesla")
@@ -211,7 +211,7 @@ views.yleiskuva = {
         const hk = mallit.filter(m => m.merkki && m.merkki !== "Tesla");
         const brands = [...new Set(hk.map(m => m.merkki))];
         hkOpts = brands.map(b => `<optgroup label="${esc(b)}">${hk.filter(m => m.merkki === b).map(m =>
-          `<option value="${esc(m.id)}">${esc(m.nimi)}${m.kyselyt_varmistettu === false ? " (kokeellinen)" : ""}</option>`).join("")}</optgroup>`).join("");
+          `<option value="${esc(m.id)}">${esc(m.nimi)}</option>`).join("")}</optgroup>`).join("");
       } catch (e) { /* */ }
       const E = await esittelySallittu();
       const opts = ports.portit.map(p => `<option value="${esc(p.laite)}">${esc(p.laite)} – ${esc(p.kuvaus)}${p.todennakoinen ? " (OBDLink)" : ""}</option>`).join("");
@@ -863,7 +863,7 @@ views.mittaukset = {
         <a class="btn" href="/api/mittaukset/${id}/data.csv">Mittausdata (CSV)</a></div></div>
       ${r.virhe ? `<div class="notice bad">${esc(r.virhe)}</div>` : ""}
       ${t.tulos_odottaa ? `<div class="notice warn"><b>Mittaus on valmis.</b> Tulos ja raportti näytetään, kun raportti on rekisteröity akveri.fi-palveluun. Rekisteröinti tehdään automaattisesti, kun verkkoyhteys on käytettävissä.</div>` : ""}
-      ${!done && !r.virhe && !t.tulos_odottaa ? (t.tila === "kesken" ? `<div class="notice warn"><b>Mittaus on kesken.</b> Jatka sitä <a href="#/mittaus">Mittaus</a>-sivulta, kun sovitin on kytketty samaan autoon.</div>`
+      ${!done && !r.virhe && !t.tulos_odottaa && !["peruttu", "peru_odottaa", "tarkistus_odottaa", "tarkistettava"].includes((t.lupa || {}).tila) ? (t.tila === "kesken" ? `<div class="notice warn"><b>Mittaus on kesken.</b> Jatka sitä <a href="#/mittaus">Mittaus</a>-sivulta, kun sovitin on kytketty samaan autoon.</div>`
         : `<div class="notice warn">Mittaus on tilassa: ${esc(t.tila)}. Raporttia ei voi muodostaa.</div>`) : ""}
       ${done ? `
       <div class="grid g3">
@@ -941,7 +941,7 @@ views.ohjeet = {
 };
 
 // =====================================================================
-// ASETUKSET
+// KREDIITIT
 // =====================================================================
 // ---------- testilupa ja krediitit ----------
 const LUPA_TILAT = {
@@ -949,6 +949,8 @@ const LUPA_TILAT = {
   varattu: ["warn", "Odottaa rekisteröintiä", "Raportti rekisteröidään tarkistettavaksi, kun mittaus on valmis ja verkkoyhteys on käytettävissä. Tarkistusosoite: akveri.fi/v/"],
   peruttu: ["bad", "Peruttu", "Testilupa peruttiin ja krediitit palautuivat. Mittauksesta ei tehdä raporttia."],
   peru_odottaa: ["warn", "Peruminen odottaa", "Lupa perutaan ja krediitit palautuvat, kun verkkoyhteys palaa."],
+  tarkistus_odottaa: ["bad", "Tulosta ei voitu varmistaa", "Mitatut arvot eivät läpäisseet järkevyystarkistusta, joten raporttia ei tehdä. Krediitit palautetaan, kun verkkoyhteys on käytettävissä. Syy näkyy mittauksen tapahtumissa."],
+  tarkistettava: ["bad", "Tulosta ei voitu varmistaa", "Mitatut arvot eivät läpäisseet järkevyystarkistusta, joten raporttia ei tehdä. Hyvityspyyntö lähetettiin automaattisesti, ja krediitit palautetaan, kun se on käsitelty. Syy näkyy mittauksen tapahtumissa."],
   osa: ["good", "Osa mittauksesta", "Tämä on osa täydestä akkutestistä. Tarkistettava raportti on koko mittauksen raportti: akveri.fi/v/"],
   tuotu: ["", "Avattu tiedostosta", "Mittaus on avattu mittaustiedostosta. Raportti rekisteröidään sillä laitteella, jolla mittaus tehtiin. Tarkistusosoite: akveri.fi/v/"],
   ei_rekisteroitavissa: ["bad", "Rekisteröinti hylätty", "AKVERI-palvelu ei hyväksynyt raportin rekisteröintiä. Syy näkyy tapahtumissa. Ota tarvittaessa yhteyttä asiakaspalveluun."],
@@ -962,6 +964,10 @@ function lupaKortti(t) {
   const linkki = l.tunnus && ["rekisteroity", "varattu", "osa", "tuotu"].includes(l.tila) ? `<a href="https://akveri.fi/v/${esc(l.tunnus)}" target="_blank" rel="noopener">${esc(l.tunnus)}</a>` : "";
   return `<div class="card" style="margin-top:16px"><h2>Raportin tarkistus ${cls ? `<span class="pill ${cls}">${otsikko}</span>` : `<span class="pill">${otsikko}</span>`}</h2>
     <p class="small">${esc(teksti)}${linkki}</p>
+    ${["tarkistus_odottaa", "tarkistettava"].includes(l.tila) ? (() => {
+      const e = [...(t.tapahtumat || [])].reverse().find(x => /^Tulosta ei voitu varmistaa: /.test(x.teksti || ""));
+      return e ? `<div class="notice bad small">${esc(e.teksti.replace(/^Tulosta ei voitu varmistaa: /, ""))}</div>` : "";
+    })() : ""}
     ${l.testi ? `<div class="notice warn">Testimittaus: tehty testitilillä, ei kuluttanut krediittiä. Raporttiin tulee TESTIMITTAUS-leima, eikä sitä voi käyttää todistuksena.</div>` : ""}
     ${l.tunnus ? `<p class="small muted">Raportin tunnus ${esc(l.tunnus)}</p>` : ""}
     ${l.hyvitettavissa ? `<h3>Pyydä hyvitystä</h3><p class="small muted">Jos mittaus keskeytyi AKVERIsta johtuvasta syystä (esimerkiksi ohjelma pysähtyi tai yhteys katkesi ohjelman virheen vuoksi), kerro mitä tapahtui. Mittauksen tapahtumaloki lähetetään pyynnön mukana.</p>
@@ -1034,6 +1040,9 @@ window.akveriOsto = async function (tuote, ostotunnus) {
 };
 window.akveriOstoVirhe = function (viesti) { if (viesti) toast(viesti, true); };
 
+// =====================================================================
+// ASETUKSET
+// =====================================================================
 views.asetukset = {
   async render() {
     const [s, E, info] = await Promise.all([api("/api/asetukset"), esittelySallittu(), api("/api/tietoja")]);
