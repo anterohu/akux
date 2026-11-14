@@ -154,9 +154,9 @@ const TEKSTIT = {
 <li>Krediitit ovat tilikohtaisia eikä niitä vaihdeta rahaksi. Google Playssa peruttu tai hyvitetty osto vähentää vastaavat krediitit.</li>
 </ul>
 <h2>4. Raportin tarkistus</h2>
-<p>Raportti rekisteröidään palveluun mittauksen päätyttyä. Tarkistussivulla näkyvät raportin tunnus, mittauksen tyyppi, auton merkki ja malli, valmistenumeron alku ja loppu, mittarilukema ja keskeiset tulokset. Raportin voi mitätöidä, jos sen todetaan perustuvan virheelliseen mittaukseen tai jos sovellusta on käytetty näiden ehtojen vastaisesti.</p>
+<p>Raportti rekisteröidään palveluun mittauksen päätyttyä. Tarkistussivulla näkyvät raportin tunnus, mittauksen tyyppi, auton merkki ja malli, valmistenumeron alku ja loppu, mittarilukema, mittauksen suorittaja ja keskeiset tulokset. Raportin voi mitätöidä, jos sen todetaan perustuvan virheelliseen mittaukseen tai jos sovellusta on käytetty näiden ehtojen vastaisesti.</p>
 <h2>5. Tulosten luonne ja vastuunrajoitus</h2>
-<p>Raportti kuvaa akun tilaa mittaushetkellä auton akunhallinnan luovuttamien tietojen perusteella, ja sen tarkkuus on ilmoitettu raportissa. Raportti ei ole takuu akun tai ajoneuvon kunnosta eikä niiden kestosta. Palveluntarjoaja ei vastaa mittauksen suorittamisesta, auton käsittelystä mittauksen aikana eikä tuloksiin perustuvista päätöksistä. Vastuu rajoittuu kaikissa tapauksissa kyseisestä mittauksesta maksettuun hintaan, ellei pakottava lainsäädäntö muuta edellytä.</p>
+<p>Raportin tulokset luetaan auton akunhallinnasta, ja AKVERI laskee ja varmentaa ne; mittauksen suorittaja ei voi muuttaa tuloksia. Raportti kuvaa akun tilaa mittaushetkellä, ja sen tarkkuus on ilmoitettu raportissa. Raportti ei ole takuu akun tai ajoneuvon kunnosta eikä niiden kestosta. Palveluntarjoaja ei vastaa mittauksen suorittamisesta, auton käsittelystä mittauksen aikana eikä tuloksiin perustuvista päätöksistä. Vastuu rajoittuu kaikissa tapauksissa kyseisestä mittauksesta maksettuun hintaan, ellei pakottava lainsäädäntö muuta edellytä.</p>
 <h2>6. Kielletty käyttö</h2>
 <p>Sovellusta ei saa muokata, purkaa tai käyttää tavalla, jolla kierretään krediittien veloitus tai raportin tarkistus. Raportin tietojen muuttaminen on kielletty.</p>
 <h2>7. Kuluttajan oikeudet</h2>
@@ -181,9 +181,9 @@ const TEKSTIT = {
 <li>Credits belong to the account and cannot be exchanged for money. A purchase cancelled or refunded on Google Play removes the corresponding credits.</li>
 </ul>
 <h2>4. Report verification</h2>
-<p>A report is registered with the service when the test ends. The verification page shows the report ID, the test type, the car's make and model, the beginning and end of the VIN, the odometer reading and the main results. A report may be invalidated if it is found to be based on a faulty test or if the app has been used in breach of these terms.</p>
+<p>A report is registered with the service when the test ends. The verification page shows the report ID, the test type, the car's make and model, the beginning and end of the VIN, the odometer reading, who carried out the test and the main results. A report may be invalidated if it is found to be based on a faulty test or if the app has been used in breach of these terms.</p>
 <h2>5. Nature of the results and limitation of liability</h2>
-<p>The report describes the condition of the battery at the time of the test, based on data provided by the car's battery management system, and its accuracy is stated in the report. The report is not a guarantee of the condition or durability of the battery or the vehicle. The service provider is not responsible for how the test is carried out, for the handling of the car during the test or for decisions based on the results. In all cases, liability is limited to the price paid for the test in question, unless mandatory law requires otherwise.</p>
+<p>The results in the report are read from the car's battery management system and calculated and verified by AKVERI; the person who carries out the test cannot change them. The report describes the condition of the battery at the time of the test, and its accuracy is stated in the report. The report is not a guarantee of the condition or durability of the battery or the vehicle. The service provider is not responsible for how the test is carried out, for the handling of the car during the test or for decisions based on the results. In all cases, liability is limited to the price paid for the test in question, unless mandatory law requires otherwise.</p>
 <h2>6. Prohibited use</h2>
 <p>The app may not be modified, reverse engineered or used in a way that circumvents the charging of credits or the verification of reports. Altering the contents of a report is prohibited.</p>
 <h2>7. Consumer rights</h2>
@@ -208,9 +208,9 @@ const TEKSTIT = {
 <li>Krediterna hör till kontot och kan inte växlas till pengar. Ett köp som har annullerats eller återbetalats i Google Play drar av motsvarande krediter.</li>
 </ul>
 <h2>4. Kontroll av rapporter</h2>
-<p>Rapporten registreras i tjänsten när testet har avslutats. På kontrollsidan visas rapportens kod, testtypen, bilens märke och modell, chassinumrets början och slut, mätarställningen och de viktigaste resultaten. En rapport kan ogiltigförklaras om den visar sig bygga på ett felaktigt test eller om appen har använts i strid med dessa villkor.</p>
+<p>Rapporten registreras i tjänsten när testet har avslutats. På kontrollsidan visas rapportens kod, testtypen, bilens märke och modell, chassinumrets början och slut, mätarställningen, vem som utförde testet och de viktigaste resultaten. En rapport kan ogiltigförklaras om den visar sig bygga på ett felaktigt test eller om appen har använts i strid med dessa villkor.</p>
 <h2>5. Resultatens karaktär och ansvarsbegränsning</h2>
-<p>Rapporten beskriver batteriets skick vid testtillfället utifrån uppgifter från bilens batterihanteringssystem, och dess noggrannhet anges i rapporten. Rapporten är ingen garanti för batteriets eller fordonets skick eller hållbarhet. Tjänsteleverantören ansvarar inte för hur testet utförs, för hanteringen av bilen under testet eller för beslut som grundar sig på resultaten. Ansvaret är i alla fall begränsat till det pris som betalats för testet i fråga, om inte tvingande lagstiftning kräver annat.</p>
+<p>Rapportens resultat läses från bilens batterihanteringssystem och beräknas och verifieras av AKVERI; den som utför testet kan inte ändra dem. Rapporten beskriver batteriets skick vid testtillfället, och dess noggrannhet anges i rapporten. Rapporten är ingen garanti för batteriets eller fordonets skick eller hållbarhet. Tjänsteleverantören ansvarar inte för hur testet utförs, för hanteringen av bilen under testet eller för beslut som grundar sig på resultaten. Ansvaret är i alla fall begränsat till det pris som betalats för testet i fråga, om inte tvingande lagstiftning kräver annat.</p>
 <h2>6. Förbjuden användning</h2>
 <p>Appen får inte ändras, dekompileras eller användas på ett sätt som kringgår debiteringen av krediter eller kontrollen av rapporter. Det är förbjudet att ändra uppgifterna i en rapport.</p>
 <h2>7. Konsumentens rättigheter</h2>
@@ -231,7 +231,7 @@ const TEKSTIT = {
 <ul>
 <li><b>Sovelluksen tili:</b> satunnainen tilitunnus ja sen salaisen avaimen tiiviste. Tiliin ei liitetä nimeä, sähköpostia eikä puhelinnumeroa.</li>
 <li><b>Ostot:</b> Google Playn tilausnumero, ostettu tuote ja ostoaika. Maksutiedot käsittelee Google, eikä niitä välitetä AKVERIlle.</li>
-<li><b>Rekisteröidyt raportit:</b> raportin tunnus, mittauksen tyyppi ja aika, auton merkki ja malli, valmistenumeron kolme ensimmäistä ja kuusi viimeistä merkkiä, valmistenumeron tiiviste, mittarilukema, mittaustulokset ja raakadatan tarkiste. Rekisterikilpeä, auton omistajaa tai mittaajan nimeä ei tallenneta palveluun.</li>
+<li><b>Rekisteröidyt raportit:</b> raportin tunnus, mittauksen tyyppi ja aika, auton merkki ja malli, valmistenumeron kolme ensimmäistä ja kuusi viimeistä merkkiä, valmistenumeron tiiviste, mittarilukema, mittaustulokset, raakadatan tarkiste sekä mittauksen suorittajaksi ilmoitettu nimi tai yritys, joka näkyy myös tarkistussivulla. Rekisterikilpeä tai auton omistajaa ei tallenneta palveluun.</li>
 <li><b>Yhteydenotot:</b> lomakkeella lähetetty nimi, sähköpostiosoite ja viesti.</li>
 <li><b>Tekniset lokit:</b> IP-osoite käsitellään väliaikaisesti väärinkäytösten estämiseksi (pyyntöjen rajoitus).</li>
 </ul>
@@ -255,7 +255,7 @@ const TEKSTIT = {
 <ul>
 <li><b>App account:</b> a random account ID and a hash of its secret key. No name, email address or phone number is linked to the account.</li>
 <li><b>Purchases:</b> the Google Play order number, the product purchased and the time of purchase. Payment details are processed by Google and are not passed on to AKVERI.</li>
-<li><b>Registered reports:</b> the report ID, the test type and time, the car's make and model, the first three and last six characters of the VIN, a hash of the VIN, the odometer reading, the test results and a checksum of the raw data. The registration plate, the car's owner and the name of the person who carried out the test are not stored in the service.</li>
+<li><b>Registered reports:</b> the report ID, the test type and time, the car's make and model, the first three and last six characters of the VIN, a hash of the VIN, the odometer reading, the test results, a checksum of the raw data and the name or company given as having carried out the test, which is also shown on the verification page. The registration plate and the car's owner are not stored in the service.</li>
 <li><b>Messages:</b> the name, email address and message sent with the contact form.</li>
 <li><b>Technical logs:</b> IP addresses are processed temporarily to prevent misuse (rate limiting).</li>
 </ul>
@@ -279,7 +279,7 @@ const TEKSTIT = {
 <ul>
 <li><b>Konto i appen:</b> ett slumpmässigt konto-id och en hash av dess hemliga nyckel. Inget namn, ingen e-postadress och inget telefonnummer kopplas till kontot.</li>
 <li><b>Köp:</b> Google Plays ordernummer, den köpta produkten och tidpunkten för köpet. Betalningsuppgifterna hanteras av Google och lämnas inte ut till AKVERI.</li>
-<li><b>Registrerade rapporter:</b> rapportens kod, testtyp och tidpunkt, bilens märke och modell, chassinumrets tre första och sex sista tecken, en hash av chassinumret, mätarställningen, testresultaten och en kontrollsumma för rådata. Registreringsskylten, bilens ägare och namnet på den som utfört testet sparas inte i tjänsten.</li>
+<li><b>Registrerade rapporter:</b> rapportens kod, testtyp och tidpunkt, bilens märke och modell, chassinumrets tre första och sex sista tecken, en hash av chassinumret, mätarställningen, testresultaten, en kontrollsumma för rådata samt det namn eller företag som angetts som utförare av testet, vilket också visas på kontrollsidan. Registreringsskylten och bilens ägare sparas inte i tjänsten.</li>
 <li><b>Kontakter:</b> namn, e-postadress och meddelande som skickats via kontaktformuläret.</li>
 <li><b>Tekniska loggar:</b> IP-adresser behandlas tillfälligt för att förhindra missbruk (begränsning av förfrågningar).</li>
 </ul>

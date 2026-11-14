@@ -1,4 +1,5 @@
-"""Raportin valinnat: kennoryhmien kuvaaja, mittaajan riippumattomuus, vastuunrajaus ja sivunumerointi.
+"""Raportin valinnat: kennoryhmien kuvaaja, pääsivu, mittauksen suorittaja, aiempien versioiden riippumattomuus,
+vastuunrajaus ja sivunumerointi.
 
 Ajo: python tests/test_raportin_valinnat.py
 """
@@ -40,8 +41,13 @@ def test_riippumattomuus_ja_sivut():
         txt = _text(report.build(st, tid))
         assert "Riippumattomuus" not in txt and "Mittaus on tehty riippumattomasti" not in txt
         assert "ei ole takuu" in txt and "ohjelmiston toimittaja ei vastaa" in txt
-        n = txt.count("Sivu ")
-        assert f"Sivu 1/{n}" in txt and f"Sivu {n}/{n}" in txt, n
+        # Pääsivu on itsenäinen raportti (ei sivunumeroa), muut sivut numeroidaan lisätietoina
+        n = txt.count("Lisätiedot, sivu ")
+        assert n >= 5 and f"Pääsivu, lisätiedot {n} sivua" in txt, n
+        assert f"Lisätiedot, sivu 1/{n}" in txt and f"Lisätiedot, sivu {n}/{n}" in txt and "Sivu 1/" not in txt
+        assert "AKUN KUNTORAPORTTI" in txt and "RAPORTIN AITOUS" in txt
+        assert "Tulokset on luettu auton akunhallinnasta, ja AKVERI on laskenut ja varmentanut ne." in txt
+        assert "Raporttia ei ole rekisteröity akveri.fi-palveluun" in txt
         st.update_test(tid, riippumaton=1)
         st.save_settings({"kennokuvaaja": "moduulit"})
         txt = _text(report.build(st, tid))
@@ -62,7 +68,39 @@ def test_riippumattomuus_ja_sivut():
                 st2.close()
 
 
+def test_mittauksen_suorittaja():
+    """Suorittaja näkyy raportissa ja lähtee akveri.fi:n tarkistussivulle; rekisteröidyn raportin tiedot lukitaan."""
+    from akux import krediitit, server  # noqa: PLC0415
+    with tempfile.TemporaryDirectory() as d:
+        st = Storage(Path(d))
+        tid = mittaustiedosto.import_file(st, ESIM.read_bytes())["id"]
+        analysis.reanalyze(st, tid)
+        st.save_settings({"mittaaja": "Asetusten oletus"})
+        st.update_test(tid, mittaaja="Autoliike Esimerkki Oy", lupa="AK7H2QKM4XPC", lupa_tila="rekisteroity")
+        txt = _text(report.build(st, tid))
+        assert "Mittauksen suorittaja" in txt and "Autoliike Esimerkki Oy" in txt and "Asetusten oletus" not in txt
+        assert "akveri.fi/v/AK-7H2QK-M4XPC" in txt and "Tarkistussivulla näkyvät samat tiedot" in txt
+        assert "Raporttia ei ole rekisteröity" not in txt
+        # Yhteenveto palvelimelle sisältää suorittajan
+        y = krediitit.Krediitit(st).yhteenveto(st.test(tid))
+        assert y["suorittaja"] == "Autoliike Esimerkki Oy"
+        # Rekisteröidyn raportin riippumattomuusmerkintää ei voi muuttaa
+        class _App:
+            storage = st
+        h = server.Api.__new__(server.Api)
+        h.app = _App()
+        try:
+            h.aseta_riippumattomuus({}, {"riippumaton": True}, tid)
+            raise AssertionError("rekisteröidyn raportin tietoja ei saa muuttaa")
+        except server.ApiError as e:
+            assert "rekisteröity" in str(e)
+        # Rekisteröimättömässä (vanhassa) mittauksessa suorittaja tulee asetuksista kuten ennen
+        st.update_test(tid, mittaaja="", lupa=None, lupa_tila=None)
+        assert "Asetusten oletus" in _text(report.build(st, tid))
+        st.close()
+
+
 if __name__ == "__main__":
-    for fn in (test_moduulijako, test_riippumattomuus_ja_sivut):
+    for fn in (test_moduulijako, test_riippumattomuus_ja_sivut, test_mittauksen_suorittaja):
         fn()
         print("OK", fn.__name__)

@@ -466,9 +466,12 @@ class Api:
             missing = ", ".join(verdict["puuttuvat"]) if verdict else "kaikki"
             raise ApiError(f"Akun tietoja ei vielä vastaanoteta ({missing.lower()}). Tarkista, että auto on "
                            "hereillä ja sovitin on kytketty.")
+        mittaaja = str(body.get("mittaaja") or self.app.settings.get("mittaaja", "") or "").strip()[:80]
+        if not mittaaja and not (self.app.source and self.app.source.simulated):
+            raise ApiError("Kirjoita mittauksen suorittaja (nimi tai yritys). Se näkyy raportissa ja tarkistussivulla.")
         try:
             tid = self.app.start_test(vehicle_id=vid, tyyppi=tyyppi, mittarilukema=_num(body.get("mittarilukema")),
-                                      mittaaja=body.get("mittaaja") or self.app.settings.get("mittaaja", ""),
+                                      mittaaja=mittaaja,
                                       lisatiedot=body.get("lisatiedot", ""),
                                       riippumaton=_riippumaton(body.get("riippumaton")))
             if body.get("riippumaton") is not None:
@@ -606,8 +609,14 @@ class Api:
         return {"ok": True}
 
     def aseta_riippumattomuus(self, q, body, tid):
-        if not self.app.storage.test(tid):
+        # Aiempien versioiden mittauksille. Rekisteröidyn raportin tietoja ei voi muuttaa: raportti ja akveri.fi:n
+        # tarkistussivu pysyvät aina yhtäpitävinä.
+        t = self.app.storage.test(tid)
+        if not t:
             raise ApiError("Mittausta ei löydy.", 404)
+        from . import krediitit  # noqa: PLC0415
+        if krediitit.luvan_tila(t) == "rekisteroity":
+            raise ApiError("Raportti on rekisteröity akveri.fi-palveluun, eikä sen tietoja voi enää muuttaa.", 409)
         self.app.storage.update_test(tid, riippumaton=_riippumaton(body.get("riippumaton")))
         return {"ok": True}
 

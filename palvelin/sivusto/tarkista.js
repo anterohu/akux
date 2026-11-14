@@ -7,7 +7,7 @@
   var KAANNOKSET = {
     fi: {
       tilat: {
-        valmis: ['Raportti on rekisteröity', 'Alla olevat tiedot on tallennettu AKVERIn palvelimelle mittauksen päätyttyä. Vertaa niitä raporttiin.'],
+        valmis: ['Raportti on rekisteröity', 'Tulokset on luettu auton akunhallinnasta, ja AKVERI on laskenut ja varmentanut ne. Mittauksen suorittaja ei voi muuttaa tuloksia. Alla olevat tiedot tallennettiin AKVERIn palvelimelle mittauksen päätyttyä: vertaa niitä raporttiin.'],
         varattu: ['Mittaus on kesken tai raporttia ei ole rekisteröity', 'Tällä tunnuksella on aloitettu mittaus, mutta raporttia ei ole rekisteröity. Raporttia ei voi pitää tarkistettuna.'],
         peruttu: ['Mittaus on peruttu', 'Mittaus on keskeytetty ja peruttu. Tällä tunnuksella tehty raportti ei ole kelvollinen.'],
         mitatoity: ['Raportti on mitätöity', 'AKVERI on mitätöinyt tämän raportin. Raporttia ei pidä käyttää.'],
@@ -17,7 +17,7 @@
       eiLoydy: 'Raporttia ei löydy',
       eiLoydyTeksti: 'Tunnuksella {} ei ole rekisteröityä mittausta. Tarkista tunnus raportin ensimmäiseltä sivulta. Jos tunnus on oikein, raporttia ei ole tehty AKVERIlla tai sitä on muutettu.',
       syy: 'Syy: ', klo: ' klo ', kunto: 'Akun kunto', kapasiteetti: 'Kapasiteetti',
-      kentat: ['Raportin tunnus', 'Mittaus aloitettu', 'Mittaus', 'Auto', 'Valmistenumero', 'Mittarilukema', 'Mitattu', 'Mittaus päättyi', 'Raportin numero', 'Mittaajan riippumattomuus', 'Raakadatan tarkiste', 'Rekisteröity', 'Laskettu uudelleen', 'AKVERI-versio'],
+      kentat: ['Raportin tunnus', 'Mittaus aloitettu', 'Mittaus', 'Auto', 'Valmistenumero', 'Mittarilukema', 'Mitattu', 'Mittaus päättyi', 'Raportin numero', 'Mittaajan riippumattomuus', 'Raakadatan tarkiste', 'Rekisteröity', 'Laskettu uudelleen', 'AKVERI-versio', 'Mittauksen suorittaja'],
       riippumaton: 'Riippumaton mittaaja', sidoksissa: 'Mittaaja on kaupan osapuoli tai sidoksissa siihen',
       haetaan: 'Haetaan…', eiOnnistu: 'Tarkistus ei onnistunut.', verkko: 'Tarkistus ei onnistunut. Tarkista verkkoyhteys ja yritä uudelleen.',
       vinMuoto: 'Valmistenumerossa on 17 merkkiä (ei kirjaimia I, O eikä Q).', vinOk: 'Valmistenumero täsmää: raportti on tehty tästä autosta.',
@@ -25,7 +25,7 @@
     },
     en: {
       tilat: {
-        valmis: ['The report is registered', 'The details below were saved on the AKVERI server when the test ended. Compare them with the report.'],
+        valmis: ['The report is registered', 'The results were read from the car\u2019s battery management system, and AKVERI calculated and verified them. The person who carried out the test cannot change the results. The details below were saved on the AKVERI server when the test ended: compare them with the report.'],
         varattu: ['The test is in progress or the report has not been registered', 'A test was started with this ID, but no report has been registered. The report cannot be considered verified.'],
         peruttu: ['The test was cancelled', 'The test was interrupted and cancelled. A report with this ID is not valid.'],
         mitatoity: ['The report has been invalidated', 'AKVERI has invalidated this report. It should not be used.'],
@@ -35,7 +35,7 @@
       eiLoydy: 'Report not found',
       eiLoydyTeksti: 'No test is registered with the ID {}. Check the ID on the first page of the report. If the ID is correct, the report was not made with AKVERI or it has been altered.',
       syy: 'Reason: ', klo: ' ', kunto: 'Battery health', kapasiteetti: 'Capacity',
-      kentat: ['Report ID', 'Test started', 'Test', 'Car', 'VIN', 'Odometer', 'Tested', 'Test ended', 'Report number', 'Independence of the tester', 'Raw data checksum', 'Registered', 'Recalculated', 'AKVERI version'],
+      kentat: ['Report ID', 'Test started', 'Test', 'Car', 'VIN', 'Odometer', 'Tested', 'Test ended', 'Report number', 'Independence of the tester', 'Raw data checksum', 'Registered', 'Recalculated', 'AKVERI version', 'Test carried out by'],
       riippumaton: 'Independent tester', sidoksissa: 'The tester is a party to the sale or connected to it',
       haetaan: 'Checking…', eiOnnistu: 'The check failed.', verkko: 'The check failed. Check your network connection and try again.',
       vinMuoto: 'A VIN has 17 characters (no letters I, O or Q).', vinOk: 'The VIN matches: the report was made for this car.',
@@ -44,7 +44,7 @@
     },
     sv: {
       tilat: {
-        valmis: ['Rapporten är registrerad', 'Uppgifterna nedan sparades på AKVERIs server när testet avslutades. Jämför dem med rapporten.'],
+        valmis: ['Rapporten är registrerad', 'Resultaten har lästs från bilens batterihanteringssystem, och AKVERI har beräknat och verifierat dem. Den som utförde testet kan inte ändra resultaten. Uppgifterna nedan sparades på AKVERIs server när testet avslutades: jämför dem med rapporten.'],
         varattu: ['Testet pågår eller rapporten har inte registrerats', 'Ett test har startats med den här koden, men ingen rapport har registrerats. Rapporten kan inte betraktas som kontrollerad.'],
         peruttu: ['Testet har annullerats', 'Testet avbröts och annullerades. En rapport med den här koden är inte giltig.'],
         mitatoity: ['Rapporten har ogiltigförklarats', 'AKVERI har ogiltigförklarat den här rapporten. Rapporten ska inte användas.'],
@@ -54,7 +54,7 @@
       eiLoydy: 'Rapporten hittades inte',
       eiLoydyTeksti: 'Det finns inget registrerat test med koden {}. Kontrollera koden på rapportens första sida. Om koden är rätt har rapporten inte gjorts med AKVERI eller så har den ändrats.',
       syy: 'Orsak: ', klo: ' kl. ', kunto: 'Batterihälsa', kapasiteetti: 'Kapacitet',
-      kentat: ['Rapportkod', 'Testet startades', 'Test', 'Bil', 'Chassinummer', 'Mätarställning', 'Testat', 'Testet avslutades', 'Rapportnummer', 'Testarens oberoende', 'Kontrollsumma för rådata', 'Registrerad', 'Omräknad', 'AKVERI-version'],
+      kentat: ['Rapportkod', 'Testet startades', 'Test', 'Bil', 'Chassinummer', 'Mätarställning', 'Testat', 'Testet avslutades', 'Rapportnummer', 'Testarens oberoende', 'Kontrollsumma för rådata', 'Registrerad', 'Omräknad', 'AKVERI-version', 'Testet utfört av'],
       riippumaton: 'Oberoende testare', sidoksissa: 'Testaren är part i affären eller har anknytning till den',
       haetaan: 'Hämtar…', eiOnnistu: 'Kontrollen misslyckades.', verkko: 'Kontrollen misslyckades. Kontrollera nätverksanslutningen och försök igen.',
       vinMuoto: 'Ett chassinummer har 17 tecken (inte bokstäverna I, O eller Q).', vinOk: 'Chassinumret stämmer: rapporten gäller den här bilen.',
@@ -101,6 +101,7 @@
     [[K[0], d.tunnus, 1], [K[2], S.tyypit[d.tyyppi] || d.tyyppi], [K[3], [d.merkki, d.malli].filter(Boolean).join(' ')], [K[4], d.vin],
      [K[5], d.mittarilukema !== null && d.mittarilukema !== undefined ? luku(d.mittarilukema, 0) + ' km' : ''],
      [K[6], aika(d.mitattu)], [K[7], aika(d.paattynyt)], [K[8], d.raporttinumero],
+     [K[14], d.suorittaja],
      [K[9], d.riippumaton === true ? S.riippumaton : d.riippumaton === false ? S.sidoksissa : ''],
      [K[10], d.tarkiste, 1], [K[11], aika(d.rekisteroity)], [K[12], d.paivitetty ? aika(d.paivitetty) : ''], [K[13], d.versio]
     ].forEach(function (r) { if (!r[1]) return; dl.appendChild(el('dt', r[0])); var dd = el('dd', r[1]); if (r[2]) dd.className = 'tunnus'; dl.appendChild(dd); });

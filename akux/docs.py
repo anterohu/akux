@@ -152,8 +152,8 @@ OHJE = [
                 "Satunnainen tilitunnus, jolla krediitit pidetään tallessa. Tiliin ei liitetä nimeä, sähköpostia eikä puhelinnumeroa.",
                 "Google Play -oston tunniste, jolla palvelu tarkistaa maksun Googlelta. Maksukortin tietoja AKVERI ei näe.",
                 "Mittauksen yhteenveto: mittauksen tyyppi ja aika, auton merkki ja malli, valmistenumeron kolme ensimmäistä ja kuusi "
-                "viimeistä merkkiä (koko numero vain tiivisteenä), mittarilukema, akun kunto ja kapasiteetti, mittaajan "
-                "riippumattomuusvalinta, ohjelman versio ja raakadatan tarkiste.",
+                "viimeistä merkkiä (koko numero vain tiivisteenä), mittarilukema, akun kunto ja kapasiteetti, mittauksen "
+                "suorittaja, ohjelman versio ja raakadatan tarkiste.",
                 "Hyvityspyynnössä kirjoittamasi kuvaus ja mittauksen tapahtumaloki.",
             ]),
             ("p", "Rekisterikilpeä, auton omistajaa, mittaajan nimeä, lisätietoja, yrityksen tietoja, kuvia eikä mittausdataa "
@@ -309,7 +309,8 @@ OHJE = [
                   "tallennetaan muuttamattomina, ja raporttiin merkitään niiden tarkiste. Mittauksen sivulla "
                   "<b>Tarkista raakadata</b> varmistaa, ettei aineistoa ole muutettu."),
             ("ul", [
-                "<b>Mittaajan riippumattomuus</b> valitaan mittausta aloitettaessa, ja sitä voi muuttaa mittauksen sivulla. Riippumaton mittaaja ei ole ajoneuvon kaupan osapuoli eikä sidoksissa siihen. Valinta näkyy raportin etusivulla. Jos mittaat esimerkiksi oman myytävän autosi, valitse <b>Ei riippumaton</b>.",
+                "<b>Tulosten alkuperä</b> kerrotaan jokaisen raportin etusivulla: tulokset on luettu auton akunhallinnasta, ja AKVERI on laskenut ja varmentanut ne. Mittauksen suorittaja ei voi muuttaa tuloksia.",
+                "<b>Mittauksen suorittaja</b> (nimi tai yritys) kirjoitetaan mittausta aloitettaessa. Se näkyy raportissa ja akveri.fi:n tarkistussivulla, eikä sitä voi muuttaa raportin rekisteröinnin jälkeen.",
                 "<b>Vastuunrajaus</b> on etusivun alareunassa: raportti kuvaa akun tilaa mittaushetkellä, se ei ole takuu, ja ohjelmiston toimittaja ei vastaa mittauksen suorittamisesta eikä tuloksiin perustuvista päätöksistä.",
                 "<b>Testin numero</b> ja sivunumero muodossa <b>Sivu 3/14</b> ovat jokaisen sivun alareunassa, joten irrallinen sivu yhdistyy oikeaan raporttiin ja puuttuva sivu huomataan. Raakadatan tarkiste on teknisessä liitteessä.",
                 "<b>Kennoryhmien kuvaaja</b> valitaan asetuksista: <b>ryhmät numerojärjestyksessä</b> (oletus) tai <b>moduulikartta</b>, joka näyttää ryhmät akun moduuleittain, jolloin poikkeavan ryhmän moduuli näkyy suoraan. Moduulikartta on käytössä malleille, joiden moduulijako on varmistettu (Model 3, Model S ja Model X).",

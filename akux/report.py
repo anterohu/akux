@@ -634,9 +634,12 @@ class ReportDoc(BaseDocTemplate):
         c.setFillColor(MUTED)
         c.drawString(M, y + 13 * mm, "Paikka ja päiväys")
         c.drawString(W - M - half, y + 13 * mm, "Mittaajan allekirjoitus ja nimenselvennys")
-        # Riippumattomuus ja vastuunrajaus allekirjoitusten alle
-        lines = []
+        # Tulosten alkuperä, (aiempien versioiden) riippumattomuusmerkintä ja vastuunrajaus allekirjoitusten alle
+        lines = [VARMENNUS]
+        korostus = 1
         indep = self.ctx.get("riippumaton")
+        if indep is not None:
+            korostus = 2
         if indep is True:
             lines.append("Mittaus on tehty riippumattomasti: mittaaja ei ole ajoneuvon kaupan osapuoli eikä sidoksissa siihen.")
         elif indep is False:
@@ -645,17 +648,19 @@ class ReportDoc(BaseDocTemplate):
                   "kestosta. Tulokset perustuvat auton akunhallinnan",
                   f"tietoihin, ja niiden tarkkuus on ilmoitettu raportissa. {NIMI}-ohjelmiston toimittaja ei vastaa "
                   "mittauksen suorittamisesta eikä tuloksiin perustuvista päätöksistä."]
-        c.setFont("Inter", 5.9)
-        yy = y - 11.5 * mm
-        for k, ln in enumerate(lines):
-            if k == 0 and indep is not None:
-                c.setFont("Inter-SemiBold", 6.2)
-                c.setFillColor(INK)
-            else:
-                c.setFont("Inter", 5.9)
-                c.setFillColor(MUTED)
-            c.drawString(M, yy, ln)
-            yy -= 2.5 * mm
+        # Tekstit käännetään ensin ja rivitetään sitten sivun leveyteen, jotta pidempi kieli ei mene reunan yli.
+        from reportlab.lib.utils import simpleSplit
+        korostetut = [(_t(x), "Inter-SemiBold", 6.2, INK) for x in lines[:korostus]]
+        vastuu = " ".join(_t(x) for x in lines[korostus:])
+        rivit = []
+        for teksti, fontti, koko, vari in korostetut + [(vastuu, "Inter", 5.9, MUTED)]:
+            rivit += [(r_, fontti, koko, vari) for r_ in simpleSplit(teksti, fontti, koko, CW)]
+        yy = y - 11 * mm
+        for teksti, fontti, koko, vari in rivit:
+            c.setFont(fontti, koko)
+            c.setFillColor(vari)
+            c.drawString(M, yy, teksti)
+            yy -= 2.3 * mm
         c.restoreState()
 
     def _decorate(self, c, doc):
@@ -692,16 +697,18 @@ class ReportDoc(BaseDocTemplate):
             c.setFillColor(MUTED)
             if ctx.get("company_line"):
                 c.drawString(x0, y - 11, ctx["company_line"])
+        # Oikean yläkulman rivit: kolmen rivin (rekisteröity raportti) lohko nostetaan, ettei se osu otsikkoviivaan
+        yo = y + 8 if ctx.get("tunnus") else y
         c.setFont("Inter-Medium", 8)
         c.setFillColor(INK)
-        c.drawRightString(W - M, y - 1, ctx["title"])
+        c.drawRightString(W - M, yo - 1, ctx["title"])
         c.setFont("Inter", 7.4)
         c.setFillColor(MUTED)
-        c.drawRightString(W - M, y - 11, f"Testi nro {ctx['report_no']}  ·  {ctx['date']}")
+        c.drawRightString(W - M, yo - 11, f"Testi nro {ctx['report_no']}  ·  {ctx['date']}")
         if ctx.get("tunnus"):
             c.setFont("Inter-Medium", 7.4)
             c.setFillColor(INK)
-            c.drawRightString(W - M, y - 20, f"Raportin tunnus {ctx['tunnus']}")
+            c.drawRightString(W - M, yo - 20, f"Raportin tunnus {ctx['tunnus']}")
         c.setStrokeColor(LINE)
         c.setLineWidth(0.8)
         c.line(M, line_y, W - M, line_y)
@@ -822,7 +829,7 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
         sub = f"Tesla {vi['malli']}  ·  {_prof['akku_lyhyt']}"
     year = vehicle.get("vuosimalli") or vi.get("vuosimalli")
     reg = (vehicle.get("rekisteri") or "").strip()
-    head = [P(test_kind, "h1"), P(sub, "sub")]
+    head = [P("AKUN KUNTORAPORTTI", "label"), Spacer(1, 2), P(test_kind, "h1"), P(sub, "sub")]
     meta_line = "  ·  ".join(x for x in ((f"Vuosimalli {year}" if year else None),
                                          (f"Rekisterinumero <b>{reg}</b>" if reg else None)) if x)
     if meta_line:
@@ -939,21 +946,24 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
         ("Valmistenumero (VIN)", veh.get("vin")),
         ("Rekisterinumero", vehicle.get("rekisteri")),
         ("Vuosimalli", str(vehicle.get("vuosimalli") or vi.get("vuosimalli") or "–")),
-        ("Valmistustehdas", vi.get("tehdas")),
-        ("Voimalinja", vi.get("voimalinja")),
         ("Mittarilukema", f"{fmt(odo, 0)} km" if odo else None),
         ("Käyttöönottopäivä", (r.get("takuu") or {}).get("kayttoonotto")),
     ]
     kk = r.get("kapasiteetit") or {}
-    right = [
-        ("Akkutyyppi", veh.get("kennotyyppi") or veh.get("kemia_nimi")),
-        ("Kennoryhmiä sarjassa", str(veh.get("kennoryhmat") or "–")),
+    # Tekniset ajoneuvo- ja akkutiedot ovat lisätiedoissa (sivu 2)
+    tekniset_l = [("Valmistustehdas", vi.get("tehdas")), ("Voimalinja", vi.get("voimalinja")),
+                  ("Kennoryhmiä sarjassa", str(veh.get("kennoryhmat") or "–"))]
+    tekniset_r = [
         ("Uutena, brutto / netto", (_bn(kk.get("brutto_uutena"), kk.get("netto_uutena")) or "") + (
             "" if r["viite"]["lahde"].startswith("Auton akunhallinta") or not kk.get("brutto_uutena")
             else (" (ilmoitettu)" if r["viite"]["lahde"].startswith("Käyttäjän") else " (likiarvo)")) or None),
         ("Nyt, brutto / netto", _bn(kk.get("brutto_nyt"), kk.get("netto_nyt"))),
+    ]
+    right = [
+        ("Akkutyyppi", veh.get("kennotyyppi") or veh.get("kemia_nimi")),
         ("Mittauspäivä", _date(test["aloitettu"])),
-        ("Mittaaja", test.get("mittaaja") or s.get("mittaaja")),
+        # Rekisteröidyssä raportissa suorittaja on sama kuin akveri.fi:n tarkistussivulla (ei asetusten oletusta).
+        ("Mittauksen suorittaja", test.get("mittaaja") or (None if test.get("lupa") else s.get("mittaaja"))),
         *([("Riippumattomuus", "Riippumaton mittaaja" if test["riippumaton"] else "Mittaaja ei ole riippumaton")]
           if test.get("riippumaton") is not None else []),
     ]
@@ -964,6 +974,22 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
     E.append(P("Ajoneuvo ja mittaus", "h3"))
     E.append(two)
     E.append(Spacer(1, 5 * mm))
+    # Raportin aitous: pääsivu riittää luovutukseen, kun ostaja voi tarkistaa sen akveri.fi:ssä.
+    if ctx.get("tunnus"):
+        aitous = (f"Raportin tunnus <b>{ctx['tunnus']}</b>. Tarkista raportti osoitteessa "
+                  f"<b>akveri.fi/v/{ctx['tunnus']}</b> tai QR-koodilla. Tarkistussivulla näkyvät samat tiedot kuin tässä raportissa.")
+    elif lupa_tila == "esimerkki":
+        aitous = "Esimerkkiraportti, ei oikea mittaus"
+    else:
+        aitous = "Raporttia ei ole rekisteröity akveri.fi-palveluun, joten sen aitoutta ei voi tarkistaa."
+    abox = Table([[P("RAPORTIN AITOUS", "label")], [P(aitous, "smallink")]], colWidths=[CW])
+    abox.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), PANEL), ("LINEBEFORE", (0, 0), (0, -1), 2.2, ACCENT),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4 * mm), ("RIGHTPADDING", (0, 0), (-1, -1), 4 * mm),
+        ("TOPPADDING", (0, 0), (-1, 0), 2.5 * mm), ("BOTTOMPADDING", (0, -1), (-1, -1), 2.5 * mm),
+        ("TOPPADDING", (0, 1), (-1, 1), 1), ("BOTTOMPADDING", (0, 0), (-1, 0), 1),
+    ]))
+    E.append(abox)
 
     # Arviot
     rows = [[P("Kohde", "label"), P("Tulos", "label"), P("Luokka", "label"), P("Selite", "label")]]
@@ -986,6 +1012,13 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
             E.append(P("– " + h, "smallink"))
 
     # Mittausolosuhteet
+    E.append(Spacer(1, 6 * mm))
+    E.append(P("Ajoneuvo ja akku", "h3"))
+    _tek = Table([[_kv(tekniset_l, (32 * mm, CW / 2 - 35 * mm)), _kv(tekniset_r, (34 * mm, CW / 2 - 34 * mm))]],
+                 colWidths=[CW / 2, CW / 2], hAlign="LEFT")
+    _tek.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                              ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+    E.append(_tek)
     E.append(Spacer(1, 6 * mm))
     E.append(P("Mittaus", "h3"))
     tt = r.get("lampotilat") or {}
@@ -1719,9 +1752,20 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
     return out_path
 
 
+def sivunumero(report_no: str, sivu: int, sivuja: int) -> str:
+    """Alatunnisteen sivumerkintä. Pääsivu on itsenäinen raportti (ei sivunumeroa); muut sivut ovat lisätietoja."""
+    if sivu == 1:
+        return f"Testi nro {report_no}  ·  Pääsivu, lisätiedot {sivuja - 1} sivua" if sivuja > 1 else f"Testi nro {report_no}"
+    return f"Testi nro {report_no}  ·  Lisätiedot, sivu {sivu - 1}/{sivuja - 1}"
+
+
+VARMENNUS = f"Tulokset on luettu auton akunhallinnasta, ja {NIMI} on laskenut ja varmentanut ne. " \
+            "Mittauksen suorittaja ei voi muuttaa tuloksia."
+
+
 def _numbered_canvas(report_no: str):
-    """Sivunumero muodossa "Raportti 2026-00001 · Sivu 3/14": irrallinen sivu yhdistyy raporttiin ja
-    puuttuva sivu huomataan."""
+    """Pääsivulla raportin numero ja lisätietosivujen määrä, muilla sivuilla "Lisätiedot, sivu 2/12": irrallinen sivu
+    yhdistyy raporttiin ja puuttuva sivu huomataan."""
     from reportlab.pdfgen.canvas import Canvas
 
     class NumberedCanvas(Canvas):
@@ -1740,7 +1784,9 @@ def _numbered_canvas(report_no: str):
                 self.saveState()
                 self.setFont("Inter", 6.8)
                 self.setFillColor(MUTED)
-                self.drawRightString(W - M, 10 * mm, f"Testi nro {report_no}  ·  Sivu {self._pageNumber}/{n}")
+                # Pääsivu on itsenäinen raportti; muut sivut ovat sen lisätietoja ja numeroidaan erikseen, jotta
+                # irrallinen sivu yhdistyy raporttiin ja puuttuva sivu huomataan.
+                self.drawRightString(W - M, 10 * mm, sivunumero(report_no, self._pageNumber, n))
                 self.restoreState()
                 super().showPage()
             super().save()

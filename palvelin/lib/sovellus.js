@@ -212,6 +212,8 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
       paattynyt: lukuTaiNull(y.paattynyt, 1.5e9, 4e9),
       raporttinumero: yksiRivi(puhdista(y.raporttinumero, 30)),
       versio: yksiRivi(puhdista(body.versio, 20)),
+      // Mittauksen suorittajaksi ilmoitettu nimi tai yritys (näkyy raportissa ja tarkistussivulla)
+      suorittaja: yksiRivi(puhdista(y.suorittaja, 80)),
       riippumaton: y.riippumaton === true ? true : y.riippumaton === false ? false : null
     };
     const edellinen = t.raportti;
@@ -237,7 +239,7 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
     if (t.tila === 'valmis') Object.assign(ulos, {
       tyyppi: r.tyyppi, merkki: r.merkki, malli: r.malli, vin: r.vinAlku ? `${r.vinAlku}········${r.vinLoppu}` : '',
       mittarilukema: r.mittarilukema, kuntoPct: r.kuntoPct, kapasiteettiKwh: r.kapasiteettiKwh, mitattu: r.mitattu, paattynyt: r.paattynyt,
-      raporttinumero: r.raporttinumero, tarkiste: r.tarkiste.slice(0, 16), versio: r.versio, riippumaton: r.riippumaton
+      raporttinumero: r.raporttinumero, tarkiste: r.tarkiste.slice(0, 16), versio: r.versio, suorittaja: r.suorittaja || '', riippumaton: r.riippumaton
     });
     if (vinKysely && t.tila === 'valmis' && r.vinTiiviste) {
       rajoita(req, 'vin', 20, 3600000);

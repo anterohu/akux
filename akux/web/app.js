@@ -507,13 +507,10 @@ views.mittaus = {
         <h2>3. Tiedot raporttiin</h2>
         <div class="grid g3">
           <label class="f"><span>Mittarilukema (km)</span><input id="mOdo" inputmode="numeric" placeholder="Luetaan autosta, jos tyhjä"></label>
-          <label class="f"><span>Mittaaja</span><input id="mWho" value="${esc(s.mittaaja)}"></label>
+          <label class="f"><span>Mittauksen suorittaja</span><input id="mWho" maxlength="80" value="${esc(s.mittaaja)}" placeholder="Nimi tai yritys"></label>
           <label class="f"><span>Lisätiedot</span><input id="mNote" placeholder="Esimerkiksi tilaajan nimi"></label>
-          <label class="f"><span>Mittaajan riippumattomuus</span><select id="mIndep">
-            <option value="" ${s.riippumaton_viimeksi === undefined || s.riippumaton_viimeksi === null ? "selected" : ""} disabled>Valitse</option>
-            <option value="1" ${s.riippumaton_viimeksi === true ? "selected" : ""}>Riippumaton mittaaja</option>
-            <option value="0" ${s.riippumaton_viimeksi === false ? "selected" : ""}>Ei riippumaton (esimerkiksi myyjä)</option></select></label>
         </div>
+        <p class="small muted">Mittauksen suorittaja näkyy raportissa ja akveri.fi:n tarkistussivulla. Tulokset luetaan auton akunhallinnasta, eikä niitä voi muuttaa.</p>
         <div class="row"><button class="btn primary" id="mStart" disabled>Aloita mittaus</button><span class="small muted" id="mStartHint"></span></div>
       </div>`;
     const vs = Object.fromEntries(ajoneuvot.map(v => [v.id, v]));
@@ -541,10 +538,9 @@ views.mittaus = {
     // Mittausten hinnat haetaan palvelimelta: hallinnassa tehty muutos näkyy tässä heti.
     this.hinnat = null;
     if (!(S && S.yhteys.simuloitu)) api("/api/krediitit").then(d => { this.hinnat = d.hinnat || null; this.saldo = d.saldo; this.testitili = !!d.testitili; this.updateNew(S); }).catch(() => {});
-    $("#mStart").onclick = () => $("#mIndep").value === "" ? alert("Valitse, onko mittaaja riippumaton. Valinta näkyy raportissa.") : act(() => api("/api/mittaukset", { method: "POST", body: {
+    $("#mStart").onclick = () => !$("#mWho").value.trim() ? alert("Kirjoita mittauksen suorittaja (nimi tai yritys). Se näkyy raportissa.") : act(() => api("/api/mittaukset", { method: "POST", body: {
       ajoneuvo_id: Number($("#mVeh").value), tyyppi: this.type, mittarilukema: $("#mOdo").value,
-      mittaaja: $("#mWho").value, lisatiedot: $("#mNote").value,
-      riippumaton: $("#mIndep").value === "" ? null : $("#mIndep").value === "1" } }), S && S.yhteys.simuloitu ? "Esittelymittaus aloitettu" : "Mittaus aloitettu").then(poll);
+      mittaaja: $("#mWho").value.trim(), lisatiedot: $("#mNote").value } }), S && S.yhteys.simuloitu ? "Esittelymittaus aloitettu" : "Mittaus aloitettu").then(poll);
   },
   updateNew(S) {
     const w = $("#mWarn"), st = $("#mStart");
@@ -883,12 +879,6 @@ views.mittaukset = {
           <div class="row" style="margin-top:10px"><button class="btn sm" id="tVerify">Tarkista raakadata</button><a class="btn sm" href="/api/mittaukset/${id}/raakadata.csv.gz">Lataa raakadata</a><span id="tVerRes" class="small"></span></div></div>
         <div class="card"><h2>Tapahtumat</h2><div class="small" style="max-height:220px;overflow:auto">${(t.tapahtumat || []).map(e => `<div class="row" style="flex-wrap:nowrap;gap:12px;padding:3px 0"><span class="muted" style="min-width:110px">${date(e.t)}</span><span>${esc(e.teksti)}</span></div>`).join("")}</div></div>
       </div>
-      <div class="card" style="margin-top:16px"><h2>Mittaajan riippumattomuus</h2>
-        <p class="small muted">Näkyy raportin etusivulla. Riippumaton mittaaja ei ole ajoneuvon kaupan osapuoli eikä sidoksissa siihen.</p>
-        <select id="tIndep">
-          <option value="" ${t.riippumaton === null || t.riippumaton === undefined ? "selected" : ""}>Ei valittu (ei näy raportissa)</option>
-          <option value="1" ${t.riippumaton === 1 ? "selected" : ""}>Riippumaton mittaaja</option>
-          <option value="0" ${t.riippumaton === 0 ? "selected" : ""}>Ei riippumaton (esimerkiksi myyjä)</option></select></div>
       ${done ? `<div class="card" style="margin-top:16px"><h2>Tuloksen laskenta</h2>
         <p class="small muted">Tulos on laskettu AKVERIn versiolla ${esc(r.versio || "–")}${r.mittausversio && r.mittausversio !== r.versio ? ` (mittaus tallennettu versiolla ${esc(r.mittausversio)})` : ""}.
         Uudelleenlaskenta käyttää samaa tallennettua mittausdataa ja ohjelman nykyisiä arviointiperusteita. Mittausdata ei muutu.</p>
@@ -898,8 +888,6 @@ views.mittaukset = {
       <div class="row" style="margin-top:16px"><span class="spacer"></span><button class="btn danger sm" id="tDel">Poista mittaus</button></div>`;
     if ($("#tRefund")) $("#tRefund").onclick = () => act(() => api(`/api/mittaukset/${id}/hyvityspyynto`, { method: "POST", body: { syy: $("#tRefundTxt").value } }),
       "Hyvityspyyntö lähetetty. Saat krediitin takaisin, kun pyyntö on käsitelty.").then(() => this.renderOne(id));
-    $("#tIndep").onchange = e => act(() => api(`/api/mittaukset/${id}/riippumattomuus`, { method: "POST",
-      body: { riippumaton: e.target.value === "" ? null : e.target.value === "1" } }), "Tallennettu");
     const rc = $("#tRecalc");
     if (rc) rc.onclick = async () => {
       if (!confirm("Lasketaanko tulos uudelleen nykyisellä versiolla? Aiemmin tallennetut PDF-raportit eivät muutu, mutta uusi raportti muodostetaan uudella laskennalla.")) return;
@@ -1036,7 +1024,7 @@ views.asetukset = {
           <label class="f"><span>Puhelin</span><input name="yritys_puhelin" value="${esc(s.yritys_puhelin)}"></label>
           <label class="f"><span>Sähköposti</span><input name="yritys_sahkoposti" value="${esc(s.yritys_sahkoposti)}"></label>
           <label class="f"><span>Verkkosivu</span><input name="yritys_www" value="${esc(s.yritys_www)}"></label>
-          <label class="f"><span>Mittaajan nimi</span><input name="mittaaja" value="${esc(s.mittaaja)}"><small class="muted">Ehdotetaan jokaiseen uuteen mittaukseen.</small></label>
+          <label class="f"><span>Mittauksen suorittaja</span><input name="mittaaja" maxlength="80" value="${esc(s.mittaaja)}" placeholder="Nimi tai yritys"><small class="muted">Ehdotetaan jokaiseen uuteen mittaukseen.</small></label>
           <label class="f"><span>Raportin alatunniste</span><input name="raportin_alatunniste" value="${esc(s.raportin_alatunniste)}" placeholder="Valinnainen"></label>
         </div>
         <div class="row"><label class="btn sm" style="cursor:pointer">Valitse logo<input type="file" id="sLogo" accept="image/png,image/jpeg" hidden></label>

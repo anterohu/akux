@@ -227,6 +227,7 @@ class Krediitit:
             "mittarilukema": t.get("mittarilukema"), "kunto_pct": y.get("kunto_pct"), "kapasiteetti_kwh": y.get("kapasiteetti_kwh"),
             "mitattu": aloitettu, "paattynyt": t.get("paattynyt"),
             "raporttinumero": f"{time.strftime('%Y', time.localtime(aloitettu))}-{int(t['id']):05d}",
+            "suorittaja": (t.get("mittaaja") or "").strip()[:80],
             "riippumaton": None if t.get("riippumaton") is None else bool(t["riippumaton"]),
         }
 

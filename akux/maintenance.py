@@ -319,6 +319,13 @@ def selftest(app, full: bool = True) -> dict:
                     size = pdf.stat().st_size
                 finally:
                     a.storage.close()
+                # Pääsivu on itsenäinen raportti: ei sivunumeroa, ja tulosten alkuperä kerrotaan kaikilla kielillä.
+                from . import kielet  # noqa: PLC0415
+                if "Pääsivu" not in report.sivunumero("2026-00001", 1, 14) or "1/" in report.sivunumero("2026-00001", 1, 14) \
+                        or report.sivunumero("2026-00001", 2, 14) != "Testi nro 2026-00001  ·  Lisätiedot, sivu 1/13":
+                    return "virhe", "Raportin sivunumerointi ei vastaa pääsivun ja lisätietojen jakoa."
+                if any(kielet.t(report.VARMENNUS, k) == report.VARMENNUS for k in ("en", "sv")):
+                    return "virhe", "Raportin pääsivun tulosten alkuperää kertova teksti puuttuu käännöksistä."
                 return "ok", f"Simuloitu pikatarkastus ja raportti onnistuivat ({size // 1024} kt)."
         out.append(_check("Mittaus ja raportti", chain))
 

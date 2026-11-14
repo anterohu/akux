@@ -119,12 +119,13 @@ test('testilupa, rekisteröinti ja julkinen tarkistus', async (t) => {
   let v = (await pyynto('/api/v1/vahvistus/' + lupa.tunnusNaytto)).d;
   assert.equal(v.tila, 'varattu'); assert.equal(v.kuntoPct, undefined);
 
-  const yv = { tyyppi: 'Täysi akkutesti', merkki: 'Tesla', malli: 'Model 3 Long Range', vin: VIN, mittarilukema: 61234, kunto_pct: 93.7, kapasiteetti_kwh: 72.6, mitattu: 1763020000, paattynyt: 1763060000, raporttinumero: '2026-00009', riippumaton: true };
+  const yv = { tyyppi: 'Täysi akkutesti', merkki: 'Tesla', malli: 'Model 3 Long Range', vin: VIN, mittarilukema: 61234, kunto_pct: 93.7, kapasiteetti_kwh: 72.6, mitattu: 1763020000, paattynyt: 1763060000, raporttinumero: '2026-00009', riippumaton: true, suorittaja: 'Autoliike Esimerkki Oy\r\nX-Injektio: 1' };
   const r = await pyynto('/api/v1/testi/raportti', { method: 'POST', auth: a, body: { tunnus: lupa.tunnus, tarkiste: TARKISTE, yhteenveto: yv, versio: '2.0.0' } });
   assert.equal(r.status, 200);
   v = (await pyynto('/api/v1/vahvistus/' + lupa.tunnus.toLowerCase())).d;
   assert.equal(v.tila, 'valmis'); assert.equal(v.kuntoPct, 93.7); assert.equal(v.vin, '5YJ········000123');
   assert.equal(v.tarkiste, TARKISTE.slice(0, 16));
+  assert.equal(v.suorittaja, 'Autoliike Esimerkki Oy X-Injektio: 1', 'mittauksen suorittaja näkyy tarkistussivulla yhtenä rivinä');
   assert.equal(JSON.stringify(v).includes(VIN), false, 'koko valmistenumeroa ei näytetä');
   assert.equal((await pyynto(`/api/v1/vahvistus/${lupa.tunnus}?vin=${VIN}`)).d.vinTasmaa, true);
   assert.equal((await pyynto(`/api/v1/vahvistus/${lupa.tunnus}?vin=5YJ3E7EB1LF000124`)).d.vinTasmaa, false);

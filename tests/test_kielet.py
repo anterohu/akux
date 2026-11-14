@@ -69,6 +69,12 @@ def test_raportti_kielilla():
         assert "Täysi akkutesti" in tekstit["fi"] and "Akun kunto" in tekstit["fi"]
         assert "Full battery test" in tekstit["en"] and "Battery health" in tekstit["en"]
         assert "Fullständigt batteritest" in tekstit["sv"] and "Batterihälsa" in tekstit["sv"]
+        # Pääsivu: asiakirjan nimi, tulosten alkuperä, aitous ja lisätietosivujen numerointi kaikilla kielillä
+        for k, sanat in {"fi": ("AKUN KUNTORAPORTTI", "RAPORTIN AITOUS", "Pääsivu, lisätiedot", "Mittauksen suorittaja ei voi muuttaa"),
+                         "en": ("BATTERY HEALTH REPORT", "REPORT AUTHENTICITY", "Main page, additional information", "cannot change them"),
+                         "sv": ("BATTERIHÄLSORAPPORT", "RAPPORTENS ÄKTHET", "Huvudsida, tilläggsinformation", "kan inte ändra dem")}.items():
+            for sana in sanat:
+                assert sana in " ".join(tekstit[k].split()), (k, sana)
         for k in ("en", "sv"):
             assert "Täysi akkutesti" not in tekstit[k] and "Kennoryhmien" not in tekstit[k] and "akunhallinta" not in tekstit[k].lower(), k
         assert not re.search(r"\d,\d", tekstit["en"]), "englanninkielisessä raportissa desimaalipiste"
