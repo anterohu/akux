@@ -17,6 +17,7 @@ const ipraja = require('./ipraja');
 const { json, Virhe, lueJson, ipOsoite, puhdista, yksiRivi, vakioaikainenVertailu } = require('./apu');
 const { osoiteOsasta } = require('./posti');
 const kayttajat = require('./kayttajat');
+const KIELTEN_NIMET = { fi: 'suomi', en: 'englanti', sv: 'ruotsi' };
 const { normalisoiTunnus, muotoileTunnus, MITTAUSTYYPIT, OLETUSHINTA, OLETUSTUOTTEET, OLETUS_VAHIMMAISVERSIO, VERSIO_RE, vertaaVersioita } = require('./sovellus');
 
 const ISTUNTO_MS = 8 * 3600000;
@@ -429,15 +430,16 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
     const teksti = puhdista(body.viesti, 3000);
     const aihe = yksiRivi(puhdista(body.aihe, 60));
     const testitunnus = normalisoiTunnus(body.testitunnus || '').slice(0, 12);
+    const kieli = ['en', 'sv'].includes(body.kieli) ? body.kieli : 'fi'; // sivun kieli: vastaus samalla kielellä
     if (!nimi || !teksti) throw new Virhe('Täytä nimi ja viesti.');
     if (!SAHKOPOSTI.test(sahkoposti)) throw new Virhe('Tarkista sähköpostiosoite.');
     if (body.suostumus !== true) throw new Virhe('Hyväksy tietojen käyttö viestiin vastaamiseen.');
     if (rajoitin.kayta('viesti:' + ipOsoite(req, env), 5, 3600000)) throw new Virhe('Liian monta viestiä. Yritä myöhemmin uudelleen.', 429);
     const v = varasto.get('viestit');
     if (Object.keys(v).length >= 5000) throw new Virhe('Viestien vastaanotto on hetkellisesti täynnä. Lähetä viesti sähköpostilla.', 503);
-    v[crypto.randomBytes(8).toString('hex')] = { aika: new Date(nyt()).toISOString(), nimi, sahkoposti, aihe, testitunnus, viesti: teksti, kasitelty: false };
+    v[crypto.randomBytes(8).toString('hex')] = { aika: new Date(nyt()).toISOString(), nimi, sahkoposti, aihe, testitunnus, kieli, viesti: teksti, kasitelty: false };
     varasto.tallenna('viestit');
-    if (postitus) postitus.ilmoitaTaustalla(`AKVERI: uusi yhteydenotto${aihe ? ' (' + aihe + ')' : ''}`, `Lähettäjä: ${nimi} <${sahkoposti}>\n${testitunnus ? 'Raportti: ' + muotoileTunnus(testitunnus) + '\n' : ''}\n${teksti}\n\nVastaa viestiin akveri.fi/hallinta → Viestit.\n`);
+    if (postitus) postitus.ilmoitaTaustalla(`AKVERI: uusi yhteydenotto${aihe ? ' (' + aihe + ')' : ''}`, `Lähettäjä: ${nimi} <${sahkoposti}>\n${kieli !== 'fi' ? 'Kieli: ' + KIELTEN_NIMET[kieli] + '\n' : ''}${testitunnus ? 'Raportti: ' + muotoileTunnus(testitunnus) + '\n' : ''}\n${teksti}\n\nVastaa viestiin akveri.fi/hallinta → Viestit.\n`);
     return { ok: true };
   }
 

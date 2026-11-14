@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verify a report – AKVERI</title>
+<meta name="description" content="Check that an AKVERI battery report is genuine using its report ID.">
+<link rel="alternate" hreflang="fi" href="https://akveri.fi/tarkista">
+<link rel="alternate" hreflang="en" href="https://akveri.fi/en/verify">
+<link rel="alternate" hreflang="sv" href="https://akveri.fi/sv/kontrollera">
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/sivusto.css">
+<script src="/sivusto.js" defer></script><script src="/tarkista.js" defer></script>
+</head>
+<body data-sivu="tarkista">
+<div class="yla-tausta"><header class="leveys yla">
+  <a class="logo" href="/en" aria-label="AKVERI – home"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46.5" fill="none" stroke="currentColor" stroke-width="6"/><circle cx="50" cy="50" r="37" fill="none" stroke="currentColor" stroke-opacity=".38" stroke-width="1.8" stroke-dasharray="2 4"/><path d="M33 71 L50 28 L67 71" fill="none" stroke="currentColor" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><line x1="40.5" y1="57" x2="59.5" y2="57" stroke="#6CC193" stroke-width="7.5" stroke-linecap="round"/></svg><span>AKVERI</span></a>
+  <nav class="valikko" aria-label="Main menu"><a href="/en#miten">How it works</a><a href="/en#hinta">Price</a><a href="/en/verify">Verify a report</a><a href="/en/contact">Contact</a><span class="kielet" role="group" aria-label="Language"><a href="/tarkista" lang="fi" hreflang="fi">FI</a><a href="/en/verify" lang="en" aria-current="page">EN</a><a href="/sv/kontrollera" lang="sv" hreflang="sv">SV</a></span><a class="nappi pieni" href="/en#lataa">Get the app</a></nav>
+</header></div>
+<main>
+
+<section class="leveys tulos">
+  <h1>Verify a report</h1>
+  <p class="selite">The check shows the details registered on the AKVERI server. Compare them with the report: if the figures, the car or the date differ, the report has been altered.</p>
+  <form class="rivi-lomake ei-tulosteeseen" id="tarkistuslomake"><label class="vh" for="tunnus">Report ID</label><input id="tunnus" name="tunnus" placeholder="AK-XXXXX-XXXXX" autocomplete="off" required><button class="nappi" type="submit">Verify</button></form>
+  <div id="tulos" aria-live="polite"></div>
+  <form class="kortti ei-tulosteeseen piilossa" id="vinlomake">
+    <h2>Compare the VIN</h2>
+    <p class="selite">Enter the car's full vehicle identification number (VIN, 17 characters). The number is not stored: the check only tells whether the report was made for this car.</p>
+    <div class="rivi-lomake"><label class="vh" for="vin">VIN</label><input id="vin" maxlength="17" autocomplete="off" spellcheck="false" required><button class="nappi" type="submit">Compare</button></div>
+    <div class="ilmoitus" id="vintulos"></div>
+  </form>
+</section>
+
+</main>
+<footer class="ala">
+  <div class="leveys">
+    <div><b data-yt="nimi">[yrityksen nimi]</b><span data-yt-rivi="yTunnus"> · Business ID <span data-yt="yTunnus"></span></span><br><span data-yt="osoite"></span></div>
+    <nav aria-label="Footer"><a href="/en/terms">Terms of use</a><a href="/en/privacy">Privacy policy</a><a href="/en/contact">Contact</a><a href="/en/verify">Verify a report</a></nav>
+  </div>
+</footer>
+</body>
+</html>

@@ -125,7 +125,7 @@
           var tr = el('tr'); if (!v.kasitelty) tr.className = 'uusi';
           solu(tr, aika(v.aika));
           var l = solu(tr, v.nimi); l.appendChild(el('br')); var a = el('a', v.sahkoposti); a.href = 'mailto:' + v.sahkoposti; l.appendChild(a);
-          solu(tr, v.aihe + (v.testitunnus ? ' · ' + tunnus(v.testitunnus) : ''));
+          solu(tr, v.aihe + (v.testitunnus ? ' · ' + tunnus(v.testitunnus) : '') + (v.kieli === 'en' ? ' · englanniksi' : v.kieli === 'sv' ? ' · ruotsiksi' : ''));
           var vv = solu(tr, v.viesti); vv.style.whiteSpace = 'pre-wrap';
           var t = solu(tr, ''); var r = el('div', null, 'toimintorivi'); t.appendChild(r);
           if (v.vastaukset && v.vastaukset.length) { var vs = el('div', 'Vastattu ' + aika(v.vastaukset[v.vastaukset.length - 1].aika), 'paivays'); l.appendChild(vs); }

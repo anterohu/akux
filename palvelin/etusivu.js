@@ -73,6 +73,13 @@ const KIELET = {
 };
 const MERKIT = ['Tesla', 'Hyundai', 'Kia', 'Nissan Leaf', 'Volkswagen ID.', 'Škoda Enyaq', 'Audi Q4 e-tron', 'Cupra Born'];
 const JARJESTYS = ['fi', 'en', 'sv'];
+// Alasivujen osoitteet kielittäin (sivut.js kirjoittaa sivut, server.js reitittää osoitteet).
+const SIVUPOLUT = {
+  tarkista: { fi: '/tarkista', en: '/en/verify', sv: '/sv/kontrollera' },
+  yhteystiedot: { fi: '/yhteystiedot', en: '/en/contact', sv: '/sv/kontakt' },
+  ehdot: { fi: '/ehdot', en: '/en/terms', sv: '/sv/villkor' },
+  tietosuoja: { fi: '/tietosuoja', en: '/en/privacy', sv: '/sv/dataskydd' }
+};
 const LOGO = '<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46.5" fill="none" stroke="currentColor" stroke-width="6"/><circle cx="50" cy="50" r="37" fill="none" stroke="currentColor" stroke-opacity=".38" stroke-width="1.8" stroke-dasharray="2 4"/><path d="M33 71 L50 28 L67 71" fill="none" stroke="currentColor" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><line x1="40.5" y1="57" x2="59.5" y2="57" stroke="#6CC193" stroke-width="7.5" stroke-linecap="round"/></svg>';
 const PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5v17a.5.5 0 0 0 .76.43l14-8.5a.5.5 0 0 0 0-.86l-14-8.5A.5.5 0 0 0 5 3.5z" fill="currentColor"/></svg>';
 const e = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -99,7 +106,7 @@ ${JARJESTYS.map(k => `<link rel="alternate" hreflang="${k}" href="https://akveri
 <body data-sivu="etusivu">
 <div class="yla-tausta"><header class="leveys yla">
   <a class="logo" href="${t.polku}" aria-label="${e(t.logo)}">${LOGO}<span>AKVERI</span></a>
-  <nav class="valikko" aria-label="${e(t.paavalikko)}"><a href="#miten">${e(t.valikko[0])}</a><a href="#hinta">${e(t.valikko[1])}</a><a href="#tarkista">${e(t.valikko[2])}</a><a href="/yhteystiedot">${e(t.valikko[3])}</a><span class="kielet" role="group" aria-label="${e(t.kieliValikko)}">${kielet}</span><a class="nappi pieni" href="#lataa">${e(t.valikko[4])}</a></nav>
+  <nav class="valikko" aria-label="${e(t.paavalikko)}"><a href="#miten">${e(t.valikko[0])}</a><a href="#hinta">${e(t.valikko[1])}</a><a href="#tarkista">${e(t.valikko[2])}</a><a href="${SIVUPOLUT.yhteystiedot[kieli]}">${e(t.valikko[3])}</a><span class="kielet" role="group" aria-label="${e(t.kieliValikko)}">${kielet}</span><a class="nappi pieni" href="#lataa">${e(t.valikko[4])}</a></nav>
 </header></div>
 <main>
 
@@ -159,14 +166,14 @@ ${t.tarvitset.map(r => `        <li>${e(r)}</li>`).join('\n')}
 <section class="osio" id="tarkista"><div class="leveys">
   <h2>${e(t.tarkistaOtsikko)}</h2>
   <p class="selite">${e(t.tarkistaOhje)}</p>
-  <form class="rivi-lomake" action="/tarkista" method="get" id="tarkistuslomake"><label class="vh" for="tunnus-etusivu">${e(t.tunnus)}</label><input id="tunnus-etusivu" name="tunnus" placeholder="AK-XXXXX-XXXXX" autocomplete="off" required><button class="nappi" type="submit">${e(t.tarkista)}</button></form>
+  <form class="rivi-lomake" action="${SIVUPOLUT.tarkista[kieli]}" method="get" id="tarkistuslomake"><label class="vh" for="tunnus-etusivu">${e(t.tunnus)}</label><input id="tunnus-etusivu" name="tunnus" placeholder="AK-XXXXX-XXXXX" autocomplete="off" required><button class="nappi" type="submit">${e(t.tarkista)}</button></form>
 </div></section>
 
 </main>
 <footer class="ala">
   <div class="leveys">
     <div><b data-yt="nimi">[yrityksen nimi]</b><span data-yt-rivi="yTunnus"> · ${e(t.ytunnus)} <span data-yt="yTunnus"></span></span><br><span data-yt="osoite"></span></div>
-    <nav aria-label="${e(t.alatunniste)}"><a href="/ehdot">${e(t.ala[0])}</a><a href="/tietosuoja">${e(t.ala[1])}</a><a href="/yhteystiedot">${e(t.ala[2])}</a></nav>
+    <nav aria-label="${e(t.alatunniste)}"><a href="${SIVUPOLUT.ehdot[kieli]}">${e(t.ala[0])}</a><a href="${SIVUPOLUT.tietosuoja[kieli]}">${e(t.ala[1])}</a><a href="${SIVUPOLUT.yhteystiedot[kieli]}">${e(t.ala[2])}</a></nav>
   </div>
 </footer>
 </body>
@@ -176,7 +183,7 @@ ${t.tarvitset.map(r => `        <li>${e(r)}</li>`).join('\n')}
 
 function kaikki() { return JARJESTYS.map(k => ({ tiedosto: KIELET[k].tiedosto, sisalto: sivu(k) })); }
 
-module.exports = { KIELET, kaikki };
+module.exports = { KIELET, JARJESTYS, SIVUPOLUT, LOGO, e, kaikki };
 
 if (require.main === module) {
   for (const s of kaikki()) fs.writeFileSync(path.join(__dirname, 'sivusto', s.tiedosto), s.sisalto);

@@ -14,12 +14,15 @@ function _rakennaKuviot() {
   }).sort((a, b) => b[0].source.length - a[0].source.length);
 }
 const _VALIMUISTI = new Map();
+// Englanniksi desimaalipilkku → piste (vain numeroiden välissä, luettelot "1, 2" säilyvät).
+const _desimaalit = s => (KIELI === "en" ? s.replace(/(?<=\d),(?=\d)/g, ".") : s);
 function tr(teksti) {
   if (KIELI === "fi" || typeof teksti !== "string") return teksti;
   const ydin = teksti.trim();
-  if (!ydin || !/[A-Za-zÅÄÖåäö]/.test(ydin)) return teksti;
+  if (!ydin) return teksti;
+  if (!/[A-Za-zÅÄÖåäö]/.test(ydin)) return _desimaalit(teksti);
   if (_VALIMUISTI.has(teksti)) return _VALIMUISTI.get(teksti);
-  const tulos = _tr(teksti, ydin);
+  const tulos = _desimaalit(_tr(teksti, ydin));
   if (_VALIMUISTI.size > 5000) _VALIMUISTI.clear();
   _VALIMUISTI.set(teksti, tulos);
   return tulos;

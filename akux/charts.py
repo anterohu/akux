@@ -47,7 +47,8 @@ plt.rcParams.update({
 
 
 def _fi(d=0):
-    return FuncFormatter(lambda x, _: f"{x:,.{d}f}".replace(",", " ").replace(".", ","))
+    from . import kielet
+    return FuncFormatter(lambda x, _: kielet.desimaalit(f"{x:,.{d}f}".replace(",", " ").replace(".", ",")))
 
 
 def _png(fig) -> bytes:

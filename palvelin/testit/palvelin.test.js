@@ -422,6 +422,41 @@ test('etusivu: kolme kieltä samasta lähteestä, kielivalinta ja ei teknistä s
   }
 });
 
+test('alasivut kolmella kielellä: ajan tasalla, reitit, kielivalinta, ei suomea englannin- ja ruotsinkielisillä sivuilla', async (t) => {
+  const sivut = require('../sivut');
+  for (const s of sivut.kaikki()) assert.equal(fs.readFileSync(path.join(__dirname, '..', 'sivusto', s.tiedosto), 'utf8'), s.sisalto, `${s.tiedosto} on ajan tasalla (aja node palvelin/sivut.js)`);
+  const { pyynto, palvelin } = await kaynnista(t);
+  const SUOMEA = /\b(ja|tai|Tarkista|raportti\w*|mittau\w*|Yhteystiedot|Käyttöehdot|Tietosuoja\w*|sähköposti|Lähetä|Viesti|Kysymys)\b/;
+  for (const s of sivut.kaikki()) {
+    const r = await pyynto(s.polku);
+    assert.equal(r.status, 200, s.polku);
+    assert.equal(r.d, s.sisalto, `${s.polku} → ${s.tiedosto}`);
+    assert.match(r.d, new RegExp(`<html lang="${s.kieli}">`));
+    for (const k of ['fi', 'en', 'sv']) assert.ok(r.d.includes(`hreflang="${k}"`), `${s.polku}: kieliversio ${k}`);
+    assert.doesNotMatch(r.d, /style="|<script>/, `${s.polku}: ei inline-tyylejä eikä -skriptejä`);
+    if (s.kieli !== 'fi') {
+      const naky = r.d.replace(/<head>[\s\S]*?<\/head>/, '').replace(/<[^>]+>/g, ' ').replace(/\[[^\]]+\]/g, '').replace(/tietosuoja\.fi/g, '');
+      assert.doesNotMatch(naky, SUOMEA, `${s.polku}: näkyvä teksti on käännetty`);
+      assert.ok(!/data-asiakirja/.test(r.d), `${s.polku}: hallinnan suomenkielinen teksti ei korvaa käännöstä`);
+    }
+  }
+  // Ehdot vastaavat mittaustyyppikohtaista hinnoittelua
+  for (const k of ['fi', 'en', 'sv']) assert.doesNotMatch(sivut.TEKSTIT.ehdot[k].teksti, /Yksi krediitti|One credit|En kredit/);
+  assert.match(sivut.TEKSTIT.ehdot.fi.teksti, /riippuu mittaustyypistä/);
+  // Tarkistuksen ja lomakkeen skriptit tuntevat kaikki kielet
+  const tj = fs.readFileSync(path.join(__dirname, '..', 'sivusto', 'tarkista.js'), 'utf8');
+  for (const k of ['fi', 'en', 'sv']) assert.match(tj, new RegExp(`\\n    ${k}: \\{`));
+  const sj = fs.readFileSync(path.join(__dirname, '..', 'sivusto', 'sivusto.js'), 'utf8');
+  assert.match(sj, /kieli: KIELI/);
+  // Yhteydenoton kieli tallentuu, jotta vastaus osataan kirjoittaa samalla kielellä
+  const v = await pyynto('/api/sivusto/viesti', { method: 'POST', body: { nimi: 'Anna', sahkoposti: 'anna@example.com', aihe: 'Kysymys', viesti: 'Hello', suostumus: true, kieli: 'en' } });
+  assert.equal(v.status, 200);
+  const w = await pyynto('/api/sivusto/viesti', { method: 'POST', body: { nimi: 'Bo', sahkoposti: 'bo@example.com', viesti: 'Hej', suostumus: true, kieli: '<x>' } });
+  assert.equal(w.status, 200);
+  const kielet = Object.values(palvelin.varasto.get('viestit')).map(x => x.nimi + ':' + x.kieli).sort();
+  assert.deepEqual(kielet, ['Anna:en', 'Bo:fi'], 'tuntematon kieli tallentuu suomeksi');
+});
+
 test('huoltotila: vain sivusto tai sivusto ja sovelluksen palvelu; hallinta, ehdot ja kirjautunut käyttäjä toimivat', async (t) => {
   const { pyynto, aika } = await kaynnista(t);
   const s = await kirjauduHallintaan(pyynto, aika);
@@ -436,7 +471,8 @@ test('huoltotila: vain sivusto tai sivusto ja sovelluksen palvelu; hallinta, ehd
     assert.equal(v.status, 503, sivu);
     assert.match(v.d, /Huolto &lt;klo 22&gt;/);
   }
-  for (const sivu of ['/ehdot', '/tietosuoja', '/hallinta', '/sivusto.css', '/logo.svg']) assert.equal((await pyynto(sivu)).status, 200, `${sivu} toimii huollon aikana`);
+  for (const sivu of ['/ehdot', '/tietosuoja', '/en/terms', '/en/privacy', '/sv/villkor', '/sv/dataskydd', '/hallinta', '/sivusto.css', '/logo.svg']) assert.equal((await pyynto(sivu)).status, 200, `${sivu} toimii huollon aikana`);
+  for (const sivu of ['/en/verify', '/sv/kontakt']) assert.equal((await pyynto(sivu)).status, 503, sivu);
   assert.equal((await pyynto('/', { evaste: s.evaste })).status, 200, 'kirjautunut näkee sivuston');
   assert.equal((await pyynto('/api/v1/saldo', { auth: tili })).status, 200, 'sovellus toimii, kun vain sivusto on huollossa');
   assert.equal((await put({ tila: 'kaikki', viesti: 'Huolto' })).status, 200);

@@ -164,6 +164,8 @@ def selftest(app, full: bool = True) -> dict:
             return "virhe", "Kielitiedostot puuttuvat tai ovat keskenään eri laajuiset."
         if kielet.t("Aloita mittaus", "en") != "Start test" or kielet.t("Aloita mittaus", "sv") != "Starta testet":
             return "virhe", "Käännös ei toimi."
+        if kielet.t("Akun varaus on 42,5 %.", "en") != "The battery charge level is 42.5 %." or kielet.desimaalit("70,2", "sv") != "70,2":
+            return "virhe", "Lukujen desimaalierotin ei vastaa kieltä."
         return "ok", f"Suomi, englanti ja ruotsi käytössä ({len(en)} tekstiä). Valittu kieli: {kielet.KIELET.get(kielet.nykyinen())}."
     out.append(_check("Kielet", kieli_ok))
 

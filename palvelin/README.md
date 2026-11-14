@@ -3,6 +3,7 @@
 Palvelin hoitaa neljä asiaa:
 
 1. **Esittelysivusto** – etusivu, hinnat, käyttöehdot, tietosuojaseloste ja yhteystiedot. Asennustiedostoja ei jaeta sivustolla: sovellus ladataan vain Google Playsta.
+   Sivut ovat suomeksi, englanniksi (/en) ja ruotsiksi (/sv). Etusivun tekstit ovat tiedostossa `etusivu.js` ja muiden sivujen tekstit tiedostossa `sivut.js`; muutoksen jälkeen aja `node etusivu.js` ja `node sivut.js`. Hallinnassa muokattu käyttöehtojen tai tietosuojaselosteen teksti näkyy suomenkielisellä sivulla; englannin- ja ruotsinkieliset versiot päivitetään `sivut.js`-tiedostoon.
 2. **Raportin tarkistus** – `akveri.fi/v/<tunnus>`. Raportin QR-koodi avaa tämän sivun. Sivulla näkyvät palvelimelle rekisteröidyt tiedot, ja ostaja voi verrata auton valmistenumeroa.
 3. **Krediittirajapinta sovellukselle** (`/api/v1/...`) – tilit, Google Play -ostojen tarkistus, testiluvat ja raporttien rekisteröinti.
 4. **Omistajan hallinta** – `akveri.fi/hallinta`, salasana ja kaksivaiheinen tunnistus. Ei linkkiä julkisilta sivuilta.

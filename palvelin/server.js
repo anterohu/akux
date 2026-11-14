@@ -30,11 +30,14 @@ const SIVUSTO = path.join(__dirname, 'sivusto');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8', '.webmanifest': 'application/manifest+json' };
 const SIVUT = {
   '/': 'index.html', '/en': 'index-en.html', '/sv': 'index-sv.html', '/tarkista': 'tarkista.html', '/ehdot': 'ehdot.html', '/tietosuoja': 'tietosuoja.html',
-  '/yhteystiedot': 'yhteystiedot.html', '/hallinta': 'hallinta.html', '/robots.txt': 'robots.txt'
+  '/yhteystiedot': 'yhteystiedot.html', '/hallinta': 'hallinta.html', '/robots.txt': 'robots.txt',
+  // Alasivut englanniksi ja ruotsiksi (sivut.js kirjoittaa tiedostot; testi varmistaa, että reitit vastaavat sitä)
+  '/en/verify': 'tarkista-en.html', '/en/contact': 'yhteystiedot-en.html', '/en/terms': 'ehdot-en.html', '/en/privacy': 'tietosuoja-en.html',
+  '/sv/kontrollera': 'tarkista-sv.html', '/sv/kontakt': 'yhteystiedot-sv.html', '/sv/villkor': 'ehdot-sv.html', '/sv/dataskydd': 'tietosuoja-sv.html'
 };
 const HALLINNAN_TIEDOSTOT = new Set(['hallinta.html', 'hallinta.js']);
 // Huoltotilan aikana toimivat aina: hallinta, käyttöehdot, tietosuojaseloste (Google Playn vaatimus), sivuston tiedot ja tyylit.
-const HUOLTO_AINA = new Set(['/hallinta', '/hallinta/', '/ehdot', '/tietosuoja', '/robots.txt']);
+const HUOLTO_AINA = new Set(['/hallinta', '/hallinta/', '/ehdot', '/tietosuoja', '/en/terms', '/en/privacy', '/sv/villkor', '/sv/dataskydd', '/robots.txt']);
 const HUOLTO_RESURSSI = /^\/[a-z0-9-]+\.(js|css|svg|png|ico|webmanifest)$/;
 function huoltoSivu(viesti) {
   const e = (t) => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

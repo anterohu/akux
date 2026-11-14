@@ -46,6 +46,15 @@ def test_kaannos():
     assert kielet.nykyinen() in kielet.KIELET
 
 
+def test_desimaalierotin():
+    # Englanniksi piste, suomeksi ja ruotsiksi pilkku. Luettelon pilkku ("1, 2") ei muutu.
+    assert kielet.t("Akun kunto 91,4 %, kapasiteetti 70,2 kWh. Raportti on valmis.", "en") == \
+        "Battery health 91.4 %, capacity 70.2 kWh. The report is ready."
+    assert kielet.t("3,6512 V", "en") == "3.6512 V" and kielet.t("3,6512 V", "sv") == "3,6512 V"
+    assert kielet.t("3,6512 V", "fi") == "3,6512 V"
+    assert kielet.desimaalit("ryhmät 1, 2 ja 3,5", "en") == "ryhmät 1, 2 ja 3.5"
+
+
 def test_raportti_kielilla():
     with tempfile.TemporaryDirectory() as d:
         st = Storage(Path(d))
@@ -62,6 +71,7 @@ def test_raportti_kielilla():
         assert "Fullständigt batteritest" in tekstit["sv"] and "Batterihälsa" in tekstit["sv"]
         for k in ("en", "sv"):
             assert "Täysi akkutesti" not in tekstit[k] and "Kennoryhmien" not in tekstit[k] and "akunhallinta" not in tekstit[k].lower(), k
+        assert not re.search(r"\d,\d", tekstit["en"]), "englanninkielisessä raportissa desimaalipiste"
         assert kielet.nykyinen() == kielet.OLETUS, "raportin kieli ei jää päälle"
 
 

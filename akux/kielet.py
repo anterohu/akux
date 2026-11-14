@@ -82,9 +82,20 @@ _MERKKI_RX = re.compile(r"\b(" + "|".join(MERKIT) + r")(?= )")
 _LAUSE_RX = re.compile(r"(?<=[.!?])\s+(?=[A-ZÅÄÖ0-9(])")
 
 
+# Desimaalierotin: suomessa ja ruotsissa pilkku, englannissa piste (12,3 kWh → 12.3 kWh). Vain numeroiden välissä
+# oleva pilkku vaihdetaan, joten luettelot ("1, 2") säilyvät.
+_DESIMAALI_RX = re.compile(r"(?<=\d),(?=\d)")
+
+
+def desimaalit(teksti, kieli: str | None = None):
+    if isinstance(teksti, str) and (kieli or nykyinen()) == "en":
+        return _DESIMAALI_RX.sub(".", teksti)
+    return teksti
+
+
 def t(teksti, kieli: str | None = None):
     """Kääntää tekstin: ensin koko teksti, sitten lause kerrallaan. Merkin genetiivi (Kian, Audin…) käsitellään
-    sanaston muodon "Teslan" kautta."""
+    sanaston muodon "Teslan" kautta. Englanniksi desimaalipilkku muutetaan pisteeksi."""
     if not isinstance(teksti, str) or not teksti.strip():
         return teksti
     kieli = kieli or nykyinen()
@@ -93,9 +104,10 @@ def t(teksti, kieli: str | None = None):
     m = _MERKKI_RX.search(teksti)
     if m:
         merkki = MERKIT[m.group(1)]
-        tulos = _t(_MERKKI_RX.sub("Teslan", teksti), kieli)
-        return tulos.replace("Tesla", merkki)
-    return _t(teksti, kieli)
+        tulos = _t(_MERKKI_RX.sub("Teslan", teksti), kieli).replace("Tesla", merkki)
+    else:
+        tulos = _t(teksti, kieli)
+    return desimaalit(tulos, kieli)
 
 
 def _t(teksti, kieli):

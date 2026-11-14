@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kontrollera en rapport – AKVERI</title>
+<meta name="description" content="Kontrollera att en AKVERI-batterirapport är äkta med rapportens kod.">
+<link rel="alternate" hreflang="fi" href="https://akveri.fi/tarkista">
+<link rel="alternate" hreflang="en" href="https://akveri.fi/en/verify">
+<link rel="alternate" hreflang="sv" href="https://akveri.fi/sv/kontrollera">
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/sivusto.css">
+<script src="/sivusto.js" defer></script><script src="/tarkista.js" defer></script>
+</head>
+<body data-sivu="tarkista">
+<div class="yla-tausta"><header class="leveys yla">
+  <a class="logo" href="/sv" aria-label="AKVERI – startsida"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46.5" fill="none" stroke="currentColor" stroke-width="6"/><circle cx="50" cy="50" r="37" fill="none" stroke="currentColor" stroke-opacity=".38" stroke-width="1.8" stroke-dasharray="2 4"/><path d="M33 71 L50 28 L67 71" fill="none" stroke="currentColor" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><line x1="40.5" y1="57" x2="59.5" y2="57" stroke="#6CC193" stroke-width="7.5" stroke-linecap="round"/></svg><span>AKVERI</span></a>
+  <nav class="valikko" aria-label="Huvudmeny"><a href="/sv#miten">Så fungerar det</a><a href="/sv#hinta">Pris</a><a href="/sv/kontrollera">Verifiera rapport</a><a href="/sv/kontakt">Kontakt</a><span class="kielet" role="group" aria-label="Språk"><a href="/tarkista" lang="fi" hreflang="fi">FI</a><a href="/en/verify" lang="en" hreflang="en">EN</a><a href="/sv/kontrollera" lang="sv" aria-current="page">SV</a></span><a class="nappi pieni" href="/sv#lataa">Ladda ner appen</a></nav>
+</header></div>
+<main>
+
+<section class="leveys tulos">
+  <h1>Kontrollera en rapport</h1>
+  <p class="selite">Kontrollen visar de uppgifter som registrerats på AKVERIs server. Jämför dem med rapporten: om siffrorna, bilen eller datumet avviker har rapporten ändrats.</p>
+  <form class="rivi-lomake ei-tulosteeseen" id="tarkistuslomake"><label class="vh" for="tunnus">Rapportkod</label><input id="tunnus" name="tunnus" placeholder="AK-XXXXX-XXXXX" autocomplete="off" required><button class="nappi" type="submit">Kontrollera</button></form>
+  <div id="tulos" aria-live="polite"></div>
+  <form class="kortti ei-tulosteeseen piilossa" id="vinlomake">
+    <h2>Jämför chassinumret</h2>
+    <p class="selite">Ange bilens fullständiga chassinummer (VIN, 17 tecken). Numret sparas inte: kontrollen visar bara om rapporten gäller den här bilen.</p>
+    <div class="rivi-lomake"><label class="vh" for="vin">Chassinummer</label><input id="vin" maxlength="17" autocomplete="off" spellcheck="false" required><button class="nappi" type="submit">Jämför</button></div>
+    <div class="ilmoitus" id="vintulos"></div>
+  </form>
+</section>
+
+</main>
+<footer class="ala">
+  <div class="leveys">
+    <div><b data-yt="nimi">[yrityksen nimi]</b><span data-yt-rivi="yTunnus"> · FO-nummer <span data-yt="yTunnus"></span></span><br><span data-yt="osoite"></span></div>
+    <nav aria-label="Sidfot"><a href="/sv/villkor">Användarvillkor</a><a href="/sv/dataskydd">Dataskydd</a><a href="/sv/kontakt">Kontakt</a><a href="/sv/kontrollera">Verifiera rapport</a></nav>
+  </div>
+</footer>
+</body>
+</html>
