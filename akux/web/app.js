@@ -409,7 +409,7 @@ const TYYPPI = {
   pikalataus: "Pikalataustesti", itsepurkaus: "Itsepurkaustesti",
 };
 const tyyppi = t => TYYPPI[t] || t;
-const AJO_TURVA = "Älä käytä ohjelmaa ajon aikana. Aseta tietokone tai puhelin niin, ettei se liiku ajossa.";
+const AJO_TURVA = ANDROID ? "Älä käytä sovellusta ajon aikana. Aseta puhelin telineeseen tai paikkaan, jossa se ei liiku ajossa." : "Älä käytä ohjelmaa ajon aikana. Aseta tietokone niin, ettei se liiku ajossa.";
 const PHASE_TEXT = {
   keruu: ["Tietoja luetaan", "Ohjelma lukee akunhallinnan tiedot ja kaikkien kennoryhmien jännitteet. Pidä auto paikallaan. Tarkastus kestää yleensä 1–3 minuuttia."],
   lepo_alku: ["Akku lepää ennen latausta", "Pidä auto pysäköitynä ja hereillä, esimerkiksi ilmastointi päällä tai Leiriytymistila käytössä, jotta sovitin saa virtaa. Lepo tasaa kennojännitteet ja antaa tarkan lähtötason. Jos kytket latauksen jo nyt, mittaus siirtyy suoraan lataukseen."],
@@ -689,7 +689,7 @@ views.autot = {
     const hasEx = ajoneuvot.some(v => v.opitut && v.opitut.esimerkki);
     view.innerHTML = `<div class="head"><div><h1>Autot</h1><div class="muted">Tallennetut autot ja niiden mittaushistoria</div></div>
       <div class="row">${hasEx || E ? `<button class="btn" id="vEx">${hasEx ? "Poista esimerkkiautot" : "Lisää esimerkkiautot"}</button>` : ""}<a class="btn primary" href="#/autot/uusi">Lisää auto</a></div></div>
-      ${hasEx || !E ? "" : `<p class="small muted" style="margin:-8px 0 16px">Esimerkkiautoissa (kolme Teslaa ja yksi auto kustakin muusta tuetusta merkistä) on valmiit raportit kaikista mittaustyypeistä, joten näet heti, miltä kaikki näyttää.</p>`}
+      ${hasEx || !E ? "" : `<p class="small muted" style="margin:-8px 0 16px">Esimerkkiautoissa (vähintään yksi auto kustakin tuetusta merkistä) on valmiit raportit kaikista mittaustyypeistä, joten näet heti, miltä kaikki näyttää.</p>`}
       <div class="card" id="vList"></div>`;
     if ($("#vEx")) $("#vEx").onclick = () => hasEx
       ? (confirm("Poistetaanko esimerkkiautot ja niiden mittaukset? Omiin autoihisi ei kosketa.") &&

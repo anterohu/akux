@@ -1,6 +1,10 @@
 """Käyttöohje. Sama sisältö näytetään ohjelman Ohjeet-sivulla ja ladattavana PDF:nä."""
 from __future__ import annotations
 
+# Alustakohtaiset osat: osan kolmas kenttä tai listan kohdan toinen kenttä on "pc" (tietokone) tai "android".
+# Ilman merkintää osa näytetään kaikilla alustoilla.
+PC, AND = "pc", "android"
+
 OHJE = [
     {
         "id": "aloitus", "otsikko": "Aloitus",
@@ -8,20 +12,19 @@ OHJE = [
             ("p", "AKVERI lukee sähköauton ajoakun kunnon ja kapasiteetin suoraan auton akunhallinnasta ja kokoaa tiedot "
                   "raportiksi, jonka voi antaa ostajalle, asiakkaalle tai pitää itsellä. Kaikki mittausarvot ovat "
                   "auton akunhallinnan luovuttamia. AKVERI ei käytä omia antureitaan eikä muuta arvoja."),
+            ("p", "<b>Tuetut autot</b>"),
             ("ul", [
-                "<b>Model 3 ja Model Y</b>, kaikki vuosimallit ja akkutyypit (NCA, NMC ja LFP).",
-                "<b>Model S ja Model X</b>: vuodesta 2021 valmistetut samalla tavalla kuin Model 3. Vuosien 2012–2021 "
-                "Model S ja 2015–2021 Model X käyttävät omaa viestirakennettaan, jonka AKVERI tunnistaa itse. Niiden "
-                "akunhallinta ei ilmoita akun alkuperäistä kapasiteettia, joten se kannattaa syöttää auton tietoihin.",
+                "<b>Tesla</b>: Model 3 ja Model Y kaikki vuosimallit ja akkutyypit sekä Model S ja Model X.",
                 "<b>Hyundai ja Kia</b>: Ioniq Electric, Kona Electric, e-Niro, e-Soul, Ioniq 5, Ioniq 6 ja EV6.",
                 "<b>Nissan Leaf</b>: 24, 30, 40 ja 62 kWh.",
-                "<b>Volkswagen-konsernin MEB-alusta</b>: Volkswagen ID.3, ID.4 ja ID.5, Škoda Enyaq, Audi Q4 e-tron "
-                "ja Cupra Born. Katso kohta <b>Muut merkit</b>.",
+                "<b>Volkswagen-konsernin MEB-alusta</b>: Volkswagen ID.3, ID.4 ja ID.5, Škoda Enyaq, Audi Q4 e-tron ja Cupra Born.",
                 "<b>MG</b>: MG4 Electric, MG5 Electric ja MG ZS EV.",
             ]),
+            ("p", "Merkkien erot on koottu kohtaan <b>Automerkit</b>."),
             ("ol", [
                 "Avaa <b>Asetukset</b> ja valitse käyttötapa. Yksityisessä käytössä raporttiin tulee nimesi, yrityksellä yrityksen tiedot ja logo.",
-                "Kytke OBDLink-sovitin välikaapelilla auton diagnostiikkaliittimeen ja USB-kaapelilla tietokoneeseen. Bluetooth-mallit (MX+, LX) paritetaan ensin Windowsin Bluetooth-asetuksista.",
+                ("Kytke OBDLink-sovitin auton diagnostiikkaliittimeen ja USB-kaapelilla tietokoneeseen. Bluetooth-mallit (MX+ ja LX) paritetaan ensin Windowsin Bluetooth-asetuksista.", PC),
+                ("Kytke OBDLink-sovitin auton diagnostiikkaliittimeen. USB-mallin (EX) kanssa tarvitaan USB-C-sovitin (OTG). Bluetooth-mallit (MX+ ja LX) paritetaan ensin puhelimen Bluetooth-asetuksista.", AND),
                 "Herätä auto ja paina <b>Yleiskuva</b>-sivulla <b>Yhdistä autoon</b>.",
                 "Lisää auto. Ohjelma lukee valmistenumeron autosta ja tunnistaa mallin.",
                 "Tee autolle pikatarkastus. Sen jälkeen voit tehdä kapasiteettimittauksen.",
@@ -32,19 +35,31 @@ OHJE = [
     {
         "id": "yhdistaminen", "otsikko": "Yhdistäminen autoon",
         "osat": [
-            ("p", "Akun tiedot luetaan auton OBD-liitännästä OBDLink-sovittimella. Teslassa tarvitaan lisäksi mallille "
-                  "sopiva OBD-välikaapeli (haaroituskaapeli), muissa merkeissä sovitin kytketään suoraan. Auton sivulla "
-                  "<b>Kytkentä autoon</b> kertoo juuri sen auton liittimen."),
+            ("p", "Akun tiedot luetaan auton OBD-liitännästä OBDLink-sovittimella. Useimmissa merkeissä sovitin kytketään "
+                  "suoraan kuljettajan jalkatilan OBD-liitäntään. Teslassa tarvitaan lisäksi mallille sopiva "
+                  "OBD-välikaapeli (haaroituskaapeli). Auton sivun kohta <b>Kytkentä autoon</b> kertoo juuri sen auton liittimen."),
             ("ul", [
                 "<b>Tuetut sovittimet:</b> OBDLink EX ja SX (USB) sekä OBDLink MX+ ja LX (Bluetooth). AKVERI käyttää "
                 "OBDLinkin suodatusta, jolla vain akun tiedot välitetään. Tavalliset ELM327-sovittimet eivät pysy "
-                "Teslan väylän liikenteen perässä, joten AKVERI ei hyväksy niitä.",
-                "<b>Bluetooth:</b> kytke sovitin autoon ja herätä auto. Paina MX+:n painiketta ja muodosta pari "
-                "Windowsin tai puhelimen Bluetooth-asetuksista. Sen jälkeen sovitin näkyy AKVERIn sovitinlistassa "
-                "merkinnällä Bluetooth. Listalla näkyvät vain OBDLink-sovittimet, eivät muut paritetut laitteet, "
-                "kuten kuulokkeet tai auto.",
+                "auton väylän liikenteen perässä, joten AKVERI ei hyväksy niitä.",
+                ("<b>Bluetooth:</b> kytke sovitin autoon ja herätä auto. Paina MX+:n painiketta ja muodosta pari "
+                 "Windowsin Bluetooth-asetuksista. Sen jälkeen sovitin näkyy AKVERIn sovitinlistassa merkinnällä "
+                 "Bluetooth. Listalla näkyvät vain OBDLink-sovittimet, eivät muut paritetut laitteet.", PC),
+                ("<b>Bluetooth:</b> kytke sovitin autoon ja herätä auto. Paina MX+:n painiketta ja muodosta pari "
+                 "puhelimen Bluetooth-asetuksista. Salli AKVERIlle lähellä olevien laitteiden käyttö, kun sovellus "
+                 "kysyy. Listalla näkyvät vain OBDLink-sovittimet, eivät muut paritetut laitteet.", AND),
                 "OBDLink CX käyttää Bluetooth Low Energy -yhteyttä, jota AKVERI ei vielä tue.",
             ]),
+            ("ol", [
+                ("Kytke sovitin auton liitäntään ja tietokoneeseen.", PC),
+                ("Kytke sovitin auton liitäntään. USB-sovitin kytketään puhelimeen USB-C-sovittimella (OTG). Kun Android kysyy, saako AKVERI käyttää sovitinta, valitse <b>Salli</b>.", AND),
+                "Herätä auto. Teslassa riittää oven avaaminen tai ilmastoinnin käynnistys auton sovelluksesta. Muissa merkeissä kytke auto päälle (READY) tai virta päälle. Sovitin saa virtaa vain, kun auto on hereillä.",
+                "Valitse <b>Yleiskuva</b>-sivulla sovitin ja tarvittaessa auton malli ja paina <b>Yhdistä autoon</b>.",
+                "Odota, että <b>Yhteystesti</b> näyttää kaikki tarvittavat tiedot vihreinä. Tämä kestää yleensä muutaman sekunnin.",
+            ]),
+            ("p", "Ensimmäisellä kytkentäkerralla Windows asentaa sovittimen ajurin itse, kun tietokone on verkossa. "
+                  "Jos sovitin ei näy listassa, odota hetki ja paina <b>Päivitä portit</b>.", PC),
+            ("p", "<b>Teslan diagnostiikkaliitin</b>"),
             ("ul", [
                 "<b>Model 3 ja Model Y (2019–2024):</b> liitin on keskikonsolin takapäässä takamatkustajien puolella "
                 "paneelin takana. Vuosien 2019–2020 autoissa se on 20-pinninen ja 2021 alkaen 26-pinninen. "
@@ -57,66 +72,58 @@ OHJE = [
                 "latausalustan yläpuolella. Tarvitaan Model S/X:lle tehty välikaapeli.",
                 "<b>Model S ja Model X 05/2024 alkaen:</b> sovitin kytketään suoraan kuljettajan jalkatilan OBD-liitäntään.",
             ]),
-            ("note", "Model 3:n ja Model Y:n jalkatilassa on myös tavallisen näköinen OBD-liitäntä. Se on tarkoitettu "
-                     "kolmannen osapuolen laitteille, ja se välittää vain muutaman tiedon, kuten nopeuden ja virtatilan, "
-                     "mutta ei akun tietoja. Yhteystesti ja väylän kartoitus kertovat tämän suoraan."),
-            ("note", "Välikaapeli kytketään auton diagnostiikkaliittimeen kaapelin valmistajan ohjeen mukaan, eikä auton "
-                     "johtoja leikata tai muuteta. Kytke ja irrota kaapeli auton ollessa pysäköitynä. Verhoilupaneelien "
-                     "irrotus ja kaapelin kytkentä tehdään omalla vastuulla."),
-            ("ol", [
-                "Kytke sovitin auton liitäntään ja puhelimeen tai tietokoneeseen.",
-                "Herätä auto avaamalla ovi tai käynnistämällä ilmastointi Tesla-sovelluksesta. Sovitin saa virtaa vain, kun auto on hereillä.",
-                "Valitse <b>Yleiskuva</b>-sivulla sovitin ja paina <b>Yhdistä autoon</b>.",
-                "Odota, että <b>Yhteystesti</b> näyttää kaikki tarvittavat tiedot vihreinä. Tämä kestää yleensä muutaman sekunnin.",
-            ]),
-            ("p", "Ensimmäisellä kytkentäkerralla Windows asentaa sovittimen ajurin itse, kun tietokone on verkossa. "
-                  "Jos sovitin ei näy listassa, odota hetki ja paina <b>Päivitä portit</b>."),
+            ("note", "Teslan Model 3:n ja Model Y:n jalkatilassa on myös tavallisen näköinen OBD-liitäntä. Se välittää vain "
+                     "muutaman tiedon, kuten nopeuden ja virtatilan, mutta ei akun tietoja. Yhteystesti ja väylän "
+                     "kartoitus kertovat tämän suoraan."),
+            ("note", "Välikaapeli kytketään kaapelin valmistajan ohjeen mukaan, eikä auton johtoja leikata tai muuteta. "
+                     "Kytke ja irrota kaapeli auton ollessa pysäköitynä. Verhoilupaneelien irrotus ja kaapelin "
+                     "kytkentä tehdään omalla vastuulla."),
         ],
     },
     {
-        "id": "hyundai_kia", "otsikko": "Muut merkit: Hyundai, Kia, Nissan, MEB ja MG",
+        "id": "hyundai_kia", "otsikko": "Automerkit",
         "osat": [
-            ("p", "Teslan akunhallinta lähettää tietonsa väylälle jatkuvasti. Muiden merkkien akunhallinta vastaa "
-                  "vain kyselyihin, joten AKVERI kysyy tiedot jatkuvasti vuorotellen. Kyselyt ovat "
-                  "pelkkiä lukupyyntöjä; ne eivät muuta auton asetuksia. Kaikissa alla olevissa autoissa sovitin "
-                  "kytketään suoraan kuljettajan jalkatilan OBD-II-liitäntään, ja auton malli valitaan Yleiskuvan "
-                  "Yhdistä-kohdan Auto-luettelosta ennen yhdistämistä."),
+            ("p", "Kaikkien merkkien mittaukset ja raportit tehdään samalla tavalla. Akunhallinnat kuitenkin ilmoittavat "
+                  "eri tietoja eri tarkkuudella, ja se näkyy raportissa. Teslan akunhallinta lähettää tietonsa "
+                  "väylälle itse. Muiden merkkien akunhallinta vastaa kyselyihin, joten AKVERI kysyy tiedot vuorotellen. "
+                  "Kyselyt ovat pelkkiä lukupyyntöjä; ne eivät muuta auton asetuksia. Muissa kuin Teslassa auton malli "
+                  "valitaan Yleiskuvan Yhdistä-kohdan Auto-luettelosta ennen yhdistämistä, koska valmistenumerosta ei "
+                  "voi päätellä akun kokoa."),
+            ("p", "<b>Tesla</b>"),
             ("ul", [
-                "<b>Tuetut mallit:</b> Hyundai Ioniq Electric 28 ja 38 kWh, Kona Electric 39 ja 64 kWh, Kia e-Niro 39 ja "
-                "64 kWh, e-Soul 64 kWh sekä E-GMP-alustan Ioniq 5, Ioniq 6 ja Kia EV6.",
-                "<b>Kytkentä:</b> sovitin kytketään suoraan kuljettajan jalkatilan OBD-II-liitäntään. Välikaapelia ei tarvita.",
-                "<b>Mallin valinta:</b> valitse Yleiskuvan Yhdistä-kohdan Auto-luettelosta auton malli ennen "
-                "yhdistämistä. Valmistenumerosta ei voi päätellä akun kokoa, joten malli valitaan myös auton tiedoissa.",
-                "<b>Auton on oltava päällä:</b> akunhallinta vastaa vain, kun auto on käynnistetty (READY tai virta "
-                "päällä) tai latautuu. Kun mittaus pyytää lepojakson loppuarvoja, käynnistä auto hetkeksi.",
+                "Akunhallinta ilmoittaa täyden akun energian, suojavaran ja akun elinkaaren energialaskurit. "
+                "Kennoryhmien jännitteet 1 mV:n tarkkuudella.",
+                "Vuosien 2012–2021 Model S ja 2015–2021 Model X eivät ilmoita akun alkuperäistä kapasiteettia. Syötä se "
+                "auton tietoihin, niin kunto lasketaan siitä.",
             ]),
-            ("p", "<b>Erot Teslaan raportissa:</b>"),
+            ("p", "<b>Hyundai ja Kia</b>"),
             ("ul", [
+                "Tuetut mallit: Ioniq Electric 28 ja 38 kWh, Kona Electric 39 ja 64 kWh, Kia e-Niro 39 ja 64 kWh, "
+                "e-Soul 64 kWh sekä E-GMP-alustan Ioniq 5, Ioniq 6 ja Kia EV6.",
+                "Akunhallinta vastaa vain, kun auto on käynnistetty (READY tai virta päällä) tai latautuu. Kun mittaus "
+                "pyytää lepojakson loppuarvoja, käynnistä auto hetkeksi.",
                 "Akunhallinta ilmoittaa oman kuntoarvionsa (SOH) prosentteina, ei täyden akun energiaa. AKVERI laskee "
-                "akunhallinnan energia-arvion kuntoarviosta ja mallin alkuperäisestä kapasiteetista. Mitattu "
-                "kapasiteetti (kapasiteettimittaus, ajotesti) on tästä riippumaton.",
+                "energia-arvion kuntoarviosta ja mallin alkuperäisestä kapasiteetista. Mitattu kapasiteetti "
+                "(kapasiteettimittaus, ajotesti) on tästä riippumaton.",
                 "Suojavaraa ei ilmoiteta, joten raportissa näytetään käytettävän energian sijaan akunhallinnan kuntoarvio.",
-                "Kennojännitteet ilmoitetaan 20 mV:n tarkkuudella (Teslassa 1 mV). Pienet jännite-erot eivät "
-                "erotu, ja kennoluokituksen raja on suhteutettu tähän tarkkuuteen.",
-                "Itsepurkaustestiä ei voi tehdä, koska 20 mV:n tarkkuus ei riitä itsepurkautumisen havaitsemiseen.",
-                "Ajomäärään perustuvaa vertailua ei tehdä; se perustuu Teslan julkaisemaan aineistoon.",
+                "Kennojännitteet ilmoitetaan 20 mV:n tarkkuudella. Pienet jännite-erot eivät erotu, ja kennoluokituksen "
+                "raja on suhteutettu tähän tarkkuuteen. Itsepurkaustestiä ei siksi voi tehdä.",
             ]),
-            ("p", "<b>Nissan Leaf:</b>"),
+            ("p", "<b>Nissan Leaf</b>"),
             ("ul", [
                 "Akunhallinta ilmoittaa kennojännitteet 1 mV:n tarkkuudella, joten itsepurkaustesti on mahdollinen.",
                 "Akunhallinta ilmoittaa jäljellä olevan kapasiteetin ampeeritunteina ja 40 ja 62 kWh:n akuissa myös "
                 "kuntoprosenttina. 24 ja 30 kWh:n akuissa kunto lasketaan ampeeritunneista ja uuden akun "
                 "ampeerituntimäärästä (likiarvo).",
                 "Elinkaaren energialaskureita ei ole. Kapasiteettimittaus perustuu jännitteen ja virran mittaukseen.",
-                "Virran suuntaa ei ole yksiselitteisesti dokumentoitu, joten AKVERI varmistaa sen varaustilan "
-                "muutoksesta (noin 0,5 %-yksikköä ajoa tai latausta). Jos ensimmäinen tulkinta on väärä, mittauksen "
-                "lataus- tai ajovaihe alkaa vasta, kun suunta on varmistunut.",
+                "Virran suunta varmistetaan varaustilan muutoksesta (noin 0,5 %-yksikköä ajoa tai latausta). Mittauksen "
+                "lataus- tai ajovaihe alkaa, kun suunta on varmistunut.",
                 "24 ja 30 kWh:n akkujen kennokemia (LMO-pohjainen) poikkeaa NMC-kennoista. Lepojännitteeseen perustuvat "
                 "arviot ovat näissä likimääräisiä.",
             ]),
-            ("p", "<b>Volkswagen-konsernin MEB (ID.3, ID.4, ID.5, Enyaq, Q4 e-tron, Born):</b>"),
+            ("p", "<b>Volkswagen-konsernin MEB (ID.3, ID.4, ID.5, Enyaq, Q4 e-tron, Born)</b>"),
             ("ul", [
-                "Kennojännitteet 1 mV:n tarkkuudella; kennot luetaan yksi kerrallaan, joten koko akun kennokierros "
+                "Kennojännitteet 1 mV:n tarkkuudella. Kennot luetaan yksi kerrallaan, joten koko akun kennokierros "
                 "kestää noin 10 sekuntia.",
                 "Akunhallinta ilmoittaa varaustilan 0,4 %:n portain. Kapasiteettimittaus perustuu energian mittaukseen, "
                 "joten porrastus vaikuttaa tulokseen vain vähän.",
@@ -125,7 +132,7 @@ OHJE = [
                 "Kennomäärä (84, 96 tai 108) tarkistetaan autosta ensimmäisellä kennokierroksella.",
                 "ID.7 ja 86 kWh:n akku eivät ole vielä mukana.",
             ]),
-            ("p", "<b>MG (MG4 Electric, MG5 Electric ja MG ZS EV):</b>"),
+            ("p", "<b>MG (MG4 Electric, MG5 Electric ja MG ZS EV)</b>"),
             ("ul", [
                 "Tuetut mallit: MG4 Electric 51, 64 ja 77 kWh, MG5 Electric 50,3 ja 61,1 kWh sekä MG ZS EV 44,5 kWh "
                 "(2019–2021), 51 kWh ja 72,6 kWh (2022 alkaen).",
@@ -135,16 +142,18 @@ OHJE = [
                 "Itsepurkaustestiä ei voi tehdä, koska yksittäisten kennojen jännitteitä ei ilmoiteta.",
                 "Elinkaaren energialaskureita ei ole. Kapasiteettimittaus perustuu jännitteen ja virran mittaukseen.",
             ]),
-            ("note", "Kyselyt ja arvojen sijainnit perustuvat avoimiin, laajasti käytettyihin aineistoihin "
-                     "(OBD-PIDs-for-HKMC-EVs, evDash, Open Vehicle Monitoring System, Battery-Emulator ja "
-                     "py-nissan-leaf-obd-ble)."),
+            ("note", "Ajomäärään perustuva vertailu tehdään vain malleille, joista on riittävä vertailuaineisto. "
+                     "Muilla malleilla raportissa ei ole tätä kohtaa."),
         ],
     },
     {
         "id": "krediitit", "otsikko": "Krediitit ja raportin tarkistus",
         "osat": [
             ("p", "Mittaukset maksetaan krediiteillä. Kunkin mittauksen hinta näkyy ennen aloitusta. Krediitit ostetaan "
-                  "Android-sovelluksen <b>Krediitit</b>-sivulla Google Playn kautta. Krediitit veloitetaan, kun mittaus aloitetaan."),
+                  "Android-sovelluksen <b>Krediitit</b>-sivulla Google Playn kautta. Krediitit veloitetaan, kun mittaus "
+                  "aloitetaan.", PC),
+            ("p", "Mittaukset maksetaan krediiteillä. Kunkin mittauksen hinta näkyy ennen aloitusta. Krediitit ostetaan "
+                  "<b>Krediitit</b>-sivulla Google Playn kautta. Krediitit veloitetaan, kun mittaus aloitetaan.", AND),
             ("ul", [
                 "<b>Raportin tunnus:</b> jokainen mittaus saa tunnuksen (esimerkiksi AK-7H2QK-M4XPC). Tunnus ja QR-koodi ovat "
                 "raportin ensimmäisellä sivulla. QR-koodi avaa sivun akveri.fi/v/tunnus, jolla raportin vastaanottaja näkee "
@@ -152,6 +161,8 @@ OHJE = [
                 "<b>Rekisteröinti:</b> valmis mittaus rekisteröidään akveri.fi-palveluun automaattisesti, ja tulos näkyy heti "
                 "rekisteröinnin jälkeen. Jos verkkoyhteyttä ei ole, rekisteröinti tehdään heti, kun yhteys palaa. Mittauksen "
                 "aloittaminen vaatii verkkoyhteyden.",
+                "<b>Järkevyystarkistus:</b> jos mittauksen tulos on mahdoton, esimerkiksi auton malli on valittu väärin, "
+                "raporttia ei rekisteröidä ja krediitit palautetaan automaattisesti. Syy näkyy mittauksen sivulla.",
                 "<b>Keskeytys:</b> jos mittaus keskeytyy heti alussa, sen krediitit palautuvat automaattisesti. "
                 "Jos mittaus keskeytyy myöhemmin AKVERIsta johtuvasta syystä, lähetä mittauksen sivulta hyvityspyyntö.",
                 "<b>Akun kunto ennen mittausta:</b> akun kunto ja kapasiteetti näkyvät mittauksen aikana ja raportissa, eivät "
@@ -187,26 +198,27 @@ OHJE = [
     {
         "id": "autot", "otsikko": "Autot",
         "osat": [
-            ("p", "Jokainen mitattava auto tallennetaan kerran. Ohjelma tunnistaa valmistenumerosta mallin, "
-                  "vuosimallin, valmistustehtaan ja voimalinjan ja valitsee niiden perusteella oikean mallipohjan."),
-            ("p", "Ensimmäisessä mittauksessa ohjelma lukee akunhallinnasta akun alkuperäisen kapasiteetin, "
-                  "kennoryhmien määrän ja akun tyypin ja tallentaa ne autolle. Jatkossa ohjelma käyttää näitä tietoja "
-                  "suoraan."),
+            ("p", "Jokainen mitattava auto tallennetaan kerran. Ohjelma tunnistaa valmistenumerosta merkin, mallin, "
+                  "vuosimallin ja valmistustehtaan ja valitsee niiden perusteella oikean mallipohjan. Jos valmistenumero "
+                  "ei riitä akun koon tunnistamiseen, malli valitaan luettelosta."),
+            ("p", "Ensimmäisessä mittauksessa ohjelma lukee akunhallinnasta akun tiedot, kuten kennoryhmien määrän ja "
+                  "akun tyypin, ja tallentaa ne autolle. Jatkossa ohjelma käyttää näitä tietoja suoraan."),
             ("ul", [
                 "<b>Käyttöönottopäivä</b> tarvitaan akkutakuun voimassaolon laskemiseen. Sen löytää rekisteriotteesta.",
-                "<b>Alkuperäinen kapasiteetti</b> kannattaa syöttää käsin vain, jos auto ei ilmoita sitä itse. Näin on vuosien 2012–2021 Model S:ssä ja 2015–2021 Model X:ssä.",
+                "<b>Alkuperäinen kapasiteetti</b> kannattaa syöttää käsin vain, jos ohjelma pyytää sitä. Näin on mallissa, "
+                "jonka akunhallinta ei ilmoita sitä itse.",
                 "<b>Rekisterinumero</b> näkyy raportin etusivulla. Sitä ei voi lukea autosta, joten se syötetään käsin.",
                 "<b>Auton kuva</b> on vapaaehtoinen. Lisää se auton sivulla, niin kuva näkyy raportin etusivulla. Puhelimella otetun kuvan asento korjataan automaattisesti.",
-                "Auton sivulla näkyy kaikki sen mittaukset ja akun kunnon kehitys.",
+                "Auton sivulla näkyvät kaikki sen mittaukset ja akun kunnon kehitys.",
             ]),
         ],
     },
     {
         "id": "pikatarkastus", "otsikko": "Pikatarkastus",
         "osat": [
-            ("p", "Pikatarkastus kestää 1–3 minuuttia. Se lukee akunhallinnan arvion akun nykyisestä kapasiteetista, "
-                  "alkuperäisen kapasiteetin, kaikkien kennoryhmien jännitteet, lämpötilat ja akun elinkaaren "
-                  "energialaskurit. Pikatarkastus sopii esimerkiksi kauppatilanteeseen."),
+            ("p", "Pikatarkastus kestää 1–3 minuuttia. Se lukee akunhallinnan arvion akun nykyisestä kunnosta ja "
+                  "kapasiteetista, kennoryhmien jännitteet, lämpötilat ja auton ilmoittamat elinkaaritiedot. "
+                  "Pikatarkastus sopii esimerkiksi kauppatilanteeseen."),
             ("ol", [
                 "Valitse <b>Mittaus</b>-sivulla auto ja <b>Pikatarkastus</b>.",
                 "Tarkista mittarilukema ja paina <b>Aloita mittaus</b>.",
@@ -225,17 +237,19 @@ OHJE = [
                 "<b>Aja akku tyhjäksi.</b> Paras tulos saadaan, kun lataus aloitetaan alle 10 %:n varauksesta. Raja voi olla enintään 15 %.",
                 "<b>Huomioi lämpötila.</b> Vertailukelpoinen tulos saadaan, kun akku on 15–35 °C. Talvella mittaus tehdään lämpimässä tilassa tai heti ajon jälkeen.",
                 "<b>Aloita mittaus.</b> Pysäköi auto latauspaikalle ja valitse <b>Mittaus</b>-sivulla <b>Kapasiteettimittaus</b>.",
-                "<b>Lepo ennen latausta.</b> Akku lepää 30 minuuttia. Pidä auto hereillä, esimerkiksi Leiriytymistilan avulla.",
+                "<b>Lepo ennen latausta.</b> Akku lepää 30 minuuttia. Pidä auto hereillä, jotta sovitin saa virtaa. Ohjelma kertoo mittauksen aikana, miten se tehdään juuri tässä autossa.",
                 "<b>Lataus.</b> Aseta latausrajaksi 100 % ja aloita tavallinen vaihtovirtalataus, enintään 11 kW. Ohjelma tunnistaa latauksen alun ja lopun itse.",
                 "<b>Lepo latauksen jälkeen.</b> Älä käytä autoa 30 minuuttiin. Sen jälkeen ohjelma laskee tuloksen ja tekee raportin.",
             ]),
             ("ul", [
                 "Pikalatausta ei käytetä, koska suuri virta lisää häviöitä ja lämpenemistä.",
                 "Jos lataus keskeytyy, mittaus odottaa ja jatkuu, kun lataus jatkuu.",
-                "Jos autosta ei saada hetkeen tietoja, katkon aikana akkuun mennyt energia täydennetään akunhallinnan energialaskennasta, ja asia merkitään raporttiin.",
-                "Ikkunan voi sulkea mittauksen ajaksi. Mittaus jatkuu taustalla, ja sen saa näkyviin avaamalla ohjelman uudelleen.",
+                "Jos autosta ei saada hetkeen tietoja, katkon aikana akkuun mennyt energia täydennetään akunhallinnan tiedoista, ja asia merkitään raporttiin.",
+                ("Ikkunan voi sulkea mittauksen ajaksi. Mittaus jatkuu taustalla, ja sen saa näkyviin avaamalla ohjelman uudelleen.", PC),
+                ("Mittaus jatkuu taustalla, vaikka näyttö sammuu tai vaihdat toiseen sovellukseen.", AND),
             ]),
-            ("note", "Kytke kannettava tietokone laturiin. Ohjelma estää tietokoneen lepotilan mittauksen aikana."),
+            ("note", "Kytke kannettava tietokone laturiin. Ohjelma estää tietokoneen lepotilan mittauksen aikana.", PC),
+            ("note", "Mittaus kestää 8–14 tuntia, joten pidä puhelin laturissa koko ajan. Katso kohta <b>Puhelimen käyttö</b>.", AND),
         ],
     },
     {
@@ -243,9 +257,10 @@ OHJE = [
         "osat": [
             ("p", "AKVERIssa on kahdeksan mittausta. Ne on ryhmitelty sen mukaan, missä mittaus tehdään. "
                   "Akun kunto prosentteina saadaan kapasiteettimittauksesta, ajotestistä ja täydestä akkutestistä. "
-                  "Muut mittaukset kertovat akusta asioita, joita kapasiteetti ei kerro."),
+                  "Muut mittaukset kertovat akusta asioita, joita kapasiteetti ei kerro. Mittaukset, joita auton "
+                  "akunhallinnan tiedoilla ei voi tehdä, eivät ole valittavissa."),
             ("ul", [
-                "<b>Pikatarkastus</b> (1–3 min): akunhallinnan kapasiteettiarvio, kennoryhmien jännitteet, lämpötilat ja elinkaaritiedot.",
+                "<b>Pikatarkastus</b> (1–3 min): akunhallinnan kuntoarvio, kennoryhmien jännitteet, lämpötilat ja elinkaaritiedot.",
                 "<b>Kapasiteettimittaus</b> (8–14 h): akun kapasiteetti mitattuna latauksen aikana.",
                 "<b>Itsepurkaustesti</b> (yön yli): kennoryhmien jännitteiden muutos seisonnassa.",
                 "<b>Täysi akkutesti</b> (1–2 päivää): kapasiteetti mitattuna sekä ajossa että latauksessa. Tarkin tulos.",
@@ -256,14 +271,15 @@ OHJE = [
             ]),
             ("note", "Raportti näyttää mitatun kunnon vain, kun mittaus täyttää tarkkuusvaatimuksen: kunnon epävarmuus "
                      "enintään ±3 %-yksikköä ja mittauksen laatu vähintään kohtalainen. Muuten raportti kertoo syyn, "
-                     "ja kuntona näytetään Teslan akunhallinnan oma arvio."),
+                     "ja kuntona näytetään auton akunhallinnan oma arvio."),
         ],
     },
     {
         "id": "ajotestit", "otsikko": "Ajotesti ja täysi akkutesti",
         "osat": [
-            ("p", "Ajotestissä akusta ajon aikana otettu energia luetaan Teslan elinkaaren energialaskureista ja "
-                  "varaustila akunhallinnasta. Varaustila luetaan levossa ennen ajoa ja sen jälkeen. Täydessä "
+            ("p", "Ajotestissä mitataan ajon aikana akusta otettu energia ja varaustilan muutos. Energia luetaan "
+                  "akunhallinnan elinkaaren energialaskureista, tai jos autossa niitä ei ole, se lasketaan akun "
+                  "jännitteestä ja virrasta. Varaustila luetaan levossa ennen ajoa ja sen jälkeen. Täydessä "
                   "akkutestissä ajoa seuraa lataus täyteen, ja tulos yhdistetään kahdesta riippumattomasta mittauksesta."),
             ("ol", [
                 "<b>Lataa akku täyteen</b> edellisenä päivänä. Ajo aloitetaan vähintään 80 %:n varauksesta.",
@@ -273,10 +289,11 @@ OHJE = [
                 "<b>Pysäköi lopuksi</b> ja anna akun levätä. Täydessä akkutestissä aloita sen jälkeen lataus täyteen kuten kapasiteettimittauksessa.",
             ]),
             ("ul", [
-                "Jos autoa ladataan tauon aikana, Teslan latauslaskuri paljastaa sen, ja asia merkitään raporttiin.",
+                "Jos autoa ladataan tauon aikana ja auto ilmoittaa latauslaskurinsa, ohjelma huomaa latauksen, ja asia merkitään raporttiin.",
                 "Pika-ajotesti on lyhyt ajo, jolla tarkistetaan akunhallinnan arvio. Lyhyen ajon varaustilan muutos ei riitä tarkkaan kuntoprosenttiin, joten pika-ajotesti ei anna omaa kuntoa.",
             ]),
-            ("note", "Älä käytä ohjelmaa ajon aikana. Aseta tietokone tai puhelin niin, ettei se liiku ajossa, ja noudata liikennesääntöjä."),
+            ("note", "Älä käytä ohjelmaa ajon aikana. Aseta tietokone niin, ettei se liiku ajossa, ja noudata liikennesääntöjä.", PC),
+            ("note", "Älä käytä sovellusta ajon aikana. Aseta puhelin telineeseen tai paikkaan, jossa se ei liiku ajossa, ja noudata liikennesääntöjä.", AND),
         ],
     },
     {
@@ -287,20 +304,20 @@ OHJE = [
                   "Ohjelma laskee kiihdytykset itse ja päättää mittauksen, kun pysäköit. Muita selvästi suurempi "
                   "resistanssi viittaa heikentyneeseen kennoryhmään tai liitokseen. Resistanssi riippuu voimakkaasti "
                   "lämpötilasta ja varaustilasta, joten testi aloitetaan vain vertailukelpoisissa olosuhteissa: varaus "
-                  "40–80 %, akun lämpötila 10–30 °C ja kennojen lämpötilaero alle 2 °C. Vaatimukset vastaavat DEKRAn "
-                  "akkutestiä. Jos ehto ei täyty, ohjelma kertoo syyn. Kylmän akun voi lämmittää ajamalla tai "
-                  "esilämmittämällä auton Tesla-sovelluksesta."),
-            ("p", "<b>Pikalataustesti.</b> Aloita alle 30 %:n varauksesta. Navigoi pikalaturille auton navigaattorilla, "
-                  "jotta akku esilämmitetään. Anna latauksen jatkua vähintään 80 %:iin. Raporttiin tulee latauskäyrä, "
-                  "huipputeho, latausaika 20 → 80 % ja kennoryhmien suurin jännite-ero latauksen aikana. Latausteho "
-                  "riippuu myös laturista ja akun lämpötilasta."),
+                  "40–80 %, akun lämpötila 10–30 °C ja kennojen lämpötilaero alle 2 °C. Jos ehto ei täyty, ohjelma "
+                  "kertoo syyn. Kylmän akun voi lämmittää ajamalla tai esilämmittämällä auton."),
+            ("p", "<b>Pikalataustesti.</b> Aloita alle 30 %:n varauksesta. Jos auto esilämmittää akun pikalatausta varten, "
+                  "valitse pikalaturi auton navigaattorista. Anna latauksen jatkua vähintään 80 %:iin. Raporttiin tulee "
+                  "latauskäyrä, huipputeho, latausaika 20 → 80 % ja kennoryhmien suurin jännite-ero latauksen aikana. "
+                  "Latausteho riippuu myös laturista ja akun lämpötilasta."),
             ("p", "<b>Itsepurkaustesti.</b> Aloita illalla. Auto lepää 30 minuuttia, minkä jälkeen ohjelma lukee "
                   "kaikkien kennoryhmien jännitteet. Valitse <b>Jatka myöhemmin</b>, sulje ohjelma ja anna auton "
-                  "nukkua yön yli. Aamulla herätä auto, kytke sovitin ja valitse <b>Jatka</b>. Älä aja tai lataa autoa "
-                  "seisonnan aikana."),
-            ("p", "<b>LFP-akut</b> (esimerkiksi Model 3 ja Model Y Standard Range): LFP-kennon lepojännite muuttuu "
-                  "keskimmäisillä varaustiloilla hyvin vähän. Tee itsepurkaustesti heti täyteen latauksen jälkeen, yli "
-                  "90 %:n varauksessa. Muuten raportti kertoo, ettei tulosta voitu mitata luotettavasti."),
+                  "seistä yön yli. Aamulla herätä auto, kytke sovitin ja valitse <b>Jatka</b>. Älä aja tai lataa autoa "
+                  "seisonnan aikana. Testi vaatii, että akunhallinta ilmoittaa kennojännitteet 1 mV:n tarkkuudella."),
+            ("p", "<b>LFP-akut</b> (esimerkiksi osa Tesla Model 3- ja Model Y -malleista sekä MG4 ja MG ZS EV 51 kWh): "
+                  "LFP-kennon lepojännite muuttuu keskimmäisillä varaustiloilla hyvin vähän. Tee itsepurkaustesti heti "
+                  "täyteen latauksen jälkeen, yli 90 %:n varauksessa. Muuten raportti kertoo, ettei tulosta voitu mitata "
+                  "luotettavasti."),
             ("note", "Itsepurkaustesti vertaa kennoryhmiä toisiinsa, joten auton oma kulutus ei vaikuta tulokseen. "
                      "Mittauksen havaitsemisraja näkyy raportissa. Mitä pidempi seisonta, sitä pienempi poikkeama havaitaan."),
         ],
@@ -314,15 +331,15 @@ OHJE = [
                   "<b>Teknisessä liitteessä</b> ovat mittauksen vaiheet, mittaustarkkuuden erittely, "
                   "akunhallinnan tiedot, menetelmäkuvaus ja sanasto."),
             ("ul", [
-                "<b>Akun kunto (SOH)</b> on nykyinen kapasiteetti prosentteina alkuperäisestä. Luokat noudattavat AVILOOn käytäntöä: vähintään 90 % on erinomainen, 80–90 % hyvä ja alle 80 % heikentynyt. Alle 70 % alittaa Teslan akkutakuun rajan.",
+                "<b>Akun kunto (SOH)</b> on nykyinen kapasiteetti prosentteina alkuperäisestä. Luokat: vähintään 90 % on erinomainen, 80–90 % hyvä ja alle 80 % heikentynyt. Raportti vertaa kuntoa auton merkin akkutakuun rajaan, joka on yleensä 70 %.",
                 "<b>Kennoryhmien jännite-ero</b> levossa: alle 15 mV erinomainen, alle 30 mV hyvä ja alle 50 mV tyydyttävä. Suurempi ero tai yksittäinen poikkeava ryhmä kannattaa tarkistaa.",
-                "Raja-arvot perustuvat käytettyjen sähköautojen akkutestien aineistoon (Generational, noin 10 000 testiä: tyypillinen ero noin 8 mV, yli 50 mV vaatii selvittelyä, yli 100 mV viittaa vikaan) sekä akkujärjestelmien täyden latauksen ohjearvoihin (enintään 30 mV hyväksyttävä, vähintään 50 mV vaatii tasauslatauksen).",
+                "Raja-arvot perustuvat käytettyjen sähköautojen laajaan akkutestiaineistoon (tyypillinen ero noin 8 mV, yli 50 mV vaatii selvittelyä, yli 100 mV viittaa vikaan) sekä akkujärjestelmien täyden latauksen ohjearvoihin (enintään 30 mV hyväksyttävä, vähintään 50 mV vaatii tasauslatauksen).",
                 "<b>Jyrkkä alue ja LFP-akku</b>: alle 20 %:n varauksessa kennojännite muuttuu jyrkästi, joten ero on luonnostaan suurempi. LFP-akun jännite on keskivarauksella lähes tasainen, mutta nousee täyden ja laskee tyhjän lähellä hyvin jyrkästi, joten LFP-akun ero on luonnostaan suurempi myös täyteen ladattuna. Se on akkukemian ominaisuus eikä vika. Näillä alueilla rajat ovat alle 50 mV hyvä ja alle 100 mV tyydyttävä. LFP-akun keskivarauksella pieni ero ei yksin todista tasapainoa, joten luokaksi annetaan enintään hyvä.",
                 "<b>Mittaustarkkuus</b> (±) kertoo, kuinka paljon mitattu kapasiteetti voi poiketa todellisesta. Se pienenee, kun lataus aloitetaan matalasta varauksesta ja lepojaksot pidetään täysimittaisina.",
-                "<b>Vertailu ajomäärään</b> kertoo, onko kapasiteetin alenema keskimääräinen, pienempi vai suurempi kuin samalla ajomäärällä yleensä.",
+                "<b>Vertailu ajomäärään</b> kertoo, onko kapasiteetin alenema keskimääräinen, pienempi vai suurempi kuin samalla ajomäärällä yleensä. Se tehdään malleille, joista on riittävä vertailuaineisto.",
             ]),
             ("p", "Raportissa kerrotaan tietojen alkuperä: tiedot luetaan auton omasta akunhallintajärjestelmästä, "
-                  "eikä AKVERI muuta niitä. Pikatarkastuksen kunto ja kapasiteetti ovat Teslan akunhallinnan ilmoittamia. "
+                  "eikä AKVERI muuta niitä. Pikatarkastuksen kunto ja kapasiteetti ovat auton akunhallinnan ilmoittamia. "
                   "Kapasiteettimittauksessa ja ajotesteissä tulos perustuu auton omiin jännite- ja virtamittauksiin, "
                   "varaustilaan ja energialaskureihin. "
                   "Raportti kuvaa akun tilaa mittaushetkellä, eikä se ole valmistajan lausunto."),
@@ -338,20 +355,28 @@ OHJE = [
         ],
     },
     {
-        "id": "android", "otsikko": "AKVERI Android-puhelimessa",
+        "id": "android", "otsikko": "AKVERI Android-puhelimessa", "alusta": PC,
         "osat": [
             ("p", "Android-sovelluksella koko mittauksen voi tehdä pelkällä puhelimella tai tabletilla. Sovelluksessa "
-                  "on samat toiminnot, mittaukset ja raportit kuin tietokoneohjelmassa."),
+                  "on samat toiminnot, mittaukset ja raportit kuin tietokoneohjelmassa. Krediitit ostetaan sovelluksessa."),
+            ("ul", [
+                "USB-sovitin (EX) kytketään puhelimeen USB-C-sovittimella (OTG). Bluetooth-sovitin (MX+, LX) paritetaan puhelimen Bluetooth-asetuksista.",
+                "Kapasiteettimittauksessa puhelimen on oltava laturissa koko mittauksen ajan.",
+            ]),
+        ],
+    },
+    {
+        "id": "puhelin", "otsikko": "Puhelimen käyttö", "alusta": AND,
+        "osat": [
             ("ol", [
-                "<b>USB:</b> kytke OBDLink EX välikaapelilla auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen. Kun Android kysyy, saako AKVERI käyttää sovitinta, valitse <b>Salli</b>.",
+                "<b>USB:</b> kytke OBDLink EX auton diagnostiikkaliittimeen ja USB-C-sovittimella (OTG) puhelimeen. Kun Android kysyy, saako AKVERI käyttää sovitinta, valitse <b>Salli</b>.",
                 "<b>Bluetooth:</b> kytke OBDLink MX+ tai LX autoon ja muodosta pari puhelimen Bluetooth-asetuksista. Salli AKVERIlle lähellä olevien laitteiden käyttö, kun sovellus kysyy.",
-                "Paina <b>Yleiskuva</b>-sivulla <b>Yhdistä autoon</b> ja jatka kuten tietokoneella.",
+                "Paina <b>Yleiskuva</b>-sivulla <b>Yhdistä autoon</b>.",
             ]),
             ("ul", [
                 "AKVERI toimii taustalla, ja ilmoitusalueella näkyy merkintä <b>AKVERI on käynnissä</b>. Mittaus jatkuu, vaikka näyttö sammuu tai vaihdat toiseen sovellukseen.",
-                "Kapasiteettimittaus kestää 8–14 tuntia, joten puhelimen on oltava laturissa. Bluetooth-sovittimella puhelimen voi pitää suoraan laturissa. Koska EX käyttää puhelimen USB-C-portin, tarvitaan sen kanssa OTG-sovitin, jossa on latausportti (USB-C-hubi, jossa lataus läpi eli PD).",
-                "Raportit ja varmuuskopiot tallentuvat avattaessa puhelimen <b>Lataukset/AKVERI</b>-kansioon, josta ne voi jakaa sähköpostilla tai viestillä.",
-                "Sovellus päivitetään asentamalla uusi versio vanhan päälle. Tiedot säilyvät.",
+                "Kapasiteettimittaus kestää 8–14 tuntia, joten puhelimen on oltava laturissa. Bluetooth-sovittimen kanssa puhelimen voi pitää suoraan laturissa. Koska EX käyttää puhelimen USB-C-portin, tarvitaan sen kanssa OTG-sovitin, jossa on latausportti (USB-C-hubi, jossa lataus läpi eli PD).",
+                "Raportit ja mittaustiedostot tallentuvat puhelimen <b>Lataukset/AKVERI</b>-kansioon, josta ne voi jakaa sähköpostilla tai viestillä.",
             ]),
             ("note", "Kaikki USB-C-sovittimet eivät välitä dataa ja latausvirtaa yhtä aikaa. Valitse OTG-tuettu sovitin, jossa on PD-latausportti. Jos EX ei näy, kokeile toista sovitinta tai kaapelia. Lyhyeen pikatarkastukseen riittää tavallinen OTG-sovitin."),
         ],
@@ -359,26 +384,41 @@ OHJE = [
     {
         "id": "yllapito", "otsikko": "Päivitys ja varmuuskopiot",
         "osat": [
-            ("p", "<b>Päivitys:</b> Androidissa Google Play päivittää AKVERIn. Windows-version uusi asennusohjelma "
-                  "ajetaan vanhan päälle. Autot, mittaukset, raportit, asetukset ja krediitit säilyvät."),
+            ("p", "<b>Päivitys:</b> uusi asennusohjelma ajetaan vanhan päälle. Autot, mittaukset, raportit, asetukset "
+                  "ja krediitit säilyvät.", PC),
+            ("p", "<b>Päivitys:</b> Google Play päivittää AKVERIn. Autot, mittaukset, raportit, asetukset ja krediitit "
+                  "säilyvät.", AND),
             ("p", "<b>Mittaustiedostot:</b> jokainen valmis mittaus tallennetaan automaattisesti mittaustiedostona "
-                  "(.akveri) ja PDF-raporttina. Windowsissa oletuskansio on Tiedostot/AKVERI/Mittaukset, Androidissa "
-                  "Lataukset/AKVERI. Mittaustiedosto sisältää kaikki mittauksen tiedot "
-                  "ja raakadatan, ja sen voi avata millä tahansa laitteella, jolle AKVERI on asennettu, kohdasta "
-                  "<b>Mittaukset → Avaa mittaustiedosto</b>. Myös aiempien versioiden .akux-tiedostot avautuvat."),
+                  "(.akveri) ja PDF-raporttina kansioon Tiedostot/AKVERI/Mittaukset. Kansion voi vaihtaa Asetukset-sivulla. "
+                  "Mittaustiedosto sisältää kaikki mittauksen tiedot ja raakadatan, ja sen voi avata millä tahansa "
+                  "laitteella, jolle AKVERI on asennettu, kohdasta <b>Mittaukset → Avaa mittaustiedosto</b>. Myös "
+                  "aiempien versioiden .akux-tiedostot avautuvat.", PC),
+            ("p", "<b>Mittaustiedostot:</b> jokainen valmis mittaus tallennetaan automaattisesti mittaustiedostona "
+                  "(.akveri) ja PDF-raporttina puhelimen Lataukset/AKVERI-kansioon. Mittaustiedosto sisältää kaikki "
+                  "mittauksen tiedot ja raakadatan, ja sen voi avata millä tahansa laitteella, jolle AKVERI on "
+                  "asennettu, kohdasta <b>Mittaukset → Avaa mittaustiedosto</b>. Myös aiempien versioiden "
+                  ".akux-tiedostot avautuvat.", AND),
             ("p", "<b>Varmuuskopio:</b> ohjelma tekee varmuuskopion automaattisesti kerran viikossa ja säilyttää "
                   "viisi uusinta. Voit tehdä varmuuskopion myös itse <b>Asetukset</b>-sivulla ja tallentaa sen "
-                  "esimerkiksi muistitikulle. Palautuksessa nykyiset tiedot siirretään ensin talteen, joten mitään ei menetetä."),
+                  "esimerkiksi muistitikulle. Palautuksessa nykyiset tiedot siirretään ensin talteen, joten mitään ei menetetä.", PC),
+            ("p", "<b>Varmuuskopio:</b> sovellus tekee varmuuskopion automaattisesti kerran viikossa ja säilyttää "
+                  "viisi uusinta. Voit tehdä varmuuskopion myös itse <b>Asetukset</b>-sivulla ja jakaa sen esimerkiksi "
+                  "omaan sähköpostiisi tai pilvitallennukseen. Palautuksessa nykyiset tiedot siirretään ensin talteen, "
+                  "joten mitään ei menetetä.", AND),
+            ("note", "Ota varmuuskopio ennen kuin poistat sovelluksen tai vaihdat puhelinta. Sovelluksen poistaminen poistaa "
+                     "myös sen tiedot ja krediittitilin.", AND),
         ],
     },
     {
         "id": "ongelmat", "otsikko": "Ongelmatilanteet",
         "osat": [
             ("ul", [
-                "<b>Sovitinta ei löydy:</b> irrota ja kytke USB-kaapeli uudelleen ja paina Päivitä portit. Jos sovitin ei vieläkään näy, asenna FTDI:n VCP-ajuri valmistajan sivuilta (ftdichip.com).",
-                "<b>Väylä on hiljaa:</b> auto on lepotilassa. Herätä auto avaamalla ovi tai käynnistämällä ilmastointi.",
-                "<b>Akun tiedot puuttuvat yhteystestistä:</b> paina <b>Kartoita väylä</b>. Jos liitännässä liikkuu vain muutama viesti, kuten nopeus ja virtatila, sovitin on kytketty jalkatilan liitäntään. Kytke se diagnostiikkaliittimeen välikaapelilla.",
-                "<b>Ohjelma ei käynnisty:</b> aja asennus uudelleen. Tiedot säilyvät.",
+                ("<b>Sovitinta ei löydy:</b> irrota ja kytke USB-kaapeli uudelleen ja paina Päivitä portit. Jos sovitin ei vieläkään näy, asenna FTDI:n VCP-ajuri valmistajan sivuilta (ftdichip.com).", PC),
+                ("<b>Sovitinta ei löydy:</b> USB-sovittimessa irrota ja kytke OTG-sovitin uudelleen ja valitse Salli, kun Android kysyy lupaa. Bluetooth-sovittimessa tarkista, että sovitin on paritettu ja että AKVERIlla on lupa lähellä oleviin laitteisiin.", AND),
+                "<b>Auto ei vastaa:</b> auto on lepotilassa. Teslassa herätä auto avaamalla ovi tai käynnistämällä ilmastointi. Muissa merkeissä kytke auto päälle (READY) tai virta päälle.",
+                "<b>Akun tiedot puuttuvat yhteystestistä:</b> tarkista, että Auto-luettelosta on valittu oikea malli. Teslassa paina <b>Kartoita väylä</b>: jos liitännässä liikkuu vain muutama viesti, kuten nopeus ja virtatila, sovitin on kytketty jalkatilan liitäntään. Kytke se diagnostiikkaliittimeen välikaapelilla.",
+                ("<b>Ohjelma ei käynnisty:</b> aja asennus uudelleen. Tiedot säilyvät.", PC),
+                ("<b>Sovellus ei käynnisty:</b> sulje sovellus kokonaan ja avaa se uudelleen. Jos ongelma jatkuu, päivitä sovellus Google Playssa.", AND),
             ]),
         ],
     },
@@ -391,7 +431,7 @@ SANASTO = [
     ("Kapasiteetti", "Energiamäärä, jonka täysi akku sisältää, kilowattitunteina (kWh). Raportissa kapasiteetti on bruttoarvo."),
     ("Käytettävä energia", "Sama kuin nettokapasiteetti: kapasiteetti vähennettynä suojavaralla. Tämä energia on ajossa käytettävissä."),
     ("Suojavara", "Akunhallinnan varaama energia, jota ei anneta käyttöön. Se suojaa akkua syväpurkaukselta."),
-    ("Kennoryhmä", "Rinnan kytkettyjen kennojen ryhmä, muiden merkkien akuissa usein yksittäinen kenno tai rinnakkain kytketty kennopari. Sähköauton akussa on tavallisesti 84–192 sarjaan kytkettyä ryhmää."),
+    ("Kennoryhmä", "Rinnan kytkettyjen kennojen ryhmä tai yksittäinen kenno, merkistä riippuen. Sähköauton akussa on tavallisesti 84–192 sarjaan kytkettyä ryhmää."),
     ("Jännite-ero", "Suurimman ja pienimmän kennoryhmän jännitteen ero. Pieni ero kertoo tasaisesti varautuneesta akusta."),
     ("Lepojännite", "Kennon jännite, kun akusta ei ole hetkeen otettu eikä siihen ole ladattu virtaa."),
     ("Akunhallinta (BMS)", "Akun ohjausjärjestelmä, joka valvoo kennoja ja laskee akun varaustilan ja energian."),
@@ -406,9 +446,33 @@ SANASTO = [
 SANASTO.sort(key=lambda x: x[0].lower())
 
 
-def as_html() -> list[dict]:
+def _alusta(alusta: str | None) -> str:
+    return AND if alusta == "android" else PC
+
+
+def osiot(alusta: str | None = None) -> list[dict]:
+    """Ohjeen osiot alustalle suodatettuina: (laji, sisältö) ja listat merkkijonoina."""
+    a = _alusta(alusta)
     out = []
     for sec in OHJE:
+        if sec.get("alusta") not in (None, a):
+            continue
+        osat = []
+        for osa in sec["osat"]:
+            kind, body = osa[0], osa[1]
+            if len(osa) > 2 and osa[2] != a:
+                continue
+            if isinstance(body, list):
+                body = [x[0] if isinstance(x, tuple) else x for x in body
+                        if not (isinstance(x, tuple) and x[1] != a)]
+            osat.append((kind, body))
+        out.append({"id": sec["id"], "otsikko": sec["otsikko"], "osat": osat})
+    return out
+
+
+def as_html(alusta: str | None = None) -> list[dict]:
+    out = []
+    for sec in osiot(alusta):
         html = []
         for kind, body in sec["osat"]:
             if kind == "p":
@@ -424,7 +488,7 @@ def as_html() -> list[dict]:
     return out
 
 
-def build_pdf(path, settings=None):
+def build_pdf(path, settings=None, alusta=None):
     from . import kielet  # noqa: PLC0415  ohje ohjelman kielellä
 
     def _P(text, *a, **kw):
@@ -450,11 +514,12 @@ def build_pdf(path, settings=None):
     E = [_P(f"{NIMI}", ST["h1"]), _P("Käyttöohje", ST["sub"]), Spacer(1, 4 * mm),
          _P(f"Versio {VERSIO}", ST["small"]), Spacer(1, 8 * mm)]
     E.append(_P("Sisältö", ST["h3"]))
-    for i, sec in enumerate(OHJE, 1):
+    OSIOT = osiot(alusta)
+    for i, sec in enumerate(OSIOT, 1):
         E.append(_P(f"{i}. {sec['otsikko']}", ST["body"]))
-    E.append(_P(f"{len(OHJE) + 1}. Sanasto", ST["body"]))
+    E.append(_P(f"{len(OSIOT) + 1}. Sanasto", ST["body"]))
     E.append(PageBreak())
-    for i, sec in enumerate(OHJE, 1):
+    for i, sec in enumerate(OSIOT, 1):
         block = [_P(f"{i}. {sec['otsikko']}", ST["h2"])]
         for kind, body in sec["osat"]:
             if kind == "p":
@@ -477,7 +542,7 @@ def build_pdf(path, settings=None):
         E.append(KeepTogether(block[:3]))
         E += block[3:]
         E.append(Spacer(1, 5 * mm))
-    E.append(_P(f"{len(OHJE) + 1}. Sanasto", ST["h2"]))
+    E.append(_P(f"{len(OSIOT) + 1}. Sanasto", ST["h2"]))
     rows = [[_P(a, ST["cellb"]), _P(b, ST["cell"])] for a, b in SANASTO]
     t = Table(rows, colWidths=[48 * mm, A4[0] - 36 * mm - 48 * mm])
     t.setStyle(TableStyle([("LINEBELOW", (0, 0), (-1, -1), 0.5, LINE), ("VALIGN", (0, 0), (-1, -1), "TOP"),

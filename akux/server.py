@@ -211,7 +211,7 @@ class Api:
         return {"ok": True}
 
     def ohjeet(self, q, body):
-        return {"osiot": docs.as_html()}
+        return {"osiot": docs.as_html(platform_name())}
 
     def tietoja(self, q, body):
         import platform
@@ -1072,7 +1072,7 @@ def make_handler(api: Api):
                 return True
             if path == "/api/ohjeet.pdf":
                 p = st.dir / "AKVERI-kayttoohje.pdf"
-                docs.build_pdf(p)
+                docs.build_pdf(p, alusta=platform_name())
                 self._send(200, p.read_bytes(), "application/pdf",
                            {"Content-Disposition": 'inline; filename="AKVERI-kayttoohje.pdf"'})
                 return True
