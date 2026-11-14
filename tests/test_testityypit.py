@@ -9,10 +9,10 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-os.environ.setdefault("AKUX_MITTAUSKANSIO", _tf.mkdtemp(prefix="akux-testi-"))
+os.environ.setdefault("AKVERI_MITTAUSKANSIO", _tf.mkdtemp(prefix="akveri-testi-"))
 
-from akux.app import App  # noqa: E402
-from akux.simulator import BatterySimulator  # noqa: E402
+from akveri.app import App  # noqa: E402
+from akveri.simulator import BatterySimulator  # noqa: E402
 
 LYHYT = {"lepo_alku_min": 10, "lepo_loppu_min": 10, "ajo_lepo_min": 10, "itsepurkaus_lepo_min": 10,
          "itsepurkaus_tunnit": 6, "kuormitus_tapahtumat": 6, "mittaus_tallennus": False}
@@ -57,7 +57,7 @@ def _done(app, tid, timeout=180):
 
 
 def _report(app, tid):
-    from akux import report
+    from akveri import report
     p = report.build(app.storage, tid)
     assert p.exists() and p.stat().st_size > 20000
     return p
@@ -327,7 +327,7 @@ def test_virheellinen_alkuperainen_energia(tmp):
     """LFP-auto (Model 3 SR+ LFP, 106 kennoryhmää), jonka akunhallinta ilmoittaa alkuperäiseksi energiaksi
     76,9 kWh (mittaus 2026-00009). Arvo ei sovi 55 kWh:n LFP-akkuun, joten sitä ei käytetä, ja kunto lasketaan
     mallin kapasiteetista. Väärä arvo ei myöskään saa jäädä autolle opituksi."""
-    from akux import analysis
+    from akveri import analysis
     app = _app(tmp)
     src = BatterySimulator(chem="LFP", cells=106, nfp_kwh=51.4, bol_kwh=76.9, soc=0.15, accel=300,
                            weak_cell=None, vin="LRW3E7FA4LC110444")

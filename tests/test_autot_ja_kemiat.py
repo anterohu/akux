@@ -14,26 +14,26 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-os.environ.setdefault("AKUX_MITTAUSKANSIO", _tf.mkdtemp(prefix="akux-testi-"))
+os.environ.setdefault("AKVERI_MITTAUSKANSIO", _tf.mkdtemp(prefix="akveri-testi-"))
 
-from akux.decoder import TeslaDecoder  # noqa: E402
-from akux.simulator import ESITTELYAUTOT, BatterySimulator, MILE_KM  # noqa: E402
+from akveri.decoder import TeslaDecoder  # noqa: E402
+from akveri.simulator import ESITTELYAUTOT, BatterySimulator, MILE_KM  # noqa: E402
 from test_testityypit import _app, _done, _phase, wait_until  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 
 
 def _hk(car):
-    from akux import profiles
+    from akveri import profiles
     m = profiles.get(ESITTELYAUTOT[car].get("malli_id"))
-    from akux import polled
+    from akveri import polled
     return m if polled.for_model(m) else None
 
 
 def _sim(car, **kw):
     m = _hk(car)
     if m:
-        from akux import polled
+        from akveri import polled
         s = polled.for_model(m).simulator(m, **{**ESITTELYAUTOT[car]["opts"], **kw})
         s.malli_id = m["id"]
         return s
@@ -42,7 +42,7 @@ def _sim(car, **kw):
 
 def check_hk_decoding(car):
     """Hyundai/Kia: akunhallinnan vastauksista luetut arvot vastaavat simuloidun auton todellisia arvoja."""
-    from akux.app import App
+    from akveri.app import App
     with _tf.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         app = App(tmp)
         src = _sim(car, soc=0.55, accel=1)
@@ -169,7 +169,7 @@ def _start(app, src, tyyppi):
 
 
 def _pdf_check(app, tid, must):
-    from akux import report
+    from akveri import report
     from pypdf import PdfReader
     p = report.build(app.storage, tid)
     txt = "\n".join(pg.extract_text() or "" for pg in PdfReader(str(p)).pages)
@@ -263,7 +263,7 @@ def run_types(car, tmp):
     # Ajotesti. Simuloitu aika kulkee nopeutettuna. Jos autossa ei ole elinkaaren energialaskureita (Nissan
     # Leaf), energia lasketaan jännitteestä ja virrasta; silloin nopeutus pidetään pienenä, jotta näytteitä
     # tulee tiheästi myös kuormitetulla testikoneella (oikeassa autossa useita kertoja sekunnissa).
-    from akux import polled
+    from akveri import polled
     _pm = polled.for_model(_hk(car))
     src = _sim(car, soc=0.95, accel=60 if _pm and not _pm.ELINKAARILASKURIT else 500)
     tid = _start(app, src, "ajotesti")
@@ -322,7 +322,7 @@ def run_types(car, tmp):
     _pdf_check(app, tid, ["Pikalataustesti", "Latausteho"])
     app.disconnect()
 
-    from akux import polled
+    from akveri import polled
     if not _hk(car) or polled.for_model(_hk(car)).ITSEPURKAUS_OK:
         check_self_discharge(app, car)
 

@@ -17,11 +17,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-os.environ.setdefault("AKUX_MITTAUSKANSIO", _tf.mkdtemp(prefix="akux-testi-"))
+os.environ.setdefault("AKVERI_MITTAUSKANSIO", _tf.mkdtemp(prefix="akveri-testi-"))
 
-from akux import server  # noqa: E402
-from akux.server import Api, bind_server  # noqa: E402
-from akux.app import App  # noqa: E402
+from akveri import server  # noqa: E402
+from akveri.server import Api, bind_server  # noqa: E402
+from akveri.app import App  # noqa: E402
 
 received = []
 
@@ -86,7 +86,7 @@ def test_yllapito():
 
         # asetukset ja ilmoitukset
         call(base, "/api/asetukset", "POST", {"yritys_nimi": "Testi Oy", "ilmoitukset_kaytossa": True,
-                                               "ilmoitus_osoite": f"http://127.0.0.1:{np}/akux"})
+                                               "ilmoitus_osoite": f"http://127.0.0.1:{np}/akveri"})
         _, s = call(base, "/api/asetukset")
         assert s["yritys_nimi"] == "Testi Oy" and "puhelin_avain" not in s
         call(base, "/api/ilmoitus/testi", "POST", {})
@@ -148,7 +148,7 @@ def test_yllapito():
         bad = [c for c in q["tarkistukset"] if c["tila"] == "virhe" and c["nimi"] not in skip]
         assert not bad, bad
         print("Laaduntarkistus:", [(c["nimi"], c["tila"]) for c in q["tarkistukset"]])
-        folder = Path(os.environ["AKUX_MITTAUSKANSIO"])
+        folder = Path(os.environ["AKVERI_MITTAUSKANSIO"])
         extra = [p.name for p in folder.glob("*Laaduntarkistus*")] if folder.exists() else []
         assert not extra, f"laaduntarkistus tallensi tiedostoja mittauskansioon: {extra}"
 

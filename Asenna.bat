@@ -43,11 +43,11 @@ if errorlevel 1 goto :virhe
 echo [3/4] Rakennetaan AKVERI.exe...
 if exist "%BUILD%\dist" rmdir /s /q "%BUILD%\dist"
 "%PY%" -m PyInstaller --noconfirm --clean --log-level WARN --windowed --name AKVERI ^
-  --icon "%APPDIR%akux.ico" ^
-  --add-data "%APPDIR%akux\web;akux\web" ^
-  --add-data "%APPDIR%akux\data;akux\data" ^
+  --icon "%APPDIR%akveri.ico" ^
+  --add-data "%APPDIR%akveri\web;akveri\web" ^
+  --add-data "%APPDIR%akveri\data;akveri\data" ^
   --hidden-import serial.tools.list_ports ^
-  --collect-submodules akux ^
+  --collect-submodules akveri ^
   --collect-all webview ^
   --hidden-import clr ^
   --hidden-import clr_loader ^
@@ -55,7 +55,7 @@ if exist "%BUILD%\dist" rmdir /s /q "%BUILD%\dist"
   --paths "%APPDIR%." ^
   --exclude-module tkinter ^
   --distpath "%BUILD%\dist" --workpath "%BUILD%\work" --specpath "%BUILD%" ^
-  "%APPDIR%Akux.pyw"
+  "%APPDIR%AKVERI.pyw"
 if not exist "%BUILD%\dist\AKVERI\AKVERI.exe" goto :varatapa
 
 echo [4/4] Asennetaan ohjelma...
@@ -72,12 +72,12 @@ rem omalla Pythonillaan. Kaytto on taysin sama: oma ikkuna, ei mustaa ikkunaa.
 echo Exe-tiedoston rakentaminen ei onnistunut. Asennetaan ohjelma toisella tavalla.
 robocopy "%PYROOT%" "%TARGET%\python" /MIR /NFL /NDL /NJH /NJS /NP >nul
 if errorlevel 8 goto :virhe
-robocopy "%APPDIR%akux" "%TARGET%\akux" /MIR /NFL /NDL /NJH /NJS /NP /XD __pycache__ >nul
+robocopy "%APPDIR%akveri" "%TARGET%\akveri" /MIR /NFL /NDL /NJH /NJS /NP /XD __pycache__ >nul
 if errorlevel 8 goto :virhe
-copy /y "%APPDIR%akux.ico" "%TARGET%\akux.ico" >nul
+copy /y "%APPDIR%akveri.ico" "%TARGET%\akveri.ico" >nul
 set "LAUNCH=%TARGET%\python\tools\pythonw.exe"
-set "LARGS=-m akux.launcher"
-set "ICON=%TARGET%\akux.ico"
+set "LARGS=-m akveri.launcher"
+set "ICON=%TARGET%\akveri.ico"
 
 :pikakuvakkeet
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
@@ -104,7 +104,7 @@ mkdir "%PYROOT%" 2>nul
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue';" ^
   "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;" ^
-  "$z=Join-Path $env:TEMP 'akux-python.zip';" ^
+  "$z=Join-Path $env:TEMP 'akveri-python.zip';" ^
   "Invoke-WebRequest -UseBasicParsing 'https://www.nuget.org/api/v2/package/python/%PYVER%' -OutFile $z;" ^
   "Expand-Archive -Force $z '%PYROOT%'; Remove-Item $z"
 if errorlevel 1 (

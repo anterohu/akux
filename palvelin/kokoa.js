@@ -54,7 +54,7 @@ function rakennaZip(tiedostot) {
 
 function kokoa(kohde = path.join(JUURI, 'dist')) {
   const pkg = JSON.parse(fs.readFileSync(path.join(JUURI, 'package.json'), 'utf8'));
-  const sovellus = fs.readFileSync(path.join(JUURI, '..', 'akux', '__init__.py'), 'utf8').match(/VERSIO\s*=\s*"([^"]+)"/);
+  const sovellus = fs.readFileSync(path.join(JUURI, '..', 'akveri', '__init__.py'), 'utf8').match(/VERSIO\s*=\s*"([^"]+)"/);
   if (sovellus && sovellus[1] !== pkg.version) throw new Error(`Palvelimen versio ${pkg.version} ei vastaa sovelluksen versiota ${sovellus[1]}. Päivitä palvelin/package.json.`);
   const tiedostot = MUKAAN.flatMap(listaa).filter(n => !/(^|\/)(\.|data\/|dist\/|testit\/)/.test(n)).map(nimi => ({ nimi, data: fs.readFileSync(path.join(JUURI, nimi)) }));
   const manifest = {

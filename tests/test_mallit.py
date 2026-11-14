@@ -8,12 +8,12 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-os.environ.setdefault("AKUX_MITTAUSKANSIO", _tf.mkdtemp(prefix="akux-testi-"))
+os.environ.setdefault("AKVERI_MITTAUSKANSIO", _tf.mkdtemp(prefix="akveri-testi-"))
 
-from akux import profiles, report, vin as vinmod  # noqa: E402
-from akux.app import App  # noqa: E402
-from akux.decoder import TeslaDecoder  # noqa: E402
-from akux.simulator import ESITTELYAUTOT, BatterySimulator  # noqa: E402
+from akveri import profiles, report, vin as vinmod  # noqa: E402
+from akveri.app import App  # noqa: E402
+from akveri.decoder import TeslaDecoder  # noqa: E402
+from akveri.simulator import ESITTELYAUTOT, BatterySimulator  # noqa: E402
 
 
 def wait(cond, timeout=300, step=0.1):
@@ -138,8 +138,8 @@ def test_alkuperainen_energia_puuttuu():
     """Oikea Model 3 LFP 12/2020: akunhallinta lähettää alkuperäisen energian kentässä 0,1 kWh.
     Arvo on hylättävä, ja kunto lasketaan mallin alkuperäisestä kapasiteetista sekä näkymässä että raportissa."""
     import time as _t
-    from akux.app import App
-    from akux.server import Api
+    from akveri.app import App
+    from akveri.server import Api
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         app = App(tmp)
         app.storage.save_settings({"mittaus_tallennus": False})

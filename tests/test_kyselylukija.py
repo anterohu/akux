@@ -13,11 +13,11 @@ import types
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-os.environ.setdefault("AKUX_MITTAUSKANSIO", _tf.mkdtemp(prefix="akux-testi-"))
+os.environ.setdefault("AKVERI_MITTAUSKANSIO", _tf.mkdtemp(prefix="akveri-testi-"))
 
-from akux import hkmc  # noqa: E402
-from akux.decoder import TeslaDecoder  # noqa: E402
-from akux.sources import parse_isotp  # noqa: E402
+from akveri import hkmc  # noqa: E402
+from akveri.decoder import TeslaDecoder  # noqa: E402
+from akveri.sources import parse_isotp  # noqa: E402
 
 VIN = "KMHK581GFLU123456"
 CELLS = [3.80 + 0.02 * (k % 3) for k in range(98)]
@@ -117,7 +117,7 @@ def test_kona_kyselyt():
     fake = types.ModuleType("serial")
     fake.Serial = FakeHk
     sys.modules["serial"] = fake
-    from akux.sources import PolledSource
+    from akveri.sources import PolledSource
     dec = TeslaDecoder()
     dec.configure("hkmc", cells=98, ref_kwh=64.0, lisakennot=2, malli_id="hy-kona-64")
     loop, rare = hkmc.requests("kona", 98)
@@ -160,7 +160,7 @@ def test_auto_ei_vastaa():
     fake = types.ModuleType("serial")
     fake.Serial = Asleep
     sys.modules["serial"] = fake
-    from akux.sources import PolledSource
+    from akveri.sources import PolledSource
     loop, rare = hkmc.requests("kona", 98)
     src = PolledSource("COM5", loop=loop, rare=rare)
     src.start(lambda *a: None)
@@ -175,8 +175,8 @@ def test_auto_ei_vastaa():
 
 def test_leaf_virran_suunta():
     """Leafin virran etumerkki päätellään varaustilan muutoksesta: kumpikin tulkinta johtaa oikeaan suuntaan."""
-    from akux import profiles
-    from akux.simulator import LeafSimulator
+    from akveri import profiles
+    from akveri.simulator import LeafSimulator
     m = profiles.get("nis-leaf-40")
     for raw_sign in (-1, 1):
         sim = LeafSimulator(ze1=True, ref_ah=115.0, raw_sign=raw_sign, chem="NMC", cells=96, nfp_kwh=36.4,
@@ -201,7 +201,7 @@ def test_leaf_virran_suunta():
 
 def test_leaf_kyselyt():
     """Nissan Leaf: kyselyt osoitteeseen 79B, vuonohjaus samalle ohjainlaitteelle, vastaus 7BB."""
-    from akux import leaf, profiles
+    from akveri import leaf, profiles
     m = profiles.get("nis-leaf-40")
     cells = [3.95 + 0.001 * (k % 5) for k in range(96)]
 
@@ -243,7 +243,7 @@ def test_leaf_kyselyt():
     fake.Serial = FakeLeaf
     sys.modules["serial"] = fake
     FakeHk.commands.clear()
-    from akux.sources import PolledSource
+    from akveri.sources import PolledSource
     dec = TeslaDecoder()
     dec.configure("leaf", **leaf.decoder_opts(m))
     loop, rare = leaf.requests_for(m)
@@ -269,7 +269,7 @@ def test_leaf_kyselyt():
 
 def test_meb_kyselyt():
     """MEB: 29-bittiset tunnisteet (protokolla 7), kenno kerrallaan; kennomäärä selviää puuttuvasta kennosta."""
-    from akux import meb, profiles
+    from akveri import meb, profiles
     m = profiles.get("vw-meb-77")
     cells = [3.70 + 0.002 * (k % 4) for k in range(96)]
 
@@ -316,7 +316,7 @@ def test_meb_kyselyt():
     fake.Serial = FakeMeb
     sys.modules["serial"] = fake
     FakeHk.commands.clear()
-    from akux.sources import PolledSource
+    from akveri.sources import PolledSource
     dec = TeslaDecoder()
     opts = meb.decoder_opts(m)
     opts["cells"] = None                          # kennomäärä päätellään autosta
@@ -346,7 +346,7 @@ def test_meb_kyselyt():
 
 def _mg_testi(malli_id, bms, odo_hdr, odo_pid):
     """MG: kysely akunhallinnalle; lohkot (matalin ja korkein kenno), kuntoarvio, varaustila ja tunnisteet."""
-    from akux import mg, profiles
+    from akveri import mg, profiles
     m = profiles.get(malli_id)
     g = mg.ryhma(m)
     lohkot = [(3.700 + 0.001 * k, 3.704 + 0.001 * k) for k in range(g["lohkot"])]
@@ -396,7 +396,7 @@ def _mg_testi(malli_id, bms, odo_hdr, odo_pid):
     fake.Serial = FakeMg
     sys.modules["serial"] = fake
     FakeHk.commands.clear()
-    from akux.sources import PolledSource
+    from akveri.sources import PolledSource
     dec = TeslaDecoder()
     dec.configure("mg", **mg.decoder_opts(m))
     loop, rare = mg.requests_for(m)

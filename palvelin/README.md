@@ -67,4 +67,4 @@ node --test palvelin/testit/*.test.js   # testit
 node palvelin/kokoa.js                  # julkaisupaketti palvelin/dist/akveri-palvelin-<versio>.zip
 ```
 
-Palvelimen versio (`package.json`) on aina sama kuin sovelluksen versio (`akux/__init__.py`). `kokoa.js` ei tee pakettia, jos ne eroavat.
+Palvelimen versio (`package.json`) on aina sama kuin sovelluksen versio (`akveri/__init__.py`). `kokoa.js` ei tee pakettia, jos ne eroavat.

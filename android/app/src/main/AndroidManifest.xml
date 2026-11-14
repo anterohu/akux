@@ -19,7 +19,7 @@
         android:label="AKVERI"
         android:networkSecurityConfig="@xml/network_security"
         android:supportsRtl="false"
-        android:theme="@style/Theme.Akux">
+        android:theme="@style/Theme.Akveri">
 
         <activity
             android:name=".MainActivity"
@@ -39,7 +39,7 @@
         </activity>
 
         <service
-            android:name=".AkuxService"
+            android:name=".AkveriService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
 

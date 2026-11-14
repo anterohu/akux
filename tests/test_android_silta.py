@@ -14,7 +14,7 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-os.environ.setdefault("AKUX_MITTAUSKANSIO", _tf.mkdtemp(prefix="akux-testi-"))
+os.environ.setdefault("AKVERI_MITTAUSKANSIO", _tf.mkdtemp(prefix="akveri-testi-"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from test_obdlink import FakeSerial  # noqa: E402
@@ -74,7 +74,7 @@ def call(base, path, body=None):
 
 
 def test_android_silta():
-    from akux import android
+    from akveri import android
     with tempfile.TemporaryDirectory() as tmp:
         bridge = FakeBridge()
         port = free_port()
@@ -118,7 +118,7 @@ def test_android_silta():
 
 def test_android_bluetooth_lista():
     """Puhelimen paritetuista Bluetooth-laitteista näytetään vain OBDLink-sovittimet."""
-    from akux import android
+    from akveri import android
 
     class B:
         def listDevices(self):

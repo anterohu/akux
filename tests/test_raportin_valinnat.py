@@ -10,10 +10,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from akux import analysis, charts, mittaustiedosto, report  # noqa: E402
-from akux.storage import Storage  # noqa: E402
+from akveri import analysis, charts, mittaustiedosto, report  # noqa: E402
+from akveri.storage import Storage  # noqa: E402
 
-ESIM = Path(__file__).resolve().parents[1] / "akux" / "data" / "esimerkit" / "ESIM-301_taysi.akveri"
+ESIM = Path(__file__).resolve().parents[1] / "akveri" / "data" / "esimerkit" / "ESIM-301_taysi.akveri"
 
 
 def _text(pdf: Path) -> str:
@@ -71,7 +71,7 @@ def test_riippumattomuus_ja_sivut():
 
 def test_mittauksen_suorittaja():
     """Suorittaja näkyy raportissa ja lähtee akveri.fi:n tarkistussivulle; rekisteröidyn raportin tiedot lukitaan."""
-    from akux import krediitit, server  # noqa: PLC0415
+    from akveri import krediitit, server  # noqa: PLC0415
     with tempfile.TemporaryDirectory() as d:
         st = Storage(Path(d))
         tid = mittaustiedosto.import_file(st, ESIM.read_bytes())["id"]

@@ -12,10 +12,10 @@ import types
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-os.environ.setdefault("AKUX_MITTAUSKANSIO", _tf.mkdtemp(prefix="akux-testi-"))
+os.environ.setdefault("AKVERI_MITTAUSKANSIO", _tf.mkdtemp(prefix="akveri-testi-"))
 
-from akux.decoder import TeslaDecoder  # noqa: E402
-from akux.simulator import BatterySimulator  # noqa: E402
+from akveri.decoder import TeslaDecoder  # noqa: E402
+from akveri.simulator import BatterySimulator  # noqa: E402
 
 
 class FakeSerial:
@@ -84,7 +84,7 @@ def test_obdlink_session():
     fake = types.ModuleType("serial")
     fake.Serial = FakeSerial
     sys.modules["serial"] = fake
-    from akux.sources import ObdLinkSource
+    from akveri.sources import ObdLinkSource
     dec = TeslaDecoder()
     src = ObdLinkSource("COM3")
     src.start(dec.feed)
@@ -121,8 +121,8 @@ def test_rajattu_liitanta_ja_kartoitus():
     import tempfile
     import json
     import urllib.request
-    from akux.app import App
-    from akux.server import Api, bind_server
+    from akveri.app import App
+    from akveri.server import Api, bind_server
     FakeSerial.commands.clear()
     with tempfile.TemporaryDirectory() as tmp:
         app = App(tmp)
@@ -183,7 +183,7 @@ def test_elm327_hylataan():
     fake = types.ModuleType("serial")
     fake.Serial = ElmClone
     sys.modules["serial"] = fake
-    from akux.sources import ObdLinkSource
+    from akveri.sources import ObdLinkSource
     src = ObdLinkSource("COM7")
     src.start(lambda *a: None)
     end = time.time() + 10
@@ -197,7 +197,7 @@ def test_elm327_hylataan():
 
 
 def test_bluetooth_portit():
-    from akux import sources
+    from akveri import sources
     P = types.SimpleNamespace
     ports = [
         P(device="COM3", description="USB Serial Port", hwid="USB VID:PID=0403:6015 SER=OBDLINKEX", vid=0x0403,

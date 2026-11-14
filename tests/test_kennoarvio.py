@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from akux.analysis import cell_stats, classify_cells, delta_class  # noqa: E402
+from akveri.analysis import cell_stats, classify_cells, delta_class  # noqa: E402
 
 
 def _pack(base, n=106, spread_mv=0.0, outlier=None):

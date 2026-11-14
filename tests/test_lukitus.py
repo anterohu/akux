@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from akux.decoder import TeslaDecoder, ID_HV  # noqa: E402
+from akveri.decoder import TeslaDecoder, ID_HV  # noqa: E402
 
 
 def test_ei_lukitu():

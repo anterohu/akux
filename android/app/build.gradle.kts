@@ -7,34 +7,34 @@ plugins {
 }
 
 // Versio luetaan Python-paketista, jotta työpöytä- ja Android-versio pysyvät samoina
-val akuxVersion: String = Regex("VERSIO\\s*=\\s*\"([^\"]+)\"")
-    .find(rootDir.resolve("../akux/__init__.py").readText())!!.groupValues[1]
-val versionParts = akuxVersion.split(".").map { it.toIntOrNull() ?: 0 } + listOf(0, 0, 0)
-val akuxVersionCode = versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]
+val akveriVersion: String = Regex("VERSIO\\s*=\\s*\"([^\"]+)\"")
+    .find(rootDir.resolve("../akveri/__init__.py").readText())!!.groupValues[1]
+val versionParts = akveriVersion.split(".").map { it.toIntOrNull() ?: 0 } + listOf(0, 0, 0)
+val akveriVersionCode = versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]
 
 val signing = Properties().apply {
     val f = rootDir.resolve("signing.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
 // Google Playn latausavain. Ei koskaan versionhallinnassa: CI kirjoittaa tiedoston GitHub-salaisuuksista.
-// Ilman sitä julkaisuversio allekirjoitetaan testiavaimella (akux.jks), jota ei saa käyttää Playssa.
+// Ilman sitä julkaisuversio allekirjoitetaan testiavaimella (akveri.jks), jota ei saa käyttää Playssa.
 val playSigning = Properties().apply {
     val f = rootDir.resolve("signing-play.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
-    namespace = "fi.akux.app"
+    namespace = "fi.akveri.app"
     // Google Play vaatii 31.8.2026 alkaen uusilta sovelluksilta ja päivityksiltä kohdetason Android 16 (API 36).
     compileSdk = 36
 
     defaultConfig {
-        // Google Playn sovellustunnus. Koodin sisäinen nimiavaruus (namespace) on edelleen fi.akux.app, se ei näy käyttäjälle.
+        // Google Playn sovellustunnus ja koodin nimiavaruus ovat samat (fi.akveri.app).
         applicationId = "fi.akveri.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = akuxVersionCode
-        versionName = akuxVersion
+        versionCode = akveriVersionCode
+        versionName = akveriVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
@@ -42,8 +42,8 @@ android {
     }
 
     signingConfigs {
-        create("akux") {
-            storeFile = rootDir.resolve(signing.getProperty("storeFile", "akux.jks"))
+        create("testi") {
+            storeFile = rootDir.resolve(signing.getProperty("storeFile", "akveri.jks"))
             storePassword = signing.getProperty("storePassword")
             keyAlias = signing.getProperty("keyAlias")
             keyPassword = signing.getProperty("keyPassword")
@@ -59,10 +59,10 @@ android {
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.findByName("play") ?: signingConfigs.getByName("akux")
+            signingConfig = signingConfigs.findByName("play") ?: signingConfigs.getByName("testi")
         }
         getByName("debug") {
-            signingConfig = signingConfigs.getByName("akux")
+            signingConfig = signingConfigs.getByName("testi")
         }
     }
 
@@ -78,15 +78,15 @@ android {
     }
 }
 
-// Akuxin Python-koodi kopioidaan repositorion juuresta, jotta kaikilla alustoilla on sama koodi
-val copyAkux by tasks.registering(Copy::class) {
-    from(rootDir.resolve("../akux")) {
+// AKVERIn Python-koodi kopioidaan repositorion juuresta, jotta kaikilla alustoilla on sama koodi
+val copyAkveri by tasks.registering(Copy::class) {
+    from(rootDir.resolve("../akveri")) {
         exclude("**/__pycache__/**")
     }
-    into(layout.buildDirectory.dir("pysrc/akux"))
+    into(layout.buildDirectory.dir("pysrc/akveri"))
 }
-tasks.named("preBuild") { dependsOn(copyAkux) }
-tasks.matching { it.name.contains("Python") && it.name != "copyAkux" }.configureEach { dependsOn(copyAkux) }
+tasks.named("preBuild") { dependsOn(copyAkveri) }
+tasks.matching { it.name.contains("Python") && it.name != "copyAkveri" }.configureEach { dependsOn(copyAkveri) }
 
 chaquopy {
     defaultConfig {
@@ -98,7 +98,7 @@ chaquopy {
             install("reportlab")
             install("certifi")
         }
-        extractPackages("akux")
+        extractPackages("akveri")
     }
     sourceSets {
         getByName("main") {

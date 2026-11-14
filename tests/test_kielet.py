@@ -10,8 +10,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from akux import kielet, mittaustiedosto, report  # noqa: E402
-from akux.storage import Storage  # noqa: E402
+from akveri import kielet, mittaustiedosto, report  # noqa: E402
+from akveri.storage import Storage  # noqa: E402
 
 SUOMI = re.compile(r"[äöÄÖ]|\b(ja|tai|ei|kun|jos|sekä|mittaus\w*|akun|auton|kennoryhm\w*|varaus\w*|lataus\w*|alkuperäi\w*|uutena|vrk)\b", re.I)
 

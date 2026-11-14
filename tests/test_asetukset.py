@@ -12,10 +12,10 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from akux import analysis, mittaustiedosto, report, server  # noqa: E402
-from akux.storage import OLETUSASETUKSET, Storage  # noqa: E402
+from akveri import analysis, mittaustiedosto, report, server  # noqa: E402
+from akveri.storage import OLETUSASETUKSET, Storage  # noqa: E402
 
-ESIM = Path(__file__).resolve().parents[1] / "akux" / "data" / "esimerkit" / "ESIM-301_taysi.akveri"
+ESIM = Path(__file__).resolve().parents[1] / "akveri" / "data" / "esimerkit" / "ESIM-301_taysi.akveri"
 
 
 def _api(st, kehittaja=False):

@@ -10,12 +10,12 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-os.environ.setdefault("AKUX_MITTAUSKANSIO", _tf.mkdtemp(prefix="akux-testi-"))
+os.environ.setdefault("AKVERI_MITTAUSKANSIO", _tf.mkdtemp(prefix="akveri-testi-"))
 
-from akux.app import App  # noqa: E402
-from akux.bits import encode, get_bits, put_bits  # noqa: E402
-from akux.decoder import TeslaDecoder  # noqa: E402
-from akux import vin  # noqa: E402
+from akveri.app import App  # noqa: E402
+from akveri.bits import encode, get_bits, put_bits  # noqa: E402
+from akveri.decoder import TeslaDecoder  # noqa: E402
+from akveri import vin  # noqa: E402
 
 
 def wait_until(cond, timeout=240, step=0.2):
@@ -109,7 +109,7 @@ def test_capacity_and_quick():
         v = app.storage.vehicle(vid)
         assert v["opitut"]["bol_kwh"] == r2["viite"]["kwh"]
 
-        from akux import report
+        from akveri import report
         for tt in (t, t2):
             path = report.build(app.storage, tt["id"])
             assert path.exists() and path.stat().st_size > 20000

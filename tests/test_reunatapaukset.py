@@ -8,10 +8,10 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-os.environ.setdefault("AKUX_MITTAUSKANSIO", _tf.mkdtemp(prefix="akux-testi-"))
+os.environ.setdefault("AKVERI_MITTAUSKANSIO", _tf.mkdtemp(prefix="akveri-testi-"))
 
-from akux.app import App  # noqa: E402
-from akux import report  # noqa: E402
+from akveri.app import App  # noqa: E402
+from akveri import report  # noqa: E402
 
 
 def wait(cond, timeout=300, step=0.1):

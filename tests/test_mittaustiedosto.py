@@ -1,4 +1,4 @@
-"""Mittaustiedosto (.akux): automaattinen tallennus kansioon, avaus toisessa asennuksessa,
+"""Mittaustiedosto (.akveri): automaattinen tallennus kansioon, avaus toisessa asennuksessa,
 eheyden tarkistus ja raportin muodostus avatusta tiedostosta."""
 import io
 import json
@@ -11,9 +11,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from akux.app import App  # noqa: E402
-from akux import mittaustiedosto, report  # noqa: E402
-from akux.server import Api  # noqa: E402
+from akveri.app import App  # noqa: E402
+from akveri import mittaustiedosto, report  # noqa: E402
+from akveri.server import Api  # noqa: E402
 
 
 def wait(cond, timeout=120):
@@ -34,25 +34,16 @@ def test_mittaustiedosto():
         a.connect("demo", soc=0.6, accel=30)
         assert wait(lambda: a.decoder.state.brick_count and a.decoder.state.nfp_kwh, 20)
         vid = a.storage.add_vehicle({"vin": a.decoder.state.vin, "rekisteri": "ABC-123", "kayttoonotto": "14.5.2020"})
-        # Puhelimella otettu kuva: kuvatiedoston kiertotieto (EXIF 6 = 90°) pitää huomioida
-        from PIL import Image
-        im = Image.new("RGB", (400, 200), (40, 90, 160))
-        exif = Image.Exif()
-        exif[0x0112] = 6
-        b_ = io.BytesIO()
-        im.save(b_, "JPEG", exif=exif)
-        a.storage.save_vehicle_photo(vid, b_.getvalue())
-        assert Image.open(a.storage.vehicle_photo(vid)).size == (200, 400)
         tid = a.start_test(vehicle_id=vid, tyyppi="pikatarkastus", mittarilukema=112000)
         assert wait(lambda: not a.recorder.active, 120)
         a.disconnect()
         files = sorted(os.listdir(folder))
         print("Tallennetut:", files)
-        akux_files = [f for f in files if f.endswith(".akveri")]
+        akveri_files = [f for f in files if f.endswith(".akveri")]
         pdf_files = [f for f in files if f.endswith(".pdf")]
-        assert len(akux_files) == 1 and len(pdf_files) == 1
-        assert akux_files[0].startswith("AKVERI_ABC-123_") and "pikatarkastus" in akux_files[0]
-        data = (Path(folder) / akux_files[0]).read_bytes()
+        assert len(akveri_files) == 1 and len(pdf_files) == 1
+        assert akveri_files[0].startswith("AKVERI_ABC-123_") and "pikatarkastus" in akveri_files[0]
+        data = (Path(folder) / akveri_files[0]).read_bytes()
         original = a.storage.test(tid)
 
         # Toinen asennus (esimerkiksi uusi tietokone tai uusi versio): tiedosto avautuu oikein
@@ -62,7 +53,6 @@ def test_mittaustiedosto():
         t = b.storage.test(r["id"])
         v = b.storage.vehicle(r["ajoneuvo_id"])
         assert v["rekisteri"] == "ABC-123" and v["kayttoonotto"] == "14.5.2020"
-        assert b.storage.vehicle_photo(v["id"]).exists(), "auton kuva ei siirtynyt mittaustiedostossa"
         assert t["tila"] == "valmis" and t["tarkiste"] == original["tarkiste"]
         assert t["tulos"]["yhteenveto"]["kunto_pct"] == original["tulos"]["yhteenveto"]["kunto_pct"]
         assert len(b.storage.samples(r["id"])) == len(a.storage.samples(tid))

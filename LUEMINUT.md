@@ -24,7 +24,7 @@ Muut merkit (versiosta 1.8 alkaen): Hyundai Ioniq Electric, Kona Electric, Ioniq
 
 ## Mittaustiedostot
 
-Jokainen valmis mittaus tallennetaan automaattisesti mittaustiedostona (`.akveri`, aiempien versioiden `.akux`-tiedostot avautuvat edelleen) ja PDF-raporttina:
+Jokainen valmis mittaus tallennetaan automaattisesti mittaustiedostona (`.akveri`) ja PDF-raporttina:
 
 - Windows: `Tiedostot\AKVERI\Mittaukset` (kansion voi vaihtaa asetuksista, esimerkiksi OneDriveen)
 - Android: `Lataukset/AKVERI`
@@ -68,7 +68,6 @@ Raportti on kaksiosainen. Pääsivut on tarkoitettu asiakkaalle, tekninen liite 
 
 Androidissa Google Play päivittää AKVERIn. Windowsissa asenna uusi versio vanhan päälle (katso Asennus).
 
-Versiosta 1.7.0 alkaen ohjelma ja sen kansiot ovat AKVERI-nimisiä. Päivitys siirtää aiemman Akux-version tiedot (`%APPDATA%\Akux` ja `Tiedostot\Akux`) automaattisesti uusiin kansioihin ensimmäisellä käynnistyskerralla. Käsin ei tarvitse siirtää eikä poistaa mitään.
 
 ## Tietojen sijainti
 
@@ -103,7 +102,7 @@ GitHub ajaa jokaisen muutoksen jälkeen kaikki testit, rakentaa Windows-asennuso
 
 ## Android-sovelluksen allekirjoitusavain
 
-Android hyväksyy päivityksen vain, jos se on allekirjoitettu samalla avaimella kuin aiempi versio. Avain on repon kansiossa `android/` (`akux.jks` ja `signing.properties`). Säilytä avaimesta varmuuskopio turvallisessa paikassa, ja pidä repo yksityisenä.
+Android hyväksyy päivityksen vain, jos se on allekirjoitettu samalla avaimella kuin aiempi versio. Avain on repon kansiossa `android/` (`akveri.jks` ja `signing.properties`). Säilytä avaimesta varmuuskopio turvallisessa paikassa, ja pidä repo yksityisenä.
 
 ## Lähteet ja lisenssit
 
@@ -114,6 +113,6 @@ Android hyväksyy päivityksen vain, jos se on allekirjoitettu samalla avaimella
 - Nissan Leaf: Open Vehicle Monitoring System (vehicle_nissanleaf), Battery-Emulator ja py-nissan-leaf-obd-ble, https://github.com/pbutterworth/py-nissan-leaf-obd-ble.
 - Volkswagen-konsernin MEB: evDash (CarVWID3) ja Battery-Emulator.
 - OBD-liitännän kolmannen osapuolen CAN-väylä: Tesla, huoltodokumentti CD-20-17-001.
-- Fontti Inter, SIL Open Font License 1.1 (`akux/data/fonts/LISENSSI-Inter.txt`).
+- Fontti Inter, SIL Open Font License 1.1 (`akveri/data/fonts/LISENSSI-Inter.txt`).
 
 Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä. Hyundai, Kia, Nissan, Volkswagen, Škoda, Audi ja Cupra sekä niiden mallinimet ovat omistajiensa tavaramerkkejä. AKVERI ei ole minkään autonvalmistajan tekemä eikä hyväksymä.

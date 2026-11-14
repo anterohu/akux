@@ -8,8 +8,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from akux import analysis as A  # noqa: E402
-from akux import profiles  # noqa: E402
+from akveri import analysis as A  # noqa: E402
+from akveri import profiles  # noqa: E402
 
 LFP55 = profiles.get("m3-srplus-2021-lfp")
 LR = profiles.get("m3-lr-2021-lg")

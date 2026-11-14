@@ -28,12 +28,12 @@ jobs:
           git fetch --depth=1 origin "$SHA" && git checkout "$SHA"
       - uses: actions/download-artifact@v4
         with:
-          name: Akux-android
+          name: AKVERI-android
           run-id: ${{ inputs.ajo }}
           github-token: ${{ github.token }}
       - uses: actions/download-artifact@v4
         with:
-          name: Akux-windows
+          name: AKVERI-windows
           run-id: ${{ inputs.ajo }}
           github-token: ${{ github.token }}
       - uses: actions/download-artifact@v4
@@ -43,7 +43,7 @@ jobs:
           github-token: ${{ github.token }}
       - name: Lue versio
         run: |
-          V=$(python3 -c "import re;print(re.search(r'VERSIO = \"([^\"]+)\"', open('akux/__init__.py').read()).group(1))")
+          V=$(python3 -c "import re;print(re.search(r'VERSIO = \"([^\"]+)\"', open('akveri/__init__.py').read()).group(1))")
           echo "VERSIO=$V" >> $GITHUB_ENV
           ls -la
       - name: Julkaise

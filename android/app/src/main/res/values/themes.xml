@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Akux" parent="android:Theme.Material.Light.NoActionBar">
+    <style name="Theme.Akveri" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">#F3F4F6</item>
         <item name="android:navigationBarColor">#F3F4F6</item>
         <item name="android:windowLightStatusBar">true</item>

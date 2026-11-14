@@ -124,9 +124,9 @@ def test_krediitit():
         palvelin = Palvelin(kansio)
         os.environ["AKVERI_PALVELU"] = palvelin.osoite
         try:
-            from akux.app import App
-            from akux.server import Api, ApiError
-            from akux import report, mittaustiedosto, krediitit as kr
+            from akveri.app import App
+            from akveri.server import Api, ApiError
+            from akveri import report, mittaustiedosto, krediitit as kr
 
             app = App(Path(kansio) / "a")
             api = Api(app)
@@ -331,9 +331,9 @@ def test_esittelytila_ilman_krediittia():
     os.environ["AKVERI_ESITTELY"] = "1"
     try:
         with tempfile.TemporaryDirectory() as kansio:
-            from akux.app import App
-            from akux.server import Api
-            from akux import report
+            from akveri.app import App
+            from akveri.server import Api
+            from akveri import report
             app = App(kansio)
             app.connect("demo", soc=0.6, accel=40)
             assert wait(lambda: app.decoder.state.brick_count and app.decoder.state.nfp_kwh, 30)

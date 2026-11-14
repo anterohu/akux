@@ -1,4 +1,4 @@
-"""AKVERI-merkin kuvakkeet: Windowsin akux.ico ja Androidin käynnistyskuvakkeet.
+"""AKVERI-merkin kuvakkeet: Windowsin akveri.ico ja Androidin käynnistyskuvakkeet.
 
 Merkki: valkoinen ympyrä, tummansininen reunus, pisteviivarengas sekä A-kirjain vihreällä poikkiviivalla.
 Ajo: python tools/tee_kuvakkeet.py   (vaatii Playwrightin ja Pillow'n)
@@ -39,7 +39,7 @@ def main():
         page = b.new_page()
         ico_sizes = [16, 24, 32, 48, 64, 128, 256]
         imgs = {s: render(page, s) for s in ico_sizes}
-        imgs[256].save(ROOT / "akux.ico", sizes=[(s, s) for s in ico_sizes],
+        imgs[256].save(ROOT / "akveri.ico", sizes=[(s, s) for s in ico_sizes],
                        append_images=[imgs[s] for s in ico_sizes if s != 256])
         for d, s in {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}.items():
             # Androidin käynnistyskuvake: merkki pienellä reunuksella

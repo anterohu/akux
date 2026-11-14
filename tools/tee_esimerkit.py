@@ -1,4 +1,4 @@
-"""Tekee ohjelman mukana tulevat esimerkkimittaukset (akux/data/esimerkit/*.akveri).
+"""Tekee ohjelman mukana tulevat esimerkkimittaukset (akveri/data/esimerkit/*.akveri).
 
 Mittaukset tehdään esittelytilan simulaattorilla. Aja uudelleen, jos mittaustiedoston
 muoto tai analyysi muuttuu:  python tools/tee_esimerkit.py
@@ -11,12 +11,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-os.environ["AKUX_MITTAUSKANSIO"] = tempfile.mkdtemp(prefix="akux-esim-")
+os.environ["AKVERI_MITTAUSKANSIO"] = tempfile.mkdtemp(prefix="akveri-esim-")
 
-from akux import mittaustiedosto  # noqa: E402
-from akux.app import App  # noqa: E402
+from akveri import mittaustiedosto  # noqa: E402
+from akveri.app import App  # noqa: E402
 
-OUT = ROOT / "akux" / "data" / "esimerkit"
+OUT = ROOT / "akveri" / "data" / "esimerkit"
 
 AUTOT = [
     # auto, nimi, rekisteri, käyttöönotto, mittarilukema, lisämittaukset, lähtövaraus
@@ -63,7 +63,7 @@ def main(vain=None):
         app.storage.save_settings(SETTINGS)
         src = app.connect("demo", auto=auto, soc=soc, accel=300)
         wait(lambda: app.decoder.state.vin and app.decoder.state.nfp_kwh and app.decoder.state.brick_count, 60)
-        from akux.simulator import ESITTELYAUTOT
+        from akveri.simulator import ESITTELYAUTOT
         vid = app.storage.add_vehicle({"vin": app.decoder.state.vin, "nimi": nimi, "rekisteri": reg,
                                        "malli_id": ESITTELYAUTOT[auto].get("malli_id"),
                                        "kayttoonotto": kayttoon, "omistaja": "Esimerkkiasiakas",

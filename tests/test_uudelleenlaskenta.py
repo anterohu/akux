@@ -9,10 +9,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from akux import VERSIO, analysis, maintenance, mittaustiedosto, report  # noqa: E402
-from akux.storage import Storage  # noqa: E402
+from akveri import VERSIO, analysis, maintenance, mittaustiedosto, report  # noqa: E402
+from akveri.storage import Storage  # noqa: E402
 
-ESIM = Path(__file__).resolve().parents[1] / "akux" / "data" / "esimerkit" / "ESIM-301_taysi.akveri"
+ESIM = Path(__file__).resolve().parents[1] / "akveri" / "data" / "esimerkit" / "ESIM-301_taysi.akveri"
 
 
 def test_uudelleenlaskenta_ja_jako():
