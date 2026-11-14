@@ -25,7 +25,7 @@ const KIELET = {
     hintaOtsikko: 'Hinta',
     hinta: 'Sovellus on maksuton. Mittaukset maksetaan krediiteillä, jotka ostetaan sovelluksessa Google Playn kautta. Mittauksen hinta näkyy ennen kuin aloitat. Jos mittaus keskeytyy heti alussa, krediitit palautuvat automaattisesti.',
     hinnasto: 'Hinnat näkyvät sovelluksessa ennen ostoa.',
-    tarkistaOtsikko: 'Tarkista raportti', tarkistaOhje: 'Kirjoita raportin tunnus. Se on raportin ensimmäisellä sivulla.', tarkista: 'Tarkista',
+    tarkistaOtsikko: 'Tarkista raportti', tarkistaOhje: 'Skannaa raportin QR-koodi puhelimen kameralla, niin näet raportin tiedot AKVERIn palvelimelta. Jos koodi ei lue, kirjoita raportin tunnus tarkistussivulle.', tarkista: 'Kirjoita tunnus',
     ala: ['Käyttöehdot', 'Tietosuojaseloste', 'Yhteystiedot'], ytunnus: 'Y-tunnus', kieliValikko: 'Kieli', alatunniste: 'Alatunniste', logo: 'AKVERI – etusivulle', paavalikko: 'Päävalikko'
   },
   en: {
@@ -46,18 +46,18 @@ const KIELET = {
     hintaOtsikko: 'Price',
     hinta: 'The app is free. Checks are paid with credits that you buy in the app through Google Play. You see the price of a check before you start. If a check stops right at the start, the credits are returned automatically.',
     hinnasto: 'Prices are shown in the app before you buy.',
-    tarkistaOtsikko: 'Verify a report', tarkistaOhje: 'Enter the report ID. You will find it on the first page of the report.', tarkista: 'Verify',
+    tarkistaOtsikko: 'Verify a report', tarkistaOhje: 'Scan the QR code on the report with your phone camera to see the report details from the AKVERI server. If the code cannot be read, enter the report ID on the verification page.', tarkista: 'Enter report ID',
     ala: ['Terms of use', 'Privacy policy', 'Contact'], ytunnus: 'Business ID', kieliValikko: 'Language', alatunniste: 'Footer', logo: 'AKVERI – home', paavalikko: 'Main menu'
   },
   sv: {
     polku: '/sv', tiedosto: 'index-sv.html', nimi: 'Svenska',
     otsikko: 'AKVERI – kontrollera elbilens batteri med telefonen',
     kuvaus: 'Kontrollera elbilens batteri med telefonen och få en rapport som köparen kan verifiera.',
-    valikko: ['Så fungerar det', 'Pris', 'Verifiera rapport', 'Kontakt', 'Ladda ner appen'],
+    valikko: ['Så fungerar det', 'Pris', 'Kontrollera rapport', 'Kontakt', 'Ladda ner appen'],
     ylaotsikko: 'Batteritest för elbilar',
     h1: 'Känn till batteriet innan du köper.',
     johdanto: 'AKVERI mäter elbilens batterihälsa med telefonen. Du får en tydlig rapport som köparen kan verifiera.',
-    lataa: 'Ladda ner appen', play: 'på Google Play', tarkistaNappi: 'Verifiera rapport', playTila: 'Android-app · Google Play',
+    lataa: 'Ladda ner appen', play: 'på Google Play', tarkistaNappi: 'Kontrollera rapport', playTila: 'Android-app · Google Play',
     esimerkki: 'Exempel', raportti: 'Rapport', kunto: 'Batterihälsa', kapasiteetti: 'Användbar', tunnus: 'Rapport-ID', luku: ['93,7 %', '72,6 kWh'],
     perusteet: [['Mätt av bilen', 'Resultatet kommer från bilens egna mätningar, inte en uppskattning.'], ['Äkta rapport', 'Köparen verifierar rapporten med en QR-kod.'], ['Ingen månadsavgift', 'Du betalar bara för de tester du gör.']],
     mitenOtsikko: 'Så fungerar det',
@@ -67,7 +67,7 @@ const KIELET = {
     hintaOtsikko: 'Pris',
     hinta: 'Appen är gratis. Testerna betalas med krediter som du köper i appen via Google Play. Du ser testets pris innan du börjar. Om ett test avbryts direkt i början återförs krediterna automatiskt.',
     hinnasto: 'Priserna visas i appen innan du köper.',
-    tarkistaOtsikko: 'Verifiera rapport', tarkistaOhje: 'Ange rapportens ID. Det finns på rapportens första sida.', tarkista: 'Verifiera',
+    tarkistaOtsikko: 'Kontrollera en rapport', tarkistaOhje: 'Skanna QR-koden på rapporten med telefonens kamera, så ser du rapportens uppgifter från AKVERIs server. Om koden inte kan läsas, ange rapportkoden på kontrollsidan.', tarkista: 'Ange rapportkod',
     ala: ['Användarvillkor', 'Dataskydd', 'Kontakt'], ytunnus: 'FO-nummer', kieliValikko: 'Språk', alatunniste: 'Sidfot', logo: 'AKVERI – startsida', paavalikko: 'Huvudmeny'
   }
 };
@@ -166,7 +166,7 @@ ${t.tarvitset.map(r => `        <li>${e(r)}</li>`).join('\n')}
 <section class="osio" id="tarkista"><div class="leveys">
   <h2>${e(t.tarkistaOtsikko)}</h2>
   <p class="selite">${e(t.tarkistaOhje)}</p>
-  <form class="rivi-lomake" action="${SIVUPOLUT.tarkista[kieli]}" method="get" id="tarkistuslomake"><label class="vh" for="tunnus-etusivu">${e(t.tunnus)}</label><input id="tunnus-etusivu" name="tunnus" placeholder="AK-XXXXX-XXXXX" autocomplete="off" required><button class="nappi" type="submit">${e(t.tarkista)}</button></form>
+  <p><a class="nappi toissijainen" href="${SIVUPOLUT.tarkista[kieli]}">${e(t.tarkista)}</a></p>
 </div></section>
 
 </main>

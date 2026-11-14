@@ -214,6 +214,14 @@ class App:
             except krediittimoduuli.PalveluVirhe as e:
                 self.storage.add_event(tid, time.time(), f"Raportin rekisteröinti odottaa: {e}")
                 txt += " Raportti rekisteröidään tarkistettavaksi, kun verkkoyhteys on käytettävissä."
+        if not krediittimoduuli.tulos_naytettavissa(self.storage.test(tid) or {}):
+            # Perumisaikana tulosta ei näytetä eikä tallenneta: ilmoitus ja tiedostot tehdään rekisteröinnin jälkeen.
+            self.notify("valmis", "Mittaus valmis", "Mittaus on valmis. Tulos näytetään, kun raportti on rekisteröity "
+                        "akveri.fi-palveluun. Tarkista verkkoyhteys.")
+            return
+        self._valmis_ilmoitus_ja_tallennus(tid, txt)
+
+    def _valmis_ilmoitus_ja_tallennus(self, tid: int, txt: str):
         self.notify("valmis", "Mittaus valmis", txt)
         if self.settings.get("mittaus_tallennus", True):
             try:
@@ -224,12 +232,23 @@ class App:
             except Exception as e:  # noqa: BLE001
                 self.storage.add_event(tid, time.time(), f"Mittaustiedoston tallennus epäonnistui: {e}")
 
+    def _myohassa_rekisteroity(self, tid: int):
+        """Verkkoyhteyden palattua rekisteröity raportti: nyt tulos ilmoitetaan ja tiedostot tallennetaan."""
+        self.storage.add_event(tid, time.time(), "Raportti rekisteröity akveri.fi-palveluun.")
+        t = self.storage.test(tid) or {}
+        y = (t.get("tulos") or {}).get("yhteenveto") or {}
+        if y.get("kunto_pct") is not None:
+            kwh = y.get("kapasiteetti_kwh")
+            txt = f"Akun kunto {y['kunto_pct']:.1f} %".replace(".", ",") + \
+                (f", kapasiteetti {kwh:.1f} kWh".replace(".", ",") if kwh else "") + ". Raportti on valmis."
+        else:
+            txt = "Mittaus on valmis. Avaa tulos ohjelmasta."
+        self._valmis_ilmoitus_ja_tallennus(tid, txt)
+
     def _rekisteroi_odottavat(self):
         from . import VERSIO
         try:
-            krediittimoduuli.kasittele_odottavat(
-                self.krediitit, VERSIO,
-                lambda tid: self.storage.add_event(tid, time.time(), "Raportti rekisteröity akveri.fi-palveluun."))
+            krediittimoduuli.kasittele_odottavat(self.krediitit, VERSIO, self._myohassa_rekisteroity)
         except Exception:  # noqa: BLE001
             pass
 

@@ -527,6 +527,25 @@ class Api:
             raise ApiError(str(e), 503)
         return {**d, "alusta": platform_name(), "tili_naytto": d.get("tili")}
 
+    # ---- Tietosuoja (tietosuojaseloste): raportin poisto palvelusta ja tilin poisto. Tilin tiedot ladataan
+    # tiedostona osoitteesta /api/tietosuoja/akveri-tietoni.zip (ks. _files).
+    def poista_raportti_palvelusta(self, q, body, tid):
+        try:
+            self.app.krediitit.poista_raportti(tid)
+        except krediittimoduuli.PalveluVirhe as e:
+            raise ApiError(str(e), 409 if e.args and "rekisteröity" in str(e) else 503)
+        self.app.storage.add_event(tid, time.time(), "Raportin tiedot poistettiin akveri.fi-palvelusta. Raporttia ei voi enää tarkistaa.")
+        return {"ok": True}
+
+    def poista_tili(self, q, body):
+        if body.get("vahvista") is not True:
+            raise ApiError("Vahvista tilin poisto.")
+        try:
+            d = self.app.krediitit.poista_tili(bool(body.get("raportit")))
+        except krediittimoduuli.PalveluVirhe as e:
+            raise ApiError(str(e), 503)
+        return {"ok": True, "raportteja": d.get("raportteja", 0)}
+
     def krediitit_osto(self, q, body):
         tuote = str(body.get("tuote") or "")
         token = str(body.get("ostotunnus") or "")
@@ -574,6 +593,7 @@ class Api:
         t["tapahtumat"] = self.app.storage.events(tid)
         t["ajoneuvo"] = self.app.storage.vehicle(t["vehicle_id"])
         if not krediittimoduuli.tulos_naytettavissa(t):
+            t["tulos_odottaa"] = krediittimoduuli.tulos_odottaa(t)
             t["tulos"] = None
         t.update(self._lupa(t))
         return t
@@ -823,6 +843,7 @@ ROUTES = [
     ("POST", r"/api/ilmoitus/testi", "testi_ilmoitus"), ("GET", r"/api/ohjeet", "ohjeet"),
     ("GET", r"/api/tietoja", "tietoja"),
     ("GET", r"/api/krediitit", "krediitit"), ("POST", r"/api/krediitit/osto", "krediitit_osto"),
+    ("POST", r"/api/mittaukset/(\d+)/poista-palvelusta", "poista_raportti_palvelusta"), ("POST", r"/api/tietosuoja/poista-tili", "poista_tili"),
     ("POST", r"/api/mittaukset/(\d+)/hyvityspyynto", "hyvityspyynto"),
 ]
 
@@ -904,6 +925,28 @@ def make_handler(api: Api):
 
         def _files(self, path) -> bool:
             st = api.app.storage
+            if path == "/api/tietosuoja/akveri-tietoni.zip":
+                # Oikeus saada pääsy tietoihin: akveri.fi-palvelun tiedot tästä tilistä yhtenä tiedostona
+                import io as _io, json as _json, zipfile as _zip  # noqa: PLC0415,E401
+                try:
+                    tiedot = api.app.krediitit.tilin_tiedot()
+                except krediittimoduuli.PalveluVirhe as e:
+                    raise ApiError(str(e), 503)
+                buf = _io.BytesIO()
+                with _zip.ZipFile(buf, "w", _zip.ZIP_DEFLATED) as z:
+                    z.writestr("akveri-tietoni.json", _json.dumps(tiedot, ensure_ascii=False, indent=2))
+                    z.writestr("LUEMINUT.txt", kielet.t(
+                        "Tiedosto sisältää kaikki akveri.fi-palvelussa tähän sovelluksen tiliin liittyvät tiedot: tili, "
+                        "krediittien kirjanpito, ostot ja rekisteröityjen raporttien tiedot. Mittaukset ja autot ovat vain "
+                        "tällä laitteella.") + "\n")
+                self._send(200, buf.getvalue(), "application/zip",
+                           {"Content-Disposition": 'attachment; filename="akveri-tietoni.zip"'})
+                return True
+            m0 = re.fullmatch(r"/api/mittaukset/(\d+)/(?:tiedosto\.(?:akveri|akux)|data\.csv|raakadata\.csv\.gz)", path)
+            if m0 and krediittimoduuli.tulos_odottaa(st.test(int(m0.group(1))) or {}):
+                # Perumisaikana mittauksen tiedostoja ei anneta: tulos näytetään vasta rekisteröinnin jälkeen
+                raise ApiError("Mittauksen tiedostot ovat saatavilla, kun raportti on rekisteröity akveri.fi-palveluun. "
+                               "Tarkista verkkoyhteys.", 409)
             m3 = re.fullmatch(r"/api/mittaukset/(\d+)/tiedosto\.(?:akveri|akux)", path)
             if m3:
                 try:

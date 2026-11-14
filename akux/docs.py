@@ -138,8 +138,9 @@ OHJE = [
                 "<b>Raportin tunnus:</b> jokainen mittaus saa tunnuksen (esimerkiksi AK-7H2QK-M4XPC). Tunnus ja QR-koodi ovat "
                 "raportin ensimmäisellä sivulla. QR-koodi avaa sivun akveri.fi/v/tunnus, jolla raportin vastaanottaja näkee "
                 "rekisteröidyt tulokset ja voi verrata auton valmistenumeroa.",
-                "<b>Rekisteröinti:</b> valmis mittaus rekisteröidään akveri.fi-palveluun automaattisesti. Jos verkkoyhteyttä ei ole, "
-                "rekisteröinti tehdään heti, kun yhteys palaa. Mittauksen aloittaminen vaatii verkkoyhteyden.",
+                "<b>Rekisteröinti:</b> valmis mittaus rekisteröidään akveri.fi-palveluun automaattisesti, ja tulos näkyy heti "
+                "rekisteröinnin jälkeen. Jos verkkoyhteyttä ei ole, rekisteröinti tehdään heti, kun yhteys palaa. Mittauksen "
+                "aloittaminen vaatii verkkoyhteyden.",
                 "<b>Keskeytys:</b> jos mittaus keskeytyy heti alussa, sen krediitit palautuvat automaattisesti. "
                 "Jos mittaus keskeytyy myöhemmin AKVERIsta johtuvasta syystä, lähetä mittauksen sivulta hyvityspyyntö.",
                 "<b>Akun kunto ennen mittausta:</b> akun kunto ja kapasiteetti näkyvät mittauksen aikana ja raportissa, eivät "
@@ -155,9 +156,19 @@ OHJE = [
                 "viimeistä merkkiä (koko numero vain tiivisteenä), mittarilukema, akun kunto ja kapasiteetti, mittauksen "
                 "suorittaja, ohjelman versio ja raakadatan tarkiste.",
                 "Hyvityspyynnössä kirjoittamasi kuvaus ja mittauksen tapahtumaloki.",
+                "Anonyymi tilastorivi ohjelmiston kehittämiseen: merkki, malli, vuosimalli, akkutyyppi, mittaustyyppi, kuukausi, "
+                "mittarilukema tuhansina kilometreinä ja tulokset. Rivillä ei ole tunnisteita, eikä sitä voi yhdistää raporttiin.",
             ]),
-            ("p", "Rekisterikilpeä, auton omistajaa, mittaajan nimeä, lisätietoja, yrityksen tietoja, kuvia eikä mittausdataa "
-                  "lähetetä. Ne pysyvät vain tällä laitteella ja mittaustiedostossa. Tarkemmin: akveri.fi/tietosuoja."),
+            ("p", "Rekisterikilpeä, auton omistajaa, lisätietoja, yrityksen tietoja, kuvia eikä mittausdataa lähetetä. Ne pysyvät "
+                  "vain tällä laitteella ja mittaustiedostossa. Tarkemmin: akveri.fi/tietosuoja."),
+            ("p", "<b>Tietosuoja</b>"),
+            ("ul", [
+                "<b>Lataa tietoni</b> (Krediitit): akveri.fi-palvelun kaikki tämän tilin tiedot yhtenä tiedostona.",
+                "<b>Poista raportti palvelusta</b> (mittauksen sivu): raporttia ei voi sen jälkeen tarkistaa. Mittaus ja raportti "
+                "säilyvät laitteella.",
+                "<b>Poista tili</b> (Krediitit): tili ja sen krediitit poistuvat. Voit poistaa samalla rekisteröityjen raporttien "
+                "tiedot. Krediittien kirjanpito säilyy kirjanpitolain edellyttämän ajan ilman muita tunnisteita.",
+            ]),
             ("note", "Tili on tallennettu ohjelman tietoihin. Varmuuskopio sisältää tilin, joten kun palautat varmuuskopion uuteen "
                      "laitteeseen, krediitit siirtyvät mukana. Säilytä varmuuskopio huolellisesti."),
         ],

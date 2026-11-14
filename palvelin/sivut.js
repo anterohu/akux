@@ -239,12 +239,14 @@ const TEKSTIT = {
 <p>Tietoja käsitellään palvelun toimittamiseksi (sopimus), krediittien kirjanpitoon (lakisääteinen velvoite ja sopimus), raporttien aitouden tarkistamiseksi (oikeutettu etu: raportin vastaanottajan mahdollisuus varmistaa raportin aitous) ja yhteydenottoihin vastaamiseksi (oikeutettu etu).</p>
 <h2>Säilytysaika</h2>
 <p>Rekisteröity raportti säilytetään, jotta sen voi tarkistaa myös myöhemmin auton myynnin yhteydessä, kuitenkin enintään kymmenen vuotta. Krediittien kirjanpito säilytetään kirjanpitolain edellyttämän ajan. Yhteydenotot poistetaan, kun asia on käsitelty, viimeistään kahden vuoden kuluttua.</p>
+<h2>Anonyymi mittausaineisto</h2>
+<p>Jokaisesta rekisteröidystä mittauksesta tallennetaan erikseen anonyymi tilastorivi ohjelmiston kehittämistä varten: auton merkki, malli ja vuosimalli, akkutyyppi, mittaustyyppi, mittauksen kuukausi, mittarilukema tuhannen kilometrin tarkkuudella ja mittaustulokset. Rivillä ei ole raportin tunnusta, tilitunnusta, valmistenumeroa, rekisterinumeroa, mittauksen suorittajaa eikä tarkkaa aikaa, eikä sitä voi yhdistää raporttiin, autoon tai henkilöön. Siksi se ei ole henkilötieto eikä poistu tietojen poiston yhteydessä.</p>
 <h2>Tietojen luovutus ja siirrot</h2>
 <p>Tietoja ei myydä eikä luovuteta markkinointiin. Ostojen tarkistuksessa palvelu on yhteydessä Googlen rajapintaan. Palvelin sijaitsee EU:ssa.</p>
 <h2>Evästeet ja seuranta</h2>
 <p>Sivusto ei käytä seuranta- eikä mainosevästeitä eikä ulkopuolisia analytiikkapalveluita. Ylläpidon kirjautumisessa käytetään vain kirjautumisen edellyttämää välttämätöntä evästettä.</p>
 <h2 id="poisto">Oikeutesi ja tietojen poisto</h2>
-<p>Sinulla on oikeus saada pääsy tietoihisi, oikaista ne, pyytää niiden poistamista tai käsittelyn rajoittamista sekä vastustaa käsittelyä. Pyynnön voit lähettää yhteystietosivun lomakkeella tai sähköpostilla. Kerro pyynnössä sovelluksen tilitunnus (sovelluksen Krediitit-sivulla) tai raportin tunnus. Tilin poiston jälkeen krediittien kirjanpito ja ostotiedot säilytetään kirjanpitolain edellyttämän ajan; niissä on vain satunnainen tilitunnus. Voit tehdä valituksen tietosuojavaltuutetulle (tietosuoja.fi).</p>`
+<p>Sinulla on oikeus saada pääsy tietoihisi, oikaista ne, pyytää niiden poistamista tai käsittelyn rajoittamista sekä vastustaa käsittelyä. Sovelluksen Krediitit-näkymässä voit itse ladata tilisi tiedot, poistaa raportin tarkistuspalvelusta ja poistaa tilisi. Pyynnön voit lähettää myös yhteystietosivun lomakkeella tai sähköpostilla. Kerro pyynnössä sovelluksen tilitunnus (sovelluksen Krediitit-sivulla) tai raportin tunnus. Tilin poiston jälkeen krediittien kirjanpito ja ostotiedot säilytetään kirjanpitolain edellyttämän ajan; niissä on vain satunnainen tilitunnus. Voit tehdä valituksen tietosuojavaltuutetulle (tietosuoja.fi).</p>`
     },
     en: {
       otsikko: 'Privacy policy – AKVERI', kuvaus: 'Privacy policy for the AKVERI app and the akveri.fi service.', h1: 'Privacy policy',
@@ -263,12 +265,14 @@ const TEKSTIT = {
 <p>Data is processed to provide the service (contract), to keep records of credits (legal obligation and contract), to verify that reports are genuine (legitimate interest: the recipient of a report can confirm that it is genuine) and to reply to messages (legitimate interest).</p>
 <h2>Retention</h2>
 <p>A registered report is kept so that it can also be verified later when the car is sold, but for no longer than ten years. Records of credits are kept for the period required by the Finnish Accounting Act. Messages are deleted once the matter has been dealt with, at the latest after two years.</p>
+<h2>Anonymous test data</h2>
+<p>For each registered test, a separate anonymous statistics row is stored for developing the software: the car's make, model and model year, battery type, test type, the month of the test, the odometer reading rounded to the nearest thousand kilometres and the test results. The row contains no report ID, account ID, VIN, registration plate, name of the person who carried out the test or exact time, and it cannot be linked to a report, a car or a person. It is therefore not personal data and is not removed when data is deleted.</p>
 <h2>Disclosure and transfers</h2>
 <p>Data is not sold or disclosed for marketing. To verify purchases, the service connects to Google's interface. The server is located in the EU.</p>
 <h2>Cookies and tracking</h2>
 <p>The website does not use tracking or advertising cookies or third-party analytics. Only a strictly necessary cookie is used when the administrator signs in.</p>
 <h2 id="poisto">Your rights and deletion of data</h2>
-<p>You have the right to access your data, have it corrected, request its deletion or restriction of processing, and object to processing. You can send a request using the contact form or by email. Please include the app account ID (shown on the Credits page in the app) or the report ID. After an account is deleted, credit records and purchase details are kept for the period required by the Accounting Act; they contain only the random account ID. You may lodge a complaint with the Finnish Data Protection Ombudsman (tietosuoja.fi).</p>`
+<p>You have the right to access your data, have it corrected, request its deletion or restriction of processing, and object to processing. In the app's Credits view you can download your account data, remove a report from the verification service and delete your account yourself. You can also send a request using the contact form or by email. Please include the app account ID (shown on the Credits page in the app) or the report ID. After an account is deleted, credit records and purchase details are kept for the period required by the Accounting Act; they contain only the random account ID. You may lodge a complaint with the Finnish Data Protection Ombudsman (tietosuoja.fi).</p>`
     },
     sv: {
       otsikko: 'Dataskyddsbeskrivning – AKVERI', kuvaus: 'Dataskyddsbeskrivning för appen AKVERI och tjänsten akveri.fi.', h1: 'Dataskyddsbeskrivning',
@@ -287,12 +291,14 @@ const TEKSTIT = {
 <p>Uppgifterna behandlas för att tillhandahålla tjänsten (avtal), för bokföringen av krediter (rättslig förpliktelse och avtal), för att kontrollera att rapporter är äkta (berättigat intresse: mottagaren av en rapport kan försäkra sig om att den är äkta) och för att svara på kontakter (berättigat intresse).</p>
 <h2>Lagringstid</h2>
 <p>En registrerad rapport sparas så att den kan kontrolleras även senare när bilen säljs, dock högst tio år. Bokföringen av krediter sparas den tid som bokföringslagen kräver. Kontakter raderas när ärendet har behandlats, senast efter två år.</p>
+<h2>Anonyma mätdata</h2>
+<p>För varje registrerat test sparas separat en anonym statistikrad för utveckling av programvaran: bilens märke, modell och årsmodell, batterityp, testtyp, testmånad, mätarställning avrundad till närmaste tusen kilometer och testresultaten. Raden innehåller ingen rapportkod, inget konto-id, inget chassinummer, ingen registreringsskylt, inte namnet på den som utfört testet och ingen exakt tidpunkt, och den kan inte kopplas till en rapport, en bil eller en person. Den är därför inte personuppgifter och raderas inte när uppgifter raderas.</p>
 <h2>Utlämnande och överföringar</h2>
 <p>Uppgifterna säljs inte och lämnas inte ut för marknadsföring. Vid kontrollen av köp kommunicerar tjänsten med Googles gränssnitt. Servern finns inom EU.</p>
 <h2>Kakor och spårning</h2>
 <p>Webbplatsen använder inte spårnings- eller reklamkakor och inga utomstående analystjänster. Endast en nödvändig kaka används när administratören loggar in.</p>
 <h2 id="poisto">Dina rättigheter och radering av uppgifter</h2>
-<p>Du har rätt att få tillgång till dina uppgifter, få dem rättade, begära att de raderas eller att behandlingen begränsas samt att invända mot behandlingen. Du kan skicka en begäran via kontaktformuläret eller per e-post. Ange appens konto-id (på sidan Krediter i appen) eller rapportens kod. När ett konto har raderats sparas bokföringen av krediter och köpuppgifterna den tid som bokföringslagen kräver; de innehåller endast det slumpmässiga konto-id:t. Du kan lämna in ett klagomål till dataombudsmannen (tietosuoja.fi).</p>`
+<p>Du har rätt att få tillgång till dina uppgifter, få dem rättade, begära att de raderas eller att behandlingen begränsas samt att invända mot behandlingen. I appens vy Krediter kan du själv ladda ner kontots uppgifter, ta bort en rapport från kontrolltjänsten och radera ditt konto. Du kan också skicka en begäran via kontaktformuläret eller per e-post. Ange appens konto-id (på sidan Krediter i appen) eller rapportens kod. När ett konto har raderats sparas bokföringen av krediter och köpuppgifterna den tid som bokföringslagen kräver; de innehåller endast det slumpmässiga konto-id:t. Du kan lämna in ett klagomål till dataombudsmannen (tietosuoja.fi).</p>`
     }
   }
 };

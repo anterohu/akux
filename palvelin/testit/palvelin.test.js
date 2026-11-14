@@ -423,6 +423,68 @@ test('etusivu: kolme kieltä samasta lähteestä, kielivalinta ja ei teknistä s
   }
 });
 
+test('tietosuoja ja anonyymi aineisto: oma raportti ja tili pois, tiedot ladattavissa, tilasto ilman tunnisteita, tyyppi tarkistetaan', async (t) => {
+  const { pyynto, g, palvelin, aika } = await kaynnista(t);
+  const V3 = { 'X-AKVERI-Versio': '2.0.3' };
+  const a = (await pyynto('/api/v1/tili', { method: 'POST' })).d;
+  const b = (await pyynto('/api/v1/tili', { method: 'POST' })).d;
+  osto(g, 'tok-a', 'akveri_testi_5', a.tili);
+  await pyynto('/api/v1/osto', { method: 'POST', auth: a, body: { tuote: 'akveri_testi_5', ostotunnus: 'tok-a' } });
+  const rekisteroi = async (tyyppi, raporttiTyyppi, suorittaja = 'Matti Mittaaja') => {
+    const l = (await pyynto('/api/v1/testi/varaa', { method: 'POST', auth: a, otsakkeet: V3, body: { versio: '2.0.3', tyyppi } })).d;
+    const yv = { tyyppi: 'Testi', mittaustyyppi: raporttiTyyppi, merkki: 'Tesla', malli: 'Model 3', vin: VIN, mittarilukema: 61234, kunto_pct: 93.7,
+      kapasiteetti_kwh: 72.6, mitattu: 1763020000, raporttinumero: '2026-00010', suorittaja,
+      anonyymi: { kemia: 'NCA', kennoryhmat: 96, vuosimalli: 2021, jannite_ero_mv: 12, lampo_min_c: 18, tunniste: 'EI SAA TALLENTUA', vin: VIN } };
+    const r = await pyynto('/api/v1/testi/raportti', { method: 'POST', auth: a, otsakkeet: V3, body: { tunnus: l.tunnus, tarkiste: TARKISTE, yhteenveto: yv, versio: '2.0.3' } });
+    return { l, r };
+  };
+  // Mittaustyypin on vastattava lupaa (ei halvempaa lupaa kalliimmalle mittaukselle)
+  const vaara = await rekisteroi('pikatarkastus', 'taysi');
+  assert.equal(vaara.r.status, 409, 'eri mittaustyyppi hylätään');
+  const ilmanTyyppia = await pyynto('/api/v1/testi/raportti', { method: 'POST', auth: a, otsakkeet: V3, body: { tunnus: vaara.l.tunnus, tarkiste: TARKISTE, yhteenveto: { merkki: 'Tesla' }, versio: '2.0.3' } });
+  assert.equal(ilmanTyyppia.status, 409, 'uusi sovellus ei voi jättää tyyppiä pois');
+  const ok1 = await rekisteroi('taysi', 'taysi');
+  assert.equal(ok1.r.status, 200);
+  const ok2 = await rekisteroi('kapasiteetti', 'kapasiteetti', 'Toinen Henkilö');
+  assert.equal(ok2.r.status, 200);
+  // Anonyymi aineisto: ei tunnisteita, pyöristetty lukema ja kuukausi
+  const tl = palvelin.varasto.get('tilasto').rivit;
+  assert.equal(tl.length, 2);
+  const json = JSON.stringify(tl);
+  for (const kielletty of [VIN, VIN.slice(-6), ok1.l.tunnus, a.tili, 'Matti Mittaaja', '2026-00010', 'EI SAA TALLENTUA', '61234', 'tunniste']) assert.ok(!json.includes(kielletty), kielletty);
+  assert.equal(tl[0].mittarilukema_tkm, 61); assert.match(tl[0].kuukausi, /^\d{4}-\d{2}$/); assert.equal(tl[0].kemia, 'NCA');
+  // Tilin tiedot (oikeus saada pääsy tietoihin)
+  const tiedot = (await pyynto('/api/v1/tili/tiedot', { method: 'POST', auth: a, body: {} })).d;
+  assert.equal(tiedot.tili.tunnus, a.tili); assert.equal(tiedot.testit.length, 3); assert.ok(tiedot.kirjanpito.length >= 3);
+  assert.ok(!JSON.stringify(tiedot).includes(VIN), 'koko valmistenumeroa ei anneta');
+  // Oma raportti pois palvelusta; toisen tilin raporttia ei voi poistaa
+  assert.equal((await pyynto('/api/v1/testi/poista-tiedot', { method: 'POST', auth: b, body: { tunnus: ok1.l.tunnus } })).status, 404);
+  assert.equal((await pyynto('/api/v1/testi/poista-tiedot', { method: 'POST', auth: a, body: { tunnus: ok1.l.tunnus } })).status, 200);
+  assert.equal((await pyynto('/api/v1/vahvistus/' + ok1.l.tunnus)).d.tila, 'poistettu');
+  // Hallinta: suorittajan nimen poisto, tilin tiedot, yhteydenotot sähköpostilla, anonyymi aineisto
+  const s = await kirjauduHallintaan(pyynto, aika);
+  const H = { evaste: s.evaste, otsakkeet: s.otsakkeet };
+  assert.equal((await pyynto(`/api/hallinta/testit/${ok2.l.tunnus}/poista-suorittaja`, { method: 'POST', ...H, body: {} })).status, 200);
+  const v2 = (await pyynto('/api/v1/vahvistus/' + ok2.l.tunnus)).d;
+  assert.equal(v2.tila, 'valmis'); assert.equal(v2.suorittaja, '');
+  assert.equal((await pyynto(`/api/hallinta/tilit/${a.tili}/tiedot`, H)).d.tili.tunnus, a.tili);
+  await pyynto('/api/sivusto/viesti', { method: 'POST', body: { nimi: 'Anna', sahkoposti: 'Anna@Example.com', viesti: 'Poistakaa tietoni', suostumus: true } });
+  await pyynto('/api/sivusto/viesti', { method: 'POST', body: { nimi: 'Bo', sahkoposti: 'bo@example.com', viesti: 'Hej', suostumus: true } });
+  assert.equal((await pyynto('/api/hallinta/tietosuoja/viestit?sahkoposti=anna@example.com', H)).d.viestit.length, 1);
+  assert.equal((await pyynto('/api/hallinta/tietosuoja/viestit?sahkoposti=anna@example.com', { method: 'DELETE', ...H })).d.poistettu, 1);
+  assert.equal(Object.keys(palvelin.varasto.get('viestit')).length, 1, 'muut viestit säilyvät');
+  assert.equal((await pyynto('/api/hallinta/tilasto', H)).d.rivit.length, 2);
+  assert.equal((await pyynto('/api/hallinta/yhteenveto', H)).d.tilastoRiveja, 2);
+  // Tilin poisto sovelluksesta raporttien kanssa: tili lakkaa toimimasta, kirjanpito ja anonyymi aineisto säilyvät
+  assert.equal((await pyynto('/api/v1/tili/poista', { method: 'POST', auth: a, body: {} })).status, 400, 'vaatii vahvistuksen');
+  const pois = (await pyynto('/api/v1/tili/poista', { method: 'POST', auth: a, body: { vahvista: true, raportit: true } })).d;
+  assert.equal(pois.raportteja, 1);
+  assert.equal((await pyynto('/api/v1/saldo', { auth: a })).status, 401);
+  assert.equal((await pyynto('/api/v1/vahvistus/' + ok2.l.tunnus)).d.tila, 'poistettu');
+  assert.ok(palvelin.varasto.kirjanpito({ tili: a.tili }).length >= 3, 'kirjanpito säilyy');
+  assert.equal(palvelin.varasto.get('tilasto').rivit.length, 2, 'anonyymi aineisto säilyy');
+});
+
 test('alasivut kolmella kielellä: ajan tasalla, reitit, kielivalinta, ei suomea englannin- ja ruotsinkielisillä sivuilla', async (t) => {
   const sivut = require('../sivut');
   for (const s of sivut.kaikki()) assert.equal(fs.readFileSync(path.join(__dirname, '..', 'sivusto', s.tiedosto), 'utf8'), s.sisalto, `${s.tiedosto} on ajan tasalla (aja node palvelin/sivut.js)`);

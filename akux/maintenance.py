@@ -169,6 +169,22 @@ def selftest(app, full: bool = True) -> dict:
         return "ok", f"Suomi, englanti ja ruotsi käytössä ({len(en)} tekstiä). Valittu kieli: {kielet.KIELET.get(kielet.nykyinen())}."
     out.append(_check("Kielet", kieli_ok))
 
+    def krediittisuoja():
+        # Valmiin mittauksen tulosta ei näytetä perumisaikana ennen rekisteröintiä (muuten lyhyen mittauksen voisi katsoa
+        # ja perua), eikä anonyymiin aineistoon lähde tunnisteita.
+        from . import krediitit as kr  # noqa: PLC0415
+        nyt = time.time()
+        t = {"lupa": "AK0000000000", "lupa_tila": "varattu", "tila": "valmis", "lupa_peruttavissa": nyt + 600}
+        if kr.tulos_naytettavissa(t, nyt) or not kr.tulos_naytettavissa({**t, "lupa_tila": "rekisteroity"}, nyt) \
+                or not kr.tulos_naytettavissa({**t, "lupa_peruttavissa": nyt - 3600}, nyt):
+            return "virhe", "Rekisteröintiä odottavan mittauksen tuloksen piilotus ei toimi oikein."
+        a = kr.anonyymi_tiedot({"ajoneuvo": {"vin": "LRW3E7FAXLC123456", "kemia": "LFP", "kennoryhmat": 106},
+                                "yhteenveto": {"kunto_pct": 94.0}, "kennot": {"ero_mv": 3}})
+        if "LRW3E7FAXLC123456" in json.dumps(a) or any(k in a for k in ("vin", "rekisteri", "mittaaja", "lupa")):
+            return "virhe", "Anonyymiin mittausaineistoon päätyisi tunnisteita."
+        return "ok", "Tulos näytetään vasta rekisteröinnin jälkeen, ja anonyymissä aineistossa ei ole tunnisteita."
+    out.append(_check("Krediittien suojaus ja anonyymi aineisto", krediittisuoja))
+
     def disk():
         free = shutil.disk_usage(st.dir).free / 1e9
         if free < 1:
@@ -321,9 +337,9 @@ def selftest(app, full: bool = True) -> dict:
                     a.storage.close()
                 # Pääsivu on itsenäinen raportti: ei sivunumeroa, ja tulosten alkuperä kerrotaan kaikilla kielillä.
                 from . import kielet  # noqa: PLC0415
-                if "Pääsivu" not in report.sivunumero("2026-00001", 1, 14) or "1/" in report.sivunumero("2026-00001", 1, 14) \
-                        or report.sivunumero("2026-00001", 2, 14) != "Testi nro 2026-00001  ·  Lisätiedot, sivu 1/13":
-                    return "virhe", "Raportin sivunumerointi ei vastaa pääsivun ja lisätietojen jakoa."
+                if report.sivunumero("2026-00001", 1, 14) != "Testi nro 2026-00001" \
+                        or report.sivunumero("2026-00001", 2, 14) != "Testi nro 2026-00001  ·  Sivu 2/14":
+                    return "virhe", "Raportin sivunumerointi ei vastaa pääsivun ja lisäsivujen jakoa."
                 if any(kielet.t(report.VARMENNUS, k) == report.VARMENNUS for k in ("en", "sv")):
                     return "virhe", "Raportin pääsivun tulosten alkuperää kertova teksti puuttuu käännöksistä."
                 return "ok", f"Simuloitu pikatarkastus ja raportti onnistuivat ({size // 1024} kt)."

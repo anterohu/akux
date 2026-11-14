@@ -41,13 +41,14 @@ def test_riippumattomuus_ja_sivut():
         txt = _text(report.build(st, tid))
         assert "Riippumattomuus" not in txt and "Mittaus on tehty riippumattomasti" not in txt
         assert "ei ole takuu" in txt and "ohjelmiston toimittaja ei vastaa" in txt
-        # Pääsivu on itsenäinen raportti (ei sivunumeroa), muut sivut numeroidaan lisätietoina
-        n = txt.count("Lisätiedot, sivu ")
-        assert n >= 5 and f"Pääsivu, lisätiedot {n} sivua" in txt, n
-        assert f"Lisätiedot, sivu 1/{n}" in txt and f"Lisätiedot, sivu {n}/{n}" in txt and "Sivu 1/" not in txt
-        assert "AKUN KUNTORAPORTTI" in txt and "RAPORTIN AITOUS" in txt
+        # Pääsivu on itsenäinen raportti: siinä ei ole sivunumeroa eikä lisäsivujen määrää; muissa tavallinen sivunumero
+        import re  # noqa: PLC0415
+        n = len(re.findall(r"Sivu \d+/\d+", txt)) + 1
+        assert n >= 5 and f"Sivu 2/{n}" in txt and f"Sivu {n}/{n}" in txt and "Sivu 1/" not in txt, n
+        assert "Pääsivu" not in txt and "Lisätiedot, sivu" not in txt
+        assert "AKUN KUNTORAPORTTI" in txt and "MITÄ TULOS TARKOITTAA" not in txt and "RAPORTIN AITOUS" not in txt
         assert "Tulokset on luettu auton akunhallinnasta, ja AKVERI on laskenut ja varmentanut ne." in txt
-        assert "Raporttia ei ole rekisteröity akveri.fi-palveluun" in txt
+        assert "Ei tarkistettavissa akveri.fi:ssä" in txt
         st.update_test(tid, riippumaton=1)
         st.save_settings({"kennokuvaaja": "moduulit"})
         txt = _text(report.build(st, tid))
@@ -79,8 +80,8 @@ def test_mittauksen_suorittaja():
         st.update_test(tid, mittaaja="Autoliike Esimerkki Oy", lupa="AK7H2QKM4XPC", lupa_tila="rekisteroity")
         txt = _text(report.build(st, tid))
         assert "Mittauksen suorittaja" in txt and "Autoliike Esimerkki Oy" in txt and "Asetusten oletus" not in txt
-        assert "akveri.fi/v/AK-7H2QK-M4XPC" in txt and "Tarkistussivulla näkyvät samat tiedot" in txt
-        assert "Raporttia ei ole rekisteröity" not in txt
+        assert "akveri.fi/v/AK-7H2QK-M4XPC" in txt and "Tarkista raportin aitous" in txt
+        assert "Ei tarkistettavissa" not in txt
         # Yhteenveto palvelimelle sisältää suorittajan
         y = krediitit.Krediitit(st).yhteenveto(st.test(tid))
         assert y["suorittaja"] == "Autoliike Esimerkki Oy"

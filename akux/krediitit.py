@@ -66,9 +66,18 @@ def luvan_tila(t: dict) -> str:
     return t.get("lupa_tila") or "varattu"
 
 
-def tulos_naytettavissa(t: dict) -> bool:
-    """Perutun luvan mittauksen tulosta ja raporttia ei näytetä."""
-    return luvan_tila(t) not in ("peruttu", "peru_odottaa")
+def tulos_odottaa(t: dict, nyt: float | None = None) -> bool:
+    """Valmiin mittauksen tulos odottaa rekisteröintiä: luvan voi vielä perua (krediitit palautuisivat), joten tulosta ei
+    näytetä ennen kuin raportti on rekisteröity tai perumisaika on varmasti kulunut myös palvelimen kellolla."""
+    if luvan_tila(t) != "varattu" or t.get("tila") != "valmis" or t.get("lupa_testi"):
+        return False
+    return (nyt or time.time()) <= float(t.get("lupa_peruttavissa") or 0) + 240
+
+
+def tulos_naytettavissa(t: dict, nyt: float | None = None) -> bool:
+    """Perutun luvan mittauksen tulosta ja raporttia ei näytetä, eikä rekisteröintiä odottavan mittauksen tulosta
+    perumisaikana (muuten lyhyen mittauksen tuloksen voisi katsoa ja perua luvan)."""
+    return luvan_tila(t) not in ("peruttu", "peru_odottaa") and not tulos_odottaa(t, nyt)
 
 
 def live_kunto_sallittu(t: dict | None, simuloitu: bool, nyt: float | None = None) -> bool:
@@ -94,6 +103,25 @@ def _versio(v: str) -> tuple:
 
 def muotoile_tunnus(t: str | None) -> str:
     return f"{t[:2]}-{t[2:7]}-{t[7:]}" if t and len(t) == 12 else (t or "")
+
+
+def anonyymi_tiedot(r: dict) -> dict:
+    """Mittauksen anonyymit lisätiedot akveri.fi:n tilastoaineistoon (ei tunnisteita: ei valmistenumeroa, rekisterinumeroa,
+    nimiä eikä tarkkaa aikaa). Palvelin tallentaa ne erilliseen aineistoon, jota ei voi yhdistää raporttiin."""
+    a = r.get("ajoneuvo") or {}
+    k = r.get("kennot") or {}
+    lt = r.get("lampotilat") or {}
+    kk = r.get("kapasiteetit") or {}
+    y = r.get("yhteenveto") or {}
+    pt = next((x for x in (r.get("paatulos"), r.get("yhdistetty"), r.get("kapasiteetti"), r.get("purku"))
+               if x and x.get("ero_bms_pct") is not None), {}) or {}
+    out = {"alusta": a.get("alusta"), "kemia": a.get("kemia"), "kennotyyppi": a.get("kennotyyppi"),
+           "vuosimalli": a.get("vuosimalli") or (a.get("vin_tiedot") or {}).get("vuosimalli"),
+           "kennoryhmat": a.get("kennoryhmat"), "uutena_kwh": (r.get("viite") or {}).get("kwh"),
+           "jannite_ero_mv": k.get("ero_mv"), "ero_bms_pct": pt.get("ero_bms_pct"),
+           "epavarmuus_kwh": y.get("epavarmuus_kwh"), "lampo_min_c": lt.get("min"), "lampo_max_c": lt.get("max"),
+           "suojavara_kwh": kk.get("puskuri_kwh")}
+    return {k_: v for k_, v in out.items() if v not in (None, "")}
 
 
 class Krediitit:
@@ -199,8 +227,8 @@ class Krediitit:
     def peru_mittauksen_lupa(self, tid: int, syy: str) -> str:
         """Perii keskeytyneen mittauksen luvan, jos se on vielä mahdollista. Palauttaa tilan selitteen."""
         t = self.storage.test(tid) or {}
-        if luvan_tila(t) != "varattu":
-            return ""
+        if luvan_tila(t) != "varattu" or t.get("tila") == "valmis":
+            return ""          # valmista mittausta ei peruta: raportti rekisteröidään, kun verkkoyhteys palaa
         if not peruttavissa(t):
             return "hyvitettavissa"
         try:
@@ -227,9 +255,32 @@ class Krediitit:
             "mittarilukema": t.get("mittarilukema"), "kunto_pct": y.get("kunto_pct"), "kapasiteetti_kwh": y.get("kapasiteetti_kwh"),
             "mitattu": aloitettu, "paattynyt": t.get("paattynyt"),
             "raporttinumero": f"{time.strftime('%Y', time.localtime(aloitettu))}-{int(t['id']):05d}",
+            "mittaustyyppi": t.get("tyyppi") or "",
             "suorittaja": (t.get("mittaaja") or "").strip()[:80],
+            "anonyymi": anonyymi_tiedot(r),
             "riippumaton": None if t.get("riippumaton") is None else bool(t["riippumaton"]),
         }
+
+    # ---- Tietosuoja: tilin tiedot, raportin poisto palvelusta ja tilin poisto (tietosuojaseloste)
+    def tilin_tiedot(self) -> dict:
+        return self._kutsu("POST", "/api/v1/tili/tiedot", {})
+
+    def poista_raportti(self, tid: int) -> None:
+        t = self.storage.test(tid) or {}
+        if not t.get("lupa") or luvan_tila(t) != "rekisteroity":
+            raise PalveluVirhe("Mittauksen raporttia ei ole rekisteröity akveri.fi-palveluun.")
+        self._kutsu("POST", "/api/v1/testi/poista-tiedot", {"tunnus": t["lupa"]})
+        self.storage.update_test(tid, lupa_tila="poistettu")
+
+    def poista_tili(self, raportit: bool) -> dict:
+        d = self._kutsu("POST", "/api/v1/tili/poista", {"vahvista": True, "raportit": bool(raportit)})
+        # Paikallinen tilitieto pois: seuraava krediittitoiminto luo uuden tilin.
+        self.storage.save_settings({"tili": None, "tili_avain": None})
+        if raportit:
+            for t in self.storage.tests():
+                if luvan_tila(t) == "rekisteroity":
+                    self.storage.update_test(t["id"], lupa_tila="poistettu")
+        return d
 
     def rekisteroi(self, tid: int, versio: str) -> bool:
         """Rekisteröi valmiin mittauksen raportin. Palauttaa True, kun raportti on rekisteröity (myös aiemmin)."""

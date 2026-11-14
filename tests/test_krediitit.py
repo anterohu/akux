@@ -271,6 +271,18 @@ def test_krediitit():
             assert wait(lambda: not app.recorder.active, 180)
             assert wait(lambda: any("odottaa" in e["teksti"] for e in app.storage.events(tid4)), 30)
             assert app.storage.test(tid4)["lupa_tila"] == "varattu"
+            # Valmiin mittauksen tulosta ei näytetä eikä anneta tiedostona ennen rekisteröintiä (muuten lyhyen mittauksen
+            # tuloksen voisi katsoa ja perua luvan), eikä valmista mittausta voi perua
+            assert kr.tulos_odottaa(app.storage.test(tid4))
+            m4 = api.mittaus({}, {}, tid4)
+            assert m4["tulos"] is None and m4["tulos_odottaa"] is True
+            try:
+                report.build(app.storage, tid4)
+                raise AssertionError("rekisteröintiä odottavasta mittauksesta tehtiin raportti")
+            except ValueError as e:
+                assert "rekisteröity" in str(e)
+            assert app.krediitit.peru_mittauksen_lupa(tid4, "kokeilu") == ""
+            assert app.storage.test(tid4)["lupa_tila"] == "varattu"
             try:
                 app.start_test(vehicle_id=vid, tyyppi="pikatarkastus")
                 raise AssertionError("mittaus alkoi ilman yhteyttä palveluun")
@@ -279,6 +291,7 @@ def test_krediitit():
             os.environ["AKVERI_PALVELU"] = palvelin.osoite
             assert kr.kasittele_odottavat(app.krediitit, "2.0.0") == 1
             assert app.storage.test(tid4)["lupa_tila"] == "rekisteroity"
+            assert api.mittaus({}, {}, tid4)["tulos"] is not None, "rekisteröinnin jälkeen tulos näkyy"
 
             # 10. Mittaustiedosto toiselle laitteelle: lupa ja QR säilyvät, toinen laite ei rekisteröi
             _, data = mittaustiedosto.export(app.storage, tid)
@@ -288,6 +301,24 @@ def test_krediitit():
             tb = b.storage.test(r["id"])
             assert tb["lupa"] == t["lupa"] and tb["lupa_tila"] == "rekisteroity"
             assert not b.krediitit.odottavat()
+
+            # 11. Anonyymi aineisto ja tietosuoja: tilastorivit ilman tunnisteita, oma raportti pois palvelusta,
+            # tilin tiedot ladattavissa ja tilin poisto
+            rivit = palvelin.get("/api/hallinta/tilasto", True)["rivit"]
+            assert len(rivit) >= 2 and all(r_.get("merkki") and r_.get("kuukausi") for r_ in rivit)
+            assert not any(t["lupa"] in json.dumps(x) or vin in json.dumps(x) for x in rivit)
+            tiedot = app.krediitit.tilin_tiedot()
+            assert tiedot["tili"]["tunnus"] == app.settings["tili"] and len(tiedot["testit"]) >= 4
+            api.poista_raportti_palvelusta({}, {}, tid4)
+            assert palvelin.get("/api/v1/vahvistus/" + app.storage.test(tid4)["lupa"])["tila"] == "poistettu"
+            assert api.mittaus({}, {}, tid4)["lupa"]["tila"] == "poistettu"
+            vanha = app.settings["tili"]
+            api.poista_tili({}, {"vahvista": True, "raportit": False})
+            assert not app.settings.get("tili"), "paikallinen tilitieto poistettu"
+            assert palvelin.get("/api/v1/vahvistus/" + t["lupa"])["tila"] == "valmis", "raportti jäi tarkistettavaksi"
+            uusi = api.krediitit({}, {})
+            assert uusi["saldo"] == 0 and uusi["tili"] != vanha, "uusi tyhjä tili"
+            assert len(palvelin.get("/api/hallinta/tilasto", True)["rivit"]) == len(rivit), "anonyymi aineisto säilyy"
             print("OK krediitit ja testiluvat päästä päähän")
         finally:
             os.environ.pop("AKVERI_PALVELU", None)

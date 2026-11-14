@@ -259,12 +259,12 @@ class MainActivity : ComponentActivity() {
 
     /** Lataa tiedoston ohjelmalta, tallentaa sen Lataukset/AKVERI-kansioon ja avaa tai jakaa sen. */
     private fun download(url: String) {
-        Toast.makeText(this, "Avataan…", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, Kieli.t(this, "Avataan…", "Opening…", "Öppnar…"), Toast.LENGTH_SHORT).show()
         thread(name = "akux-lataus") {
             try {
                 val c = URL(url).openConnection() as HttpURLConnection
                 c.readTimeout = 180_000
-                if (c.responseCode != 200) throw Exception("Tiedostoa ei voitu muodostaa (${c.responseCode}).")
+                if (c.responseCode != 200) throw Exception(Kieli.t(this, "Tiedostoa ei voitu muodostaa (${c.responseCode}).", "The file could not be created (${c.responseCode}).", "Filen kunde inte skapas (${c.responseCode})."))
                 val disp = c.getHeaderField("Content-Disposition") ?: ""
                 val name = Regex("filename=\"?([^\";]+)").find(disp)?.groupValues?.get(1)
                     ?: Uri.parse(url).lastPathSegment ?: "akveri"
@@ -277,7 +277,7 @@ class MainActivity : ComponentActivity() {
                 saveToDownloads(name, mime, bytes)
                 val uri = FileProvider.getUriForFile(this, "$packageName.tiedostot", f)
                 runOnUiThread {
-                    Toast.makeText(this, "Tallennettu: Lataukset/AKVERI/$name", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, Kieli.t(this, "Tallennettu: Lataukset/AKVERI/$name", "Saved: Downloads/AKVERI/$name", "Sparad: Hämtade filer/AKVERI/$name"), Toast.LENGTH_LONG).show()
                     val view = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime)
                         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     val send = Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri)

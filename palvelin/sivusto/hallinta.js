@@ -51,6 +51,12 @@
     taulukko.appendChild(tbody);
   }
   function solu(tr, teksti, luokka) { var td = el('td', teksti, luokka); tr.appendChild(td); return td; }
+  // Tiedosto selaimen latauksena (tietosuojapyynnön vienti, anonyymi mittausaineisto)
+  function lataaTiedosto(nimi, sisalto, tyyppi) {
+    var b = new Blob([sisalto], { type: tyyppi || 'application/json' }); var u = URL.createObjectURL(b);
+    var a = document.createElement('a'); a.href = u; a.download = nimi; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(u); a.remove(); }, 1000);
+  }
   function nappi(teksti, toiminto, luokka) { var b = el('button', teksti, 'nappi pieni ' + (luokka || 'toissijainen')); b.type = 'button'; b.addEventListener('click', toiminto); return b; }
 
   // Pieni lomake taulukon rivin alle (syy tai krediittimuutos)
@@ -93,6 +99,9 @@
     p.className = 'paivays' + (h.tila === 'pois' ? '' : ' huomio-teksti');
   }
   var LATAA = {
+    tietosuoja: function () {
+      api('/tilasto').then(function (d) { $('#tilasto-maara').textContent = 'Rivejä ' + d.rivit.length + '.'; }).catch(virhe());
+    },
     yleiskatsaus: function () {
       api('/yhteenveto').then(function (d) {
         var k = tyhjenna($('#tunnusluvut'));
@@ -217,12 +226,17 @@
         if (d.tili.suljettu || window.confirm('Suljetaanko tili? Sovellus ei voi sen jälkeen aloittaa mittauksia tällä tilillä.')) api('/tilit/' + id + '/tila', { method: 'POST', body: { suljettu: !d.tili.suljettu } }).then(function () { avaaTili(id); }).catch(virhe());
       }, d.tili.suljettu ? 'toissijainen' : 'vaara'));
       var pt = el('div', null, 'kortti');
-      pt.appendChild(el('h3', 'Tilin tietojen poisto'));
-      pt.appendChild(el('p', 'Tietosuojapyynnöstä: tili lakkaa toimimasta ja sen tunnistetiedot poistetaan. Avoimet testiluvat perutaan ja hyvityspyyntöjen tekstit poistetaan. Krediittien kirjanpito ja ostot säilytetään kirjanpitolain edellyttämän ajan (niissä on vain satunnainen tilitunnus). Rekisteröidyt raportit säilyvät tarkistusta varten; ne voi poistaa erikseen Testit-näkymästä. Poistoa ei voi perua.'));
+      pt.appendChild(el('h3', 'Tietosuoja: tilin tiedot ja poisto'));
+      pt.appendChild(el('p', 'Oikeus saada pääsy tietoihin: lataa tilin kaikki tiedot yhtenä tiedostona ja lähetä se pyytäjälle.'));
+      pt.appendChild(el('p')).appendChild(nappi('Lataa tilin tiedot', function () {
+        api('/tilit/' + id + '/tiedot').then(function (x) { lataaTiedosto('akveri-tili-' + id + '.json', JSON.stringify(x, null, 2)); }).catch(virhe());
+      }));
+      pt.appendChild(el('p', 'Poisto: tili lakkaa toimimasta ja sen tunnistetiedot poistetaan. Avoimet testiluvat perutaan ja hyvityspyyntöjen tekstit poistetaan. Krediittien kirjanpito ja ostot säilytetään kirjanpitolain edellyttämän ajan (niissä on vain satunnainen tilitunnus). Rekisteröidyt raportit säilyvät tarkistusta varten, ellei niitä valita poistettaviksi. Anonyymi mittausaineisto ei sisällä tunnisteita, joten se ei muutu. Poistoa ei voi perua.'));
       var pf = el('form', null, 'rivi-lomake'); var pv = el('input'); pv.placeholder = 'Kirjoita tilitunnus vahvistukseksi'; pv.setAttribute('aria-label', 'Vahvistus');
+      var pr = el('label', null, 'valinta'); var prc = el('input'); prc.type = 'checkbox'; pr.appendChild(prc); pr.appendChild(el('span', ' Poista myös tilin raporttien tiedot tarkistuspalvelusta'));
       var pb = el('button', 'Poista tilin tiedot', 'nappi vaara'); pb.type = 'submit'; pf.appendChild(pv); pf.appendChild(pb);
-      pf.addEventListener('submit', function (e) { e.preventDefault(); api('/tilit/' + id, { method: 'DELETE', body: { vahvista: pv.value.trim() } }).then(function () { ilmoita('Tilin tiedot poistettu.', true); $('#tilitiedot').classList.add('piilossa'); haeTilit(''); }).catch(virhe()); });
-      pt.appendChild(pf); k.appendChild(pt);
+      pf.addEventListener('submit', function (e) { e.preventDefault(); api('/tilit/' + id, { method: 'DELETE', body: { vahvista: pv.value.trim(), raportit: prc.checked } }).then(function (x) { ilmoita('Tilin tiedot poistettu' + (x.raportteja ? ' (raportteja ' + x.raportteja + ').' : '.'), true); $('#tilitiedot').classList.add('piilossa'); haeTilit(''); }).catch(virhe()); });
+      pt.appendChild(el('p')).appendChild(pr); pt.appendChild(pf); k.appendChild(pt);
       k.appendChild(el('h3', 'Kirjanpito'));
       var t1 = el('table'); var w1 = el('div', null, 'taulukko'); w1.appendChild(t1); k.appendChild(w1);
       taulu(t1, ['Aika', 'Tili', '#Muutos', 'Syy', 'Viite', 'Selite', 'Tekijä'], d.kirjanpito, kirjanpitorivi);
@@ -254,6 +268,10 @@
           api('/testit/' + t.tunnus + '/mitatoi', { method: 'POST', body: { syy: arvot[0] } }).then(function () { ilmoita('Raportti mitätöity.', true); paivita(); }).catch(virhe());
         });
       }, 'vaara'));
+      if (t.raportti && t.raportti.suorittaja) rr.appendChild(nappi('Poista suorittajan nimi', function () {
+        if (!window.confirm('Poistetaanko suorittajan nimi (' + t.raportti.suorittaja + ') tarkistussivulta? Raportti pysyy muuten tarkistettavana.')) return;
+        api('/testit/' + t.tunnus + '/poista-suorittaja', { method: 'POST' }).then(function () { ilmoita('Suorittajan nimi poistettu.', true); paivita(); }).catch(virhe());
+      }));
       if (t.raportti) rr.appendChild(nappi('Poista tiedot', function () {
         rivilomake(tr, [{ otsikko: 'Poiston syy (esim. rekisteröidyn pyyntö)' }], 'Poista raportin tiedot', function (arvot) {
           if (!window.confirm('Poistetaanko raportin tiedot pysyvästi? Tarkistussivu näyttää sen jälkeen, että tiedot on poistettu.')) return;
@@ -284,6 +302,32 @@
   var kutsuTunnus = '';
   function alusta() {
     document.querySelectorAll('#valilehdet button').forEach(function (b) { b.addEventListener('click', function () { valitse(b.getAttribute('data-v')); }); });
+    // Tietosuoja: yhteydenotot sähköpostiosoitteella ja anonyymi mittausaineisto
+    var tsOsoite = '';
+    $('#tietosuoja-viestit').addEventListener('submit', function (e) {
+      e.preventDefault(); tsOsoite = $('#ts-posti').value.trim();
+      api('/tietosuoja/viestit?sahkoposti=' + encodeURIComponent(tsOsoite)).then(function (d) {
+        $('#ts-tulos').textContent = d.viestit.length ? 'Viestejä ' + d.viestit.length + ' (' + tsOsoite + ').' : 'Tällä osoitteella ei ole viestejä.';
+        $('#ts-toiminnot').classList.toggle('piilossa', !d.viestit.length);
+      }).catch(virhe());
+    });
+    $('#ts-lataa').addEventListener('click', function () {
+      api('/tietosuoja/viestit?sahkoposti=' + encodeURIComponent(tsOsoite)).then(function (d) { lataaTiedosto('akveri-viestit.json', JSON.stringify(d.viestit, null, 2)); }).catch(virhe());
+    });
+    $('#ts-poista').addEventListener('click', function () {
+      if (!window.confirm('Poistetaanko kaikki osoitteen ' + tsOsoite + ' viestit pysyvästi?')) return;
+      api('/tietosuoja/viestit?sahkoposti=' + encodeURIComponent(tsOsoite), { method: 'DELETE' }).then(function (d) {
+        ilmoita('Viestejä poistettu: ' + d.poistettu + '.', true); $('#ts-tulos').textContent = ''; $('#ts-toiminnot').classList.add('piilossa');
+      }).catch(virhe());
+    });
+    $('#tilasto-lataa').addEventListener('click', function () {
+      api('/tilasto').then(function (d) {
+        var sarakkeet = []; d.rivit.forEach(function (r) { Object.keys(r).forEach(function (k) { if (sarakkeet.indexOf(k) < 0) sarakkeet.push(k); }); });
+        var q = function (v) { v = v === null || v === undefined ? '' : String(v); return /[";\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+        var csv = [sarakkeet.join(';')].concat(d.rivit.map(function (r) { return sarakkeet.map(function (k) { return q(r[k]); }).join(';'); })).join('\n');
+        lataaTiedosto('akveri-mittausaineisto.csv', '\ufeff' + csv, 'text/csv');
+      }).catch(virhe());
+    });
     $('#ulos').addEventListener('click', function () { api('/ulos', { method: 'POST' }).then(function () { naytaNakyma('kirjautuminen'); }); });
     $('#kirjautumislomake').addEventListener('submit', function (e) {
       e.preventDefault();

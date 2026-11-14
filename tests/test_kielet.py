@@ -70,9 +70,9 @@ def test_raportti_kielilla():
         assert "Full battery test" in tekstit["en"] and "Battery health" in tekstit["en"]
         assert "Fullständigt batteritest" in tekstit["sv"] and "Batterihälsa" in tekstit["sv"]
         # Pääsivu: asiakirjan nimi, tulosten alkuperä, aitous ja lisätietosivujen numerointi kaikilla kielillä
-        for k, sanat in {"fi": ("AKUN KUNTORAPORTTI", "RAPORTIN AITOUS", "Pääsivu, lisätiedot", "Mittauksen suorittaja ei voi muuttaa"),
-                         "en": ("BATTERY HEALTH REPORT", "REPORT AUTHENTICITY", "Main page, additional information", "cannot change them"),
-                         "sv": ("BATTERIHÄLSORAPPORT", "RAPPORTENS ÄKTHET", "Huvudsida, tilläggsinformation", "kan inte ändra dem")}.items():
+        for k, sanat in {"fi": ("AKUN KUNTORAPORTTI", "Sivu 2/", "Mittauksen suorittaja ei voi muuttaa"),
+                         "en": ("BATTERY HEALTH REPORT", "Page 2/", "cannot change them"),
+                         "sv": ("BATTERIHÄLSORAPPORT", "Sida 2/", "kan inte ändra dem")}.items():
             for sana in sanat:
                 assert sana in " ".join(tekstit[k].split()), (k, sana)
         for k in ("en", "sv"):

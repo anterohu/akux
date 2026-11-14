@@ -189,6 +189,34 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
     return Math.round(n * 100) / 100;
   }
 
+  // ---- Anonyymi mittausaineisto ohjelmiston kehittämiseen (tietosuojaseloste: "Anonyymi mittausaineisto").
+  // Rivillä ei ole tunnisteita (raportin tunnus, tili, valmistenumero, rekisterinumero, suorittaja, tarkka aika).
+  // Mittarilukema pyöristetään tuhanteen kilometriin ja aika kuukauteen, ja rivi lisätään satunnaiseen kohtaan, jotta
+  // sitä ei voi yhdistää raporttiin rekisteröintijärjestyksen perusteella. Siksi rivi ei poistu tietojen poiston mukana.
+  const ANON_TEKSTIT = { alusta: 30, kemia: 40, kennotyyppi: 60 };
+  const ANON_LUVUT = { vuosimalli: [1990, 2100], kennoryhmat: [1, 1000], uutena_kwh: [0, 400], jannite_ero_mv: [0, 5000],
+    ero_bms_pct: [-100, 100], epavarmuus_kwh: [0, 100], lampo_min_c: [-60, 100], lampo_max_c: [-60, 100],
+    soc_alku_pct: [0, 100], soc_loppu_pct: [0, 100], kesto_h: [0, 1000], suojavara_kwh: [0, 50] };
+  function lisaaTilastoon(t, r, y, versio) {
+    const a = y.anonyymi && typeof y.anonyymi === 'object' ? y.anonyymi : {};
+    const rivi = {
+      kuukausi: r.mitattu ? new Date(r.mitattu * 1000).toISOString().slice(0, 7) : new Date(nyt()).toISOString().slice(0, 7),
+      mittaustyyppi: t.mittaustyyppi || '', merkki: r.merkki, malli: r.malli,
+      mittarilukema_tkm: r.mittarilukema !== null && r.mittarilukema !== undefined ? Math.round(r.mittarilukema / 1000) : null,
+      kunto_pct: r.kuntoPct, kapasiteetti_kwh: r.kapasiteettiKwh, versio: yksiRivi(puhdista(versio, 20)), testi: !!t.testi
+    };
+    for (const [k, n] of Object.entries(ANON_TEKSTIT)) if (typeof a[k] === 'string') rivi[k] = yksiRivi(puhdista(a[k], n));
+    for (const [k, [min, max]] of Object.entries(ANON_LUVUT)) {
+      const v = Number(a[k]);
+      if (a[k] !== null && a[k] !== undefined && a[k] !== '' && Number.isFinite(v) && v >= min && v <= max) rivi[k] = Math.round(v * 10) / 10;
+    }
+    const tl = varasto.get('tilasto');
+    if (!Array.isArray(tl.rivit)) tl.rivit = [];
+    tl.rivit.splice(crypto.randomInt(tl.rivit.length + 1), 0, rivi);
+    varasto.tallenna('tilasto');
+  }
+  function tilasto() { const tl = varasto.get('tilasto'); return Array.isArray(tl.rivit) ? tl.rivit : []; }
+
   function rekisteroi(tili, body) {
     const t = haeOmaTesti(tili, body.tunnus);
     if (t.tila === 'peruttu' || t.tila === 'mitatoity' || t.tila === 'poistettu') throw new Virhe('Testilupa on peruttu tai poistettu, joten raporttia ei voi rekisteröidä.', 409);
@@ -196,6 +224,13 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
     if (!/^[0-9a-f]{64}$/.test(tarkiste)) throw new Virhe('Raakadatan tarkiste puuttuu.');
     if (t.raportti && t.raportti.tarkiste !== tarkiste) throw new Virhe('Tällä testiluvalla on jo rekisteröity toinen mittaus. Yksi lupa kelpaa yhteen mittaukseen.', 409);
     const y = body.yhteenveto && typeof body.yhteenveto === 'object' ? body.yhteenveto : {};
+    // Raportin mittaustyypin on vastattava ostettua lupaa (hinta määräytyy tyypin mukaan). Versiosta 2.0.3 alkaen
+    // sovellus kertoo tyypin aina; vanhemmat versiot eivät kerro sitä raportissa.
+    const rv = String(body.versio || '');
+    const vaatiiTyypin = !/^\d+\.\d+\.\d+$/.test(rv) || vertaaVersioita(rv, '2.0.3') >= 0;
+    if (t.mittaustyyppi && (y.mittaustyyppi || vaatiiTyypin) && y.mittaustyyppi !== t.mittaustyyppi) {
+      throw new Virhe('Mittauksen tyyppi ei vastaa testilupaa, joten raporttia ei voi rekisteröidä.', 409);
+    }
     const vin = String(y.vin || '').toUpperCase();
     const raportti = {
       tarkiste,
@@ -218,7 +253,7 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
     };
     const edellinen = t.raportti;
     t.raportti = raportti;
-    if (!edellinen) { t.rekisteroity = new Date(nyt()).toISOString(); t.tila = 'valmis'; }
+    if (!edellinen) { t.rekisteroity = new Date(nyt()).toISOString(); t.tila = 'valmis'; lisaaTilastoon(t, raportti, y, body.versio); }
     else t.paivitetty = new Date(nyt()).toISOString(); // uudelleenlaskenta uudemmalla versiolla: sama raakadata, päivitetty tulos
     if (t.hyvityspyynto && t.hyvityspyynto.tila === 'avoin') t.hyvityspyynto.tila = 'raportti rekisteröity';
     varasto.tallenna('testit');
@@ -251,6 +286,59 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
   function julkinenOsoite() { return String(env.JULKINEN_OSOITE || 'https://akveri.fi').replace(/\/+$/, ''); }
 
   // ------------------------------------------------------------ reititys
+  // ---- Tietosuoja (tietosuojaseloste: oikeus saada pääsy tietoihin ja oikeus tietojen poistoon).
+  // Samat toiminnot ovat sovelluksessa (asiakas itse) ja akveri.fi-hallinnassa (pyynnöstä).
+  // Raportin tiedot: tarkistussivu näyttää sen jälkeen vain "tiedot on poistettu".
+  function tyhjennaRaportti(x, syy) {
+    x.raportti = null; x.tila = 'poistettu'; x.poistettu = new Date(nyt()).toISOString(); x.poistonSyy = syy;
+    if (x.hyvityspyynto) { x.hyvityspyynto.syy = ''; x.hyvityspyynto.tiedot = ''; }
+  }
+  // Tilin poisto: tili lakkaa toimimasta, avoimet testiluvat perutaan ja hyvityspyyntöjen tekstit poistetaan.
+  // raportit: true poistaa myös tilin rekisteröityjen raporttien tiedot. Krediittien kirjanpito ja ostot säilytetään
+  // kirjanpitolain edellyttämän ajan (niissä on vain satunnainen tilitunnus).
+  function poistaTiliTiedot(tiliId, { raportit = false, syy = 'Tili poistettu' } = {}) {
+    let raportteja = 0;
+    for (const x of Object.values(testit())) {
+      if (x.tili !== tiliId) continue;
+      if (x.hyvityspyynto) { x.hyvityspyynto.syy = ''; x.hyvityspyynto.tiedot = ''; }
+      if (x.tila === 'varattu') { x.tila = 'peruttu'; x.peruttu = new Date(nyt()).toISOString(); x.perumisenSyy = syy; }
+      if (raportit && x.raportti) { tyhjennaRaportti(x, syy); raportteja++; }
+    }
+    varasto.tallenna('testit');
+    delete tilit()[tiliId];
+    varasto.tallenna('tilit');
+    return { ok: true, poistettu: tiliId, raportteja };
+  }
+  // Kaikki tiliin liittyvät tiedot luettavassa muodossa (sovelluksen "Lataa tietoni" ja hallinnan vienti).
+  function tilinTiedot(tiliId) {
+    const t = tilit()[tiliId];
+    if (!t) throw new Virhe('Tiliä ei löydy.', 404);
+    return {
+      muodostettu: new Date(nyt()).toISOString(),
+      tili: { tunnus: t.id, luotu: t.luotu, saldo: varasto.saldo(t.id), testitili: !!t.testitili, suljettu: !!t.suljettu },
+      kirjanpito: varasto.kirjanpito({ tili: t.id, raja: 100000 }).map(r => ({ aika: r.aika, muutos: r.muutos, syy: r.syy, viite: r.viite || '', selite: r.selite || '' })),
+      ostot: Object.values(ostot()).filter(o => o.tili === t.id).map(o => ({ aika: o.aika, tuote: o.tuote, krediitit: o.krediitit, tila: o.tila, testiosto: !!o.testiosto })),
+      testit: Object.values(testit()).filter(x => x.tili === t.id).map(x => ({
+        tunnus: muotoileTunnus(x.tunnus), tila: x.tila, varattu: x.varattu, rekisteroity: x.rekisteroity || null,
+        mittaustyyppi: x.mittaustyyppi || '', krediitit: x.krediitit ?? null,
+        raportti: x.raportti ? { tyyppi: x.raportti.tyyppi, merkki: x.raportti.merkki, malli: x.raportti.malli,
+          valmistenumero: x.raportti.vinAlku ? `${x.raportti.vinAlku}…${x.raportti.vinLoppu}` : '', mittarilukema: x.raportti.mittarilukema,
+          kuntoPct: x.raportti.kuntoPct, kapasiteettiKwh: x.raportti.kapasiteettiKwh, suorittaja: x.raportti.suorittaja || '',
+          raporttinumero: x.raportti.raporttinumero } : null,
+        hyvityspyynto: x.hyvityspyynto ? { aika: x.hyvityspyynto.aika, tila: x.hyvityspyynto.tila, syy: x.hyvityspyynto.syy || '' } : null
+      }))
+    };
+  }
+  // Asiakkaan oma raportti pois tarkistuspalvelusta (vain oman tilin raportti)
+  function poistaOmaRaportti(tili, body) {
+    const x = testit()[normalisoiTunnus(body.tunnus || '')];
+    if (!x || x.tili !== tili.id) throw new Virhe('Raporttia ei löydy tältä tililtä.', 404);
+    if (!x.raportti) throw new Virhe('Raportin tietoja ei ole palvelussa.', 409);
+    tyhjennaRaportti(x, 'Raportin omistajan pyyntö');
+    varasto.tallenna('testit');
+    return { ok: true, tila: x.tila };
+  }
+
   async function kasittele(req, res, polku, kysely) {
     try {
       if (polku === '/api/v1/tila' && req.method === 'GET') return json(res, 200, { ok: true, palvelu: 'akveri', versio: env.AKVERI_VERSIO || '', ostot: google.kaytossa, rajapinta: 1, vahimmaisversio: vahimmaisversio(), uusinVersio: uusinVersio() });
@@ -270,6 +358,12 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
       if (polku === '/api/v1/testi/peru') return json(res, 200, peru(tili, body));
       if (polku === '/api/v1/testi/hyvityspyynto') return json(res, 200, hyvityspyynto(tili, body));
       if (polku === '/api/v1/testi/raportti') return json(res, 200, rekisteroi(tili, body));
+      if (polku === '/api/v1/testi/poista-tiedot') return json(res, 200, poistaOmaRaportti(tili, body));
+      if (polku === '/api/v1/tili/tiedot') return json(res, 200, tilinTiedot(tili.id));
+      if (polku === '/api/v1/tili/poista') {
+        if (body.vahvista !== true) throw new Virhe('Vahvista tilin poisto.');
+        return json(res, 200, poistaTiliTiedot(tili.id, { raportit: body.raportit === true, syy: 'Tilin omistajan pyyntö' }));
+      }
       throw new Virhe('Tuntematon pyyntö.', 404);
     } catch (e) {
       if (e instanceof Virhe) return json(res, e.status, { virhe: e.message });
@@ -298,7 +392,7 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
     return maara;
   }
 
-  return { kasittele, tarkistaPerutut, google, julkinenAvain: avain.julkinen, tuotteet };
+  return { kasittele, tarkistaPerutut, google, julkinenAvain: avain.julkinen, tuotteet, tyhjennaRaportti, poistaTiliTiedot, tilinTiedot, tilasto };
 }
 
 module.exports = { luoSovellusRajapinta, MITTAUSTYYPIT, OLETUSHINTA, muotoileTunnus, normalisoiTunnus, TUNNUS_RE, TILI_RE, OLETUSTUOTTEET, OLETUS_VAHIMMAISVERSIO, vertaaVersioita, VERSIO_RE };

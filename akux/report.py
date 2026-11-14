@@ -497,7 +497,7 @@ def _arc_text(c, text, cx, cy, r, font, size, top=True, spacing=0.0):
 
 
 def draw_seal(c, cx, cy, r, bottom_text):
-    """AKVERI-leima: kehällä AKVERI-TESTI ja alhaalla mittauksen tiedot, keskellä merkki."""
+    """AKVERI-leima: kehällä AKVERI-TESTI (raportin kielellä) ja alhaalla mittauksen päivä, keskellä merkki."""
     k = r / 100.0                                 # leima on suunniteltu 200 × 200 -ruudukkoon
     c.saveState()
     c.setFillColor(colors.white)
@@ -511,7 +511,9 @@ def draw_seal(c, cx, cy, r, bottom_text):
     c.setFillColor(ACCENT)
     # Tekstit keskitetään renkaiden väliin (säde 62–88): isojen kirjainten korkeus on noin 0,72 × koko
     top_size, bot_size = 17 * k, 14 * k
-    _arc_text(c, "AKVERI-TESTI", cx, cy, 75 * k - 0.36 * top_size, "Inter-Bold", top_size, top=True,
+    # Kehän teksti raportin kielellä (AKVERI-TESTI, AKVERI TEST, AKVERI-TEST); kaari piirretään merkki kerrallaan,
+    # joten teksti käännetään ennen piirtoa.
+    _arc_text(c, _t("AKVERI-TESTI"), cx, cy, 75 * k - 0.36 * top_size, "Inter-Bold", top_size, top=True,
               spacing=4 * k)
     _arc_text(c, bottom_text.upper(), cx, cy, 75 * k + 0.36 * bot_size, "Inter-SemiBold", bot_size, top=False,
               spacing=3 * k)
@@ -526,11 +528,12 @@ def draw_stamp(c, teksti):
     """Selvä vino leima (esim. ESIMERKKI), joka erottaa raportin, jota ei voi tarkistaa akveri.fi:ssä."""
     if not teksti:
         return
+    teksti = _t(teksti)          # raportin kielellä; koko valitaan käännetyn tekstin pituuden mukaan
     c.saveState()
     c.setFillColor(colors.Color(0xB4 / 255, 0x23 / 255, 0x18 / 255, alpha=0.10))
     c.translate(W / 2, H / 2)
     c.rotate(35)
-    size = 96 if len(teksti) <= 10 else 64
+    size = 96 if len(teksti) <= 10 else 64 if len(teksti) <= 19 else 58
     c.setFont("Inter-SemiBold", size)
     c.drawCentredString(0, -size * 0.35, teksti)
     c.restoreState()
@@ -755,6 +758,8 @@ def build(storage, tid: int, out_path: Path | None = None, kieli: str | None = N
 def _build(storage, tid: int, out_path: Path | None = None) -> Path:
     test = storage.test(tid)
     from . import krediitit as _kr
+    if test and _kr.tulos_odottaa(test):
+        raise ValueError("Raportti muodostetaan, kun se on rekisteröity akveri.fi-palveluun. Tarkista verkkoyhteys.")
     if test and not _kr.tulos_naytettavissa(test):
         raise ValueError("Mittauksen testilupa on peruttu ja krediitti palautettu, joten raporttia ei tehdä.")
     r = test["tulos"] or {}

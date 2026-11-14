@@ -165,6 +165,7 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
       uudetViestit: Object.values(varasto.get('viestit')).filter(v => !v.kasitelty).length,
       kirjanpitoEhja: varasto.kirjanpitoEhja, kirjanpitoRiveja: varasto.kirjanpitoRiveja,
       googleKaytossa: sovellus.google.kaytossa, googleVirhe: sovellus.google.virhe || '',
+      tilastoRiveja: sovellus.tilasto().length,
       viimeisinVarmuuskopio: varmuus, versio: env.AKVERI_VERSIO || ''
     };
   }
@@ -205,19 +206,24 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
   function poistaTili(id, body) {
     const t = haeTili(id);
     if (body.vahvista !== t.id) throw new Virhe('Vahvista poisto kirjoittamalla tilitunnus.');
-    for (const x of Object.values(varasto.get('testit'))) {
-      if (x.tili !== t.id) continue;
-      if (x.hyvityspyynto) { x.hyvityspyynto.syy = ''; x.hyvityspyynto.tiedot = ''; }
-      if (x.tila === 'varattu') { x.tila = 'peruttu'; x.peruttu = new Date(nyt()).toISOString(); x.perumisenSyy = 'Tili poistettu'; }
-    }
-    varasto.tallenna('testit');
-    delete varasto.get('tilit')[t.id];
-    varasto.tallenna('tilit');
-    return { ok: true, poistettu: t.id };
+    return sovellus.poistaTiliTiedot(t.id, { raportit: body.raportit === true, syy: 'Tili poistettu pyynnöstä' });
   }
-  function tyhjennaRaportti(x, syy) {
-    x.raportti = null; x.tila = 'poistettu'; x.poistettu = new Date(nyt()).toISOString(); x.poistonSyy = syy;
-    if (x.hyvityspyynto) { x.hyvityspyynto.syy = ''; x.hyvityspyynto.tiedot = ''; }
+  const tyhjennaRaportti = (x, syy) => sovellus.tyhjennaRaportti(x, syy);
+  // Oikeus saada pääsy tietoihin: tilin kaikki tiedot yhtenä tiedostona
+  function tilinTiedot(id) { return sovellus.tilinTiedot(haeTili(id).id); }
+  // Suorittajan nimen poisto (esim. yksityishenkilön pyynnöstä): raportti pysyy tarkistettavana ilman nimeä
+  function poistaSuorittaja(tunnus) {
+    const x = haeTesti(tunnus);
+    if (!x.raportti || !x.raportti.suorittaja) throw new Virhe('Raportissa ei ole suorittajan nimeä.', 409);
+    x.raportti.suorittaja = '';
+    varasto.tallenna('testit');
+    return testiRiviAuki(x);
+  }
+  // Yhteydenotot sähköpostiosoitteen mukaan: vienti tai poisto pyynnöstä
+  function viestitOsoitteella(kysely) {
+    const osoite = String(kysely.get('sahkoposti') || '').trim().toLowerCase();
+    if (!osoite) throw new Virhe('Anna sähköpostiosoite.');
+    return Object.entries(varasto.get('viestit')).filter(([, v]) => String(v.sahkoposti || '').toLowerCase() === osoite);
   }
   function poistaRaportinTiedot(tunnus, body) {
     const x = haeTesti(tunnus);
@@ -490,16 +496,27 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
       if (p === '/kayttajat' && req.method === 'GET') return json(res, 200, kayttajat.lista(varasto, nyt()));
       if (p === '/yhteenveto' && req.method === 'GET') return json(res, 200, yhteenveto());
       if (p === '/tilit' && req.method === 'GET') return json(res, 200, { tilit: tilit(kysely) });
-      let m = /^\/tilit\/(T[0-9A-Z]{12})(\/krediitit|\/tila)?$/.exec(p);
+      let m = /^\/tilit\/(T[0-9A-Z]{12})(\/krediitit|\/tila|\/tiedot)?$/.exec(p);
       if (m && !m[2] && req.method === 'GET') return json(res, 200, tili(m[1]));
       if (m && m[2] === '/krediitit' && req.method === 'POST') return json(res, 200, muutaKrediitteja(m[1], body));
       if (m && m[2] === '/tila' && req.method === 'POST') return json(res, 200, tilinTila(m[1], body));
       if (m && !m[2] && req.method === 'DELETE') return json(res, 200, poistaTili(m[1], body));
+      if (m && m[2] === '/tiedot' && req.method === 'GET') return json(res, 200, tilinTiedot(m[1]));
       if (p === '/testit' && req.method === 'GET') return json(res, 200, { testit: testit(kysely) });
-      m = /^\/testit\/([A-Za-z0-9-]{10,20})\/(hyvita|mitatoi|hylkaa-pyynto|poista-tiedot)$/.exec(p);
-      if (m && req.method === 'POST') return json(res, 200, m[2] === 'hyvita' ? hyvita(m[1], body) : m[2] === 'mitatoi' ? mitatoi(m[1], body) : m[2] === 'poista-tiedot' ? poistaRaportinTiedot(m[1], body) : hylkaaHyvityspyynto(m[1], body));
+      m = /^\/testit\/([A-Za-z0-9-]{10,20})\/(hyvita|mitatoi|hylkaa-pyynto|poista-tiedot|poista-suorittaja)$/.exec(p);
+      if (m && req.method === 'POST') return json(res, 200, m[2] === 'hyvita' ? hyvita(m[1], body) : m[2] === 'mitatoi' ? mitatoi(m[1], body) : m[2] === 'poista-tiedot' ? poistaRaportinTiedot(m[1], body) : m[2] === 'poista-suorittaja' ? poistaSuorittaja(m[1]) : hylkaaHyvityspyynto(m[1], body));
       if (p === '/ostot' && req.method === 'GET') return json(res, 200, { ostot: ostot() });
       if (p === '/viestit' && req.method === 'GET') return json(res, 200, { viestit: viestit() });
+      // Anonyymi mittausaineisto (ohjelmiston kehittämiseen): ladataan hallinnasta CSV-tiedostona
+      if (p === '/tilasto' && req.method === 'GET') return json(res, 200, { rivit: sovellus.tilasto() });
+      // Tietosuoja: yhteydenotot lähettäjän sähköpostiosoitteella (vienti tai kaikkien poisto)
+      if (p === '/tietosuoja/viestit' && req.method === 'GET') return json(res, 200, { viestit: viestitOsoitteella(kysely).map(([id, v]) => ({ id, ...v })) });
+      if (p === '/tietosuoja/viestit' && req.method === 'DELETE') {
+        const loydetyt = viestitOsoitteella(kysely);
+        for (const [id] of loydetyt) delete varasto.get('viestit')[id];
+        varasto.tallenna('viestit');
+        return json(res, 200, { ok: true, poistettu: loydetyt.length });
+      }
       m = /^\/viestit\/([a-f0-9]{16})$/.exec(p);
       if (m && req.method === 'POST') { const v = varasto.get('viestit')[m[1]]; if (!v) throw new Virhe('Viestiä ei löydy.', 404); v.kasitelty = body.kasitelty !== false; varasto.tallenna('viestit'); return json(res, 200, { ok: true }); }
       const mv = /^\/viestit\/([a-f0-9]{16})\/vastaa$/.exec(p);

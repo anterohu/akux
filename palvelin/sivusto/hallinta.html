@@ -60,6 +60,7 @@
     <button type="button" data-v="testit">Testit ja hyvitykset</button>
     <button type="button" data-v="ostot">Ostot</button>
     <button type="button" data-v="viestit">Viestit</button>
+    <button type="button" data-v="tietosuoja">Tietosuoja</button>
     <button type="button" data-v="asetukset">Sivusto ja ehdot</button>
     <button type="button" data-v="lataukset">Omat lataukset</button>
     <button type="button" data-v="kirjanpito">Kirjanpito</button>
@@ -159,6 +160,27 @@
       <p class="paivays">Muotoilu: "## Otsikko" aloittaa otsikon, tyhjä rivi erottaa kappaleet ja "- " aloittaa luettelon. {{nimi}}, {{yTunnus}}, {{osoite}}, {{sahkoposti}} ja {{puhelin}} täytetään yhteystiedoista. Kun teksti on tyhjä, sivulla näkyy oletusteksti. Tallennus päivittää voimassaolopäivän. Muokattu teksti näkyy suomenkielisellä sivulla; englannin- ja ruotsinkieliset versiot ovat ohjelmassa, ja niissä todetaan, että suomenkielinen versio on ensisijainen.</p>
       <p><button class="nappi" type="submit">Tallenna asiakirja</button></p>
     </form>
+  </div>
+
+  <div data-nakyma="tietosuoja" class="piilossa">
+    <div class="kortti">
+      <h2>Tietosuojapyynnöt</h2>
+      <ul class="lista">
+        <li><b>Tilin tiedot ja poisto:</b> Tilit ja krediitit → avaa tili → Lataa tilin tiedot tai Poista tilin tiedot. Asiakas voi tehdä saman itse sovelluksen Krediitit-näkymässä.</li>
+        <li><b>Raportin tiedot:</b> Testit ja hyvitykset → Poista tiedot (koko raportti tarkistuspalvelusta) tai Poista suorittajan nimi (raportti pysyy tarkistettavana).</li>
+        <li><b>Yhteydenotot:</b> hae alla lähettäjän sähköpostiosoitteella.</li>
+      </ul>
+      <form class="rivi-lomake" id="tietosuoja-viestit"><label class="vh" for="ts-posti">Sähköpostiosoite</label><input id="ts-posti" type="email" placeholder="Pyytäjän sähköpostiosoite" required>
+        <button class="nappi" type="submit">Hae viestit</button></form>
+      <p class="paivays" id="ts-tulos"></p>
+      <p id="ts-toiminnot" class="piilossa"><button class="nappi pieni toissijainen" type="button" id="ts-lataa">Lataa viestit</button> <button class="nappi pieni vaara" type="button" id="ts-poista">Poista kaikki viestit</button></p>
+    </div>
+    <div class="kortti">
+      <h2>Anonyymi mittausaineisto</h2>
+      <p class="paivays">Jokaisesta rekisteröidystä mittauksesta tallennetaan rivi ohjelmiston kehittämistä varten: merkki, malli, vuosimalli, akkutyyppi, mittaustyyppi, kuukausi, mittarilukema tuhansina kilometreinä ja tulokset. Rivillä ei ole raportin tunnusta, tiliä, valmistenumeroa, rekisterinumeroa, suorittajaa eikä tarkkaa aikaa, ja rivit ovat satunnaisessa järjestyksessä. Siksi aineisto ei poistu tietojen poiston yhteydessä. Testitilien mittaukset on merkitty.</p>
+      <p class="paivays" id="tilasto-maara"></p>
+      <p><button class="nappi pieni" type="button" id="tilasto-lataa">Lataa CSV-tiedostona</button></p>
+    </div>
   </div>
 
   <div data-nakyma="lataukset" class="piilossa">
