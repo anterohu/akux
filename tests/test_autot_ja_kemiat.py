@@ -294,7 +294,13 @@ def run_types(car, tmp):
     true_r = sum(src.r_cell) * 1000
     print(f"   kuormitus: resistanssi {k['r_akku_mohm']:.1f} mΩ, todellinen {true_r:.1f} mΩ, "
           f"poikkeava ryhmä {k['r_max_nro']} (asetettu {bad})")
-    assert k["r_max_nro"] == bad
+    odotettu = bad
+    if getattr(src, "platform", "") == "mg":
+        # MG: suurimman resistanssin kenno näkyy lohkonsa matalimpana kennona (arvo 2 × lohko − 1)
+        L, i = src.g["lohkot"], bad - 1
+        lohko = next(j for j in range(L) if round(j * src.n / L) <= i < round((j + 1) * src.n / L)) + 1
+        odotettu = 2 * lohko - 1
+    assert k["r_max_nro"] == odotettu, (k["r_max_nro"], odotettu)
     assert abs(k["r_akku_mohm"] - true_r) / true_r < 0.1
     assert "paatulos" not in t["tulos"]
     _pdf_check(app, tid, ["Kuormitustesti", "Kennoryhmät kuormassa"])
