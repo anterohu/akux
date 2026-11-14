@@ -36,6 +36,7 @@ def test_riippumattomuus_ja_sivut():
     with tempfile.TemporaryDirectory() as d:
         st = Storage(Path(d))
         tid = mittaustiedosto.import_file(st, ESIM.read_bytes())["id"]
+        st.update_test(tid, demo=0)   # käsitellään kuten oikeaa, rekisteröimätöntä mittausta
         analysis.reanalyze(st, tid)
         assert st.test(tid)["riippumaton"] is None
         txt = _text(report.build(st, tid))
@@ -75,6 +76,7 @@ def test_mittauksen_suorittaja():
     with tempfile.TemporaryDirectory() as d:
         st = Storage(Path(d))
         tid = mittaustiedosto.import_file(st, ESIM.read_bytes())["id"]
+        st.update_test(tid, demo=0)   # käsitellään kuten oikeaa, rekisteröimätöntä mittausta
         analysis.reanalyze(st, tid)
         st.save_settings({"mittaaja": "Asetusten oletus"})
         st.update_test(tid, mittaaja="Autoliike Esimerkki Oy", lupa="AK7H2QKM4XPC", lupa_tila="rekisteroity")
