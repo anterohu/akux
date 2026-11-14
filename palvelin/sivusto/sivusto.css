@@ -244,8 +244,8 @@ section.osio { scroll-margin-top: 76px; }
   .vaiheet .numero { width: 30px; height: 30px; margin: 0; grid-row: span 2; font-size: 14px; }
   .vaiheet .kortti h3 { font-size: 16px; margin: 0; }
   .vaiheet .kortti p { font-size: 14px; }
-  .merkit { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
-  .merkit span { flex: none; padding: 6px 12px; font-size: 14px; }
+  .merkit { gap: 8px; }
+  .merkit span { padding: 6px 12px; font-size: 14px; }
   .kortti.lataa { gap: 14px; }
   .kortti.lataa > * { min-width: 0; }
 }
