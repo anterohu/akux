@@ -148,9 +148,15 @@ def _vid(app):
     return v["id"] if v else app.storage.add_vehicle({"vin": st.vin, "nimi": "Testiauto", "rekisteri": "ABC-123"})
 
 
+def _n_arvot(src):
+    """Kennojännitearvojen määrä: MG ilmoittaa lohkon matalimman ja korkeimman kennon (kaksi arvoa lohkoa kohden)."""
+    return 2 * src.g["lohkot"] if getattr(src, "platform", "") == "mg" else src.n
+
+
 def _connect(app, src):
     app.connect("demo", sim=src)
-    assert wait_until(lambda: app.decoder.state.vin and app.decoder.state.brick_count == src.n and
+    n = _n_arvot(src)
+    assert wait_until(lambda: app.decoder.state.vin and app.decoder.state.brick_count == n and
                       app.decoder.state.soc_avg is not None and app.decoder.state.nfp_kwh, 40), "yhteys"
     if src.platform == "sx":
         # vanhan arkkitehtuurin virran suunta varmistuu vasta kun virta vaihtelee
@@ -233,7 +239,7 @@ def run_types(car, tmp):
     r = t["tulos"]
     true_soh = src.nfp / src.bol * 100
     assert abs(r["yhteenveto"]["kunto_pct"] - true_soh) < 0.2, (r["yhteenveto"]["kunto_pct"], true_soh)
-    assert r["kennot"]["lkm"] == src.n
+    assert r["kennot"]["lkm"] == _n_arvot(src), (r["kennot"]["lkm"], _n_arvot(src))
     _pdf_check(app, tid, ["Pikatarkastus", src.vin, "ABC-123"])
     print(f"   pikatarkastus: kunto {r['yhteenveto']['kunto_pct']:.1f} %, todellinen {true_soh:.1f} %")
     app.disconnect()
