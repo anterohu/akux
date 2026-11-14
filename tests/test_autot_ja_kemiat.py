@@ -48,19 +48,28 @@ def check_hk_decoding(car):
         src = _sim(car, soc=0.55, accel=1)
         src.set_mode("park")
         app.connect("demo", sim=src)
-        assert wait_until(lambda: app.decoder.state.brick_count == src.n and
-                          len(app.decoder.state.bricks) == src.n and app.decoder.state.odometer_km, 20)
+        # MG ilmoittaa kennojännitteet lohkoittain: lohkon matalin ja korkein kenno (kaksi arvoa lohkoa kohden)
+        mg = src.platform == "mg"
+        n_arvot = 2 * src.g["lohkot"] if mg else src.n
+        assert wait_until(lambda: app.decoder.state.brick_count == n_arvot and
+                          len(app.decoder.state.bricks) == n_arvot and app.decoder.state.odometer_km, 20)
         st = app.decoder.state
         with app.decoder.lock:
             soc_true = sum(src._cell_socs()) / src.n * 100
             vs = src._volts(src.current)
+            if mg:
+                L = src.g["lohkot"]
+                osat = [vs[round(k * src.n / L):round((k + 1) * src.n / L)] for k in range(L)]
+                odotetut = [x for o in osat for x in (min(o), max(o))]
+            else:
+                odotetut = vs
             w = {"jännite (V)": abs(st.pack_v - src._pack_voltage(src.current)),
                  "virta (A)": abs(st.pack_i - src.current),
                  "varaustila (%)": abs(st.soc_avg - soc_true),
-                 "kunto (%)": abs(st.nfp_kwh / st.bol_kwh * 100 - src.nfp / src.bol * 100),
+                 "kunto (%)": abs(st.nfp_kwh / (st.bol_kwh or src.bol) * 100 - src.nfp / src.bol * 100),
                  "latauslaskuri (kWh)": abs(st.total_charge_kwh - src.total_chg) if st.total_charge_kwh is not None else 0.0,
                  "lämpötila (°C)": abs((st.temp_max + st.temp_min) / 2 - src.temp),
-                 "kennojännite (V)": max(abs(st.bricks[k + 1] - vs[k]) for k in range(src.n))}
+                 "kennojännite (V)": max(abs(st.bricks[k + 1] - odotetut[k]) for k in range(n_arvot))}
         app.disconnect()
     lim = {"jännite (V)": 1.5, "virta (A)": 1.0, "varaustila (%)": 0.6, "kunto (%)": 0.06,
            "latauslaskuri (kWh)": 0.06, "kennojännite (V)": 0.03, "lämpötila (°C)": 1.0}
