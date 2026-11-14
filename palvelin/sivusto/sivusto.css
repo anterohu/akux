@@ -246,6 +246,13 @@ section.osio { scroll-margin-top: 76px; }
   .vaiheet .kortti p { font-size: 14px; }
   .merkit { gap: 8px; }
   .merkit span { padding: 6px 12px; font-size: 14px; }
+  /* Esimerkkiraportti tiiviinä: vain kunto ja palkki */
+  .raporttikuva { padding: 14px 16px; box-shadow: none; }
+  .raporttikuva .otsake { margin-bottom: 6px; font-size: 14px; }
+  .raporttikuva .iso { font-size: 30px; }
+  .raporttikuva .kunto { margin: 0 0 8px; }
+  .raporttikuva .palkki { margin-bottom: 0; }
+  .raporttikuva .rivi { display: none; }
   .kortti.lataa { gap: 14px; }
   .kortti.lataa > * { min-width: 0; }
 }
