@@ -70,33 +70,28 @@
   // Sivun kielen tekstit (etusivu ja yhteydenottolomake suomeksi, englanniksi ja ruotsiksi).
   var KIELI = (document.documentElement.lang || 'fi').slice(0, 2);
   var TEKSTIT = {
-    fi: { tulossa: 'Tulossa', saatavilla: 'Saatavilla Google Playssa · Android 10 tai uudempi', eiViela: 'Tulossa Google Playhin. Ilmoitamme julkaisusta tällä sivulla.',
-      taytaNimi: 'Täytä nimi ja viesti.', hyvaksy: 'Hyväksy tietojen käyttö viestiin vastaamiseen.', kiitos: 'Kiitos viestistä. Vastaamme sähköpostilla mahdollisimman pian.',
+    fi: { saatavilla: 'Saatavilla Google Playssa · Android 10 tai uudempi', taytaNimi: 'Täytä nimi ja viesti.', hyvaksy: 'Hyväksy tietojen käyttö viestiin vastaamiseen.', kiitos: 'Kiitos viestistä. Vastaamme sähköpostilla mahdollisimman pian.',
       epaonnistui: 'Lähetys epäonnistui.', verkko: 'Lähetys epäonnistui. Tarkista verkkoyhteys ja yritä uudelleen.' },
-    en: { tulossa: 'Coming soon', saatavilla: 'Available on Google Play · Android 10 or newer', eiViela: 'Coming soon to Google Play. We will announce it on this page.',
-      taytaNimi: 'Please fill in your name and message.', hyvaksy: 'Please accept the use of your details for replying to the message.', kiitos: 'Thank you for your message. We will reply by email as soon as possible.',
+    en: { saatavilla: 'Available on Google Play · Android 10 or newer', taytaNimi: 'Please fill in your name and message.', hyvaksy: 'Please accept the use of your details for replying to the message.', kiitos: 'Thank you for your message. We will reply by email as soon as possible.',
       epaonnistui: 'The message could not be sent. Please check your email address and try again later.', verkko: 'The message could not be sent. Check your network connection and try again.' },
-    sv: { tulossa: 'Kommer snart', saatavilla: 'Finns på Google Play · Android 10 eller nyare', eiViela: 'Kommer snart till Google Play. Vi meddelar det på den här sidan.',
-      taytaNimi: 'Fyll i namn och meddelande.', hyvaksy: 'Godkänn att uppgifterna används för att svara på meddelandet.', kiitos: 'Tack för ditt meddelande. Vi svarar per e-post så snart som möjligt.',
+    sv: { saatavilla: 'Finns på Google Play · Android 10 eller nyare', taytaNimi: 'Fyll i namn och meddelande.', hyvaksy: 'Godkänn att uppgifterna används för att svara på meddelandet.', kiitos: 'Tack för ditt meddelande. Vi svarar per e-post så snart som möjligt.',
       epaonnistui: 'Meddelandet kunde inte skickas. Kontrollera e-postadressen och försök igen senare.', verkko: 'Meddelandet kunde inte skickas. Kontrollera nätverksanslutningen och försök igen.' }
   };
   var T = TEKSTIT[KIELI] || TEKSTIT.fi;
 
   function etusivu(t) {
-    // Google Play: kun hallinnassa on linkki, kaikki [data-play]-painikkeet vievät Google Playhin ja tila näyttää
-    // "Saatavilla Google Playssa". Ilman linkkiä painikkeet ovat himmennettyjä ja tila on "Tulossa Google Playhin".
+    // Google Play: kun hallinnassa on linkki, kaikki [data-play]-painikkeet vievät Google Playhin ja niiden alla
+    // näkyy "Saatavilla Google Playssa · Android 10 tai uudempi". Ilman linkkiä sivu näyttää samalta, mutta painikkeet
+    // vievät sivun lataus-osioon. Linkki asetetaan hallinnassa, kun sovellus on julkaistu.
     var saatavilla = !!t.playLinkki;
     var napit = document.querySelectorAll('[data-play]');
-    for (var i = 0; i < napit.length; i++) {
-      var n = napit[i];
-      if (saatavilla) { n.href = t.playLinkki; n.rel = 'noopener'; n.removeAttribute('aria-disabled'); n.classList.remove('tulossa'); }
-      else { n.removeAttribute('href'); n.setAttribute('aria-disabled', 'true'); n.classList.add('tulossa'); var sm = n.querySelector('small'); if (sm) sm.textContent = T.tulossa; }
-    }
+    for (var i = 0; i < napit.length; i++) if (saatavilla) { napit[i].href = t.playLinkki; napit[i].rel = 'noopener'; }
     var tilat = document.querySelectorAll('[data-play-tila]');
     for (var j = 0; j < tilat.length; j++) {
+      tilat[j].hidden = !saatavilla;
       tilat[j].classList.toggle('saatavilla', saatavilla);
       var tx = tilat[j].querySelector('[data-play-teksti]');
-      if (tx) tx.textContent = saatavilla ? T.saatavilla : T.eiViela;
+      if (tx) tx.textContent = saatavilla ? T.saatavilla : '';
     }
     // Etusivun "Mittaa akku" -polku vie suoraan Google Playhin, kun linkki on asetettu; muuten lataus-osioon.
     var polut = document.querySelectorAll('[data-play-linkki]');

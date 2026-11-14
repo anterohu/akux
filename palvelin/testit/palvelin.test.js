@@ -420,7 +420,10 @@ test('etusivu: kolme kieltä samasta lähteestä, kielivalinta ja ei teknistä s
     for (const k of ['/', '/en', '/sv']) assert.ok(r.d.includes(`href="${k}"`), `${polku}: linkki kieleen ${k}`);
     assert.doesNotMatch(r.d, /SOH|kennoj|akunhallin|diagnostiikka|BMS|style="/i, `${polku}: ei teknistä sanastoa eikä inline-tyylejä`);
     assert.match(r.d, /data-play/);
+    assert.doesNotMatch(r.d, /Tulossa|Coming soon|Kommer snart|Ilmoitamme julkaisusta/i, `${polku}: ei "tulossa"-viestejä`);
   }
+  const js = fs.readFileSync(path.join(__dirname, '..', 'sivusto', 'sivusto.js'), 'utf8');
+  assert.doesNotMatch(js, /Tulossa|Coming soon|Kommer snart|aria-disabled/, 'sivusto.js ei näytä "tulossa"-tilaa eikä himmennä painikkeita');
 });
 
 test('tietosuoja ja anonyymi aineisto: oma raportti ja tili pois, tiedot ladattavissa, tilasto ilman tunnisteita, tyyppi tarkistetaan', async (t) => {

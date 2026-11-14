@@ -94,7 +94,7 @@ const valikkonappi = (t, kielet) => `<span class="kielet mobiili-kielet" role="g
 function sivu(kieli) {
   const t = KIELET[kieli];
   const playNappi = (iso) => `<a class="play-nappi${iso ? ' iso' : ''}" data-play href="#lataa">${PLAY}<span><small>${e(t.lataa)}</small>${e(t.play)}</span></a>`;
-  const playTila = `<p class="play-tila" data-play-tila><span class="piste"></span><span data-play-teksti>${e(t.playTila)}</span></p>`;
+  const playTila = `<p class="play-tila" data-play-tila hidden><span class="piste"></span><span data-play-teksti></span></p>`;
   const kielet = JARJESTYS.map(k => k === kieli
     ? `<a href="${KIELET[k].polku}" lang="${k}" aria-current="page">${k.toUpperCase()}</a>`
     : `<a href="${KIELET[k].polku}" lang="${k}" hreflang="${k}">${k.toUpperCase()}</a>`).join('');
@@ -127,7 +127,6 @@ ${JARJESTYS.map(k => `<link rel="alternate" hreflang="${k}" href="https://akveri
       <a class="polku ensisijainen" data-play-linkki href="#lataa">${IKONI_MITTAA}<b>${e(t.polut[0][0])}</b><span>${e(t.polut[0][1])}</span><em>${e(t.polut[0][2])} ›</em></a>
       <a class="polku" href="${SIVUPOLUT.tarkista[kieli]}">${IKONI_QR}<b>${e(t.polut[1][0])}</b><span>${e(t.polut[1][1])}</span><em>${e(t.polut[1][2])} ›</em></a>
     </div>
-    ${playTila}
   </div>
   <div class="kortti raporttikuva" aria-label="${e(t.esimerkki)}">
     <div class="otsake"><span>${e(t.raportti)}</span><span class="merkki neutraali">${e(t.esimerkki)}</span></div>
