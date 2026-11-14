@@ -307,7 +307,21 @@ jobs:
           SALASANA: ${{ secrets.AKVERI_LATAUSAVAIN_SALASANA }}
         run: |
           if [ -n "$AVAIN" ] && [ -n "$SALASANA" ]; then
-            echo "$AVAIN" | base64 -d > android/akveri-lataus.jks
+            # Kopioidussa tekstissä voi olla välilyöntejä tai rivinvaihtoja (myös Windowsin \r): ne poistetaan.
+            if ! printf '%s' "$AVAIN" | tr -d ' \r\n\t' | base64 -d > android/akveri-lataus.jks 2>/dev/null || [ ! -s android/akveri-lataus.jks ]; then
+              echo "::error::Salaisuus AKVERI_LATAUSAVAIN_JKS ei ole kelvollista base64-tekstiä. Kopioi avain uudelleen PowerShell-komennolla ja tallenna salaisuus uudelleen."
+              exit 1
+            fi
+            SALASANA=$(printf '%s' "$SALASANA" | tr -d '\r\n')
+            if ! keytool -list -keystore android/akveri-lataus.jks -storepass "$SALASANA" -alias akveri > /dev/null 2>&1; then
+              if keytool -list -keystore android/akveri-lataus.jks -storepass "$SALASANA" > /dev/null 2>&1; then
+                echo "::error::Avaintiedostossa ei ole avainta nimellä akveri. Avain on tehtävä valitsimella -alias akveri."
+              else
+                echo "::error::Avaintiedosto ei aukea salasanalla AKVERI_LATAUSAVAIN_SALASANA. Tarkista salasana (isot ja pienet kirjaimet) ja tallenna salaisuus uudelleen."
+              fi
+              exit 1
+            fi
+            echo "Latausavain luettu: $(keytool -list -v -keystore android/akveri-lataus.jks -storepass "$SALASANA" -alias akveri 2>/dev/null | grep -m1 'SHA256:' | sed 's/^ *//')"
             printf 'storeFile=akveri-lataus.jks\nstorePassword=%s\nkeyAlias=akveri\nkeyPassword=%s\n' "$SALASANA" "$SALASANA" > android/signing-play.properties
             echo "PLAY_AVAIN=1" >> $GITHUB_ENV
           else
