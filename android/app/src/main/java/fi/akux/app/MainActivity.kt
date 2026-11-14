@@ -84,7 +84,7 @@ class MainActivity : ComponentActivity() {
         billing.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(r: BillingResult) {
                 if (r.responseCode == BillingClient.BillingResponseCode.OK) action()
-                else reportPurchaseError("Google Play ei ole käytettävissä (${r.responseCode}).")
+                else reportPurchaseError(Kieli.t(this@MainActivity, "Google Play ei ole käytettävissä (${r.responseCode}).", "Google Play is not available (${r.responseCode}).", "Google Play är inte tillgängligt (${r.responseCode})."))
             }
             override fun onBillingServiceDisconnected() {}
         })
@@ -97,7 +97,7 @@ class MainActivity : ComponentActivity() {
                 js("window.akveriOsto && window.akveriOsto(${JSONObject.quote(product)}, ${JSONObject.quote(p.purchaseToken)})")
             }
             Purchase.PurchaseState.PENDING ->
-                runOnUiThread { Toast.makeText(this, "Maksu odottaa vahvistusta. Krediitit lisätään, kun maksu on vahvistettu.", Toast.LENGTH_LONG).show() }
+                runOnUiThread { Toast.makeText(this, Kieli.t(this, "Maksu odottaa vahvistusta. Krediitit lisätään, kun maksu on vahvistettu.", "The payment is awaiting confirmation. The credits will be added once the payment is confirmed.", "Betalningen väntar på bekräftelse. Krediterna läggs till när betalningen har bekräftats."), Toast.LENGTH_LONG).show() }
             else -> {}
         }
     }
@@ -246,7 +246,7 @@ class MainActivity : ComponentActivity() {
             runOnUiThread {
                 splashText.textSize = 16f
                 splashText.letterSpacing = 0f
-                splashText.text = "AKVERI ei käynnistynyt. Sulje sovellus ja avaa se uudelleen."
+                splashText.text = Kieli.t(this, "AKVERI ei käynnistynyt. Sulje sovellus ja avaa se uudelleen.", "AKVERI did not start. Close the app and open it again.", "AKVERI startade inte. Stäng appen och öppna den igen.")
             }
         }
     }
@@ -290,7 +290,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             } catch (e: Exception) {
-                runOnUiThread { Toast.makeText(this, e.message ?: "Tiedoston avaaminen epäonnistui", Toast.LENGTH_LONG).show() }
+                runOnUiThread { Toast.makeText(this, e.message ?: Kieli.t(this, "Tiedoston avaaminen epäonnistui", "Opening the file failed", "Det gick inte att öppna filen"), Toast.LENGTH_LONG).show() }
             }
         }
     }
@@ -317,6 +317,9 @@ class MainActivity : ComponentActivity() {
         @JavascriptInterface
         fun platform(): String = "android"
 
+        @JavascriptInterface
+        fun asetaKieli(kieli: String) = Kieli.aseta(this@MainActivity, kieli)
+
         /** Aloittaa Google Play -oston. tili sidotaan ostoon, jotta palvelin hyväksyy oston vain tälle tilille. */
         @JavascriptInterface
         fun osta(tuote: String, tili: String) {
@@ -328,7 +331,7 @@ class MainActivity : ComponentActivity() {
                 billing.queryProductDetailsAsync(params) { r, tulos ->
                     val d = tulos.productDetailsList.firstOrNull()
                     if (r.responseCode != BillingClient.BillingResponseCode.OK || d == null) {
-                        reportPurchaseError("Tuotetta ei löytynyt Google Playsta. Yritä myöhemmin uudelleen.")
+                        reportPurchaseError(Kieli.t(this@MainActivity, "Tuotetta ei löytynyt Google Playsta. Yritä myöhemmin uudelleen.", "The product was not found in Google Play. Please try again later.", "Produkten hittades inte i Google Play. Försök igen senare."))
                         return@queryProductDetailsAsync
                     }
                     val flow = BillingFlowParams.newBuilder()

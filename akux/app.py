@@ -44,6 +44,8 @@ class App:
         self.source = None
         self.lock = threading.RLock()
         self.notifier = Notifier(lambda: self.storage.settings())
+        from . import kielet
+        kielet.aseta(self.storage.settings().get("kieli"))
         self.last_frame_wall = 0.0
         self._outage_notified = False
         self._mark_interrupted()
@@ -180,7 +182,7 @@ class App:
         except Exception:  # noqa: BLE001
             return ""
         if tila == "peruttu":
-            self.storage.add_event(tid, time.time(), "Testilupa peruttiin, krediitti palautui tilille.")
+            self.storage.add_event(tid, time.time(), "Testilupa peruttiin, krediitit palautuivat tilille.")
         elif tila == "peru_odottaa":
             self.storage.add_event(tid, time.time(), "Testiluvan peruminen lähetetään, kun verkkoyhteys palaa.")
         elif tila == "hyvitettavissa":

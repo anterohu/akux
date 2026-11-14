@@ -51,6 +51,13 @@ def _fi(d=0):
 
 
 def _png(fig) -> bytes:
+    from . import kielet
+    if kielet.nykyinen() != "fi":
+        from matplotlib.text import Text
+        for teksti in fig.findobj(Text):
+            s = teksti.get_text()
+            if s:
+                teksti.set_text(kielet.t(s))
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=220, bbox_inches="tight", pad_inches=0.04)
     plt.close(fig)

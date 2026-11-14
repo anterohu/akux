@@ -49,6 +49,9 @@ class Notifier:
         priority = {"ongelmat": "high", "valmis": "default"}.get(laji, "low")
         tags = {"ongelmat": "warning", "valmis": "white_check_mark"}.get(laji, "battery")
 
+        from . import kielet  # noqa: PLC0415  ilmoitus ohjelman kielellä
+        title, message = kielet.t(title), kielet.t(message)
+
         def run():
             self.last_result = _post(url, title, message, priority, tags)
 

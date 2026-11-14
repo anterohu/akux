@@ -1,6 +1,6 @@
 """Krediitit ja testiluvat (akveri.fi).
 
-Yksi krediitti = yksi mittaus. Oikeasta autosta tehtävä mittaus alkaa vasta, kun palvelin on antanut testiluvan
+Mittauksen hinta krediitteinä riippuu mittaustyypistä (asetetaan akveri.fi:n hallinnassa). Oikeasta autosta tehtävä mittaus alkaa vasta, kun palvelin on antanut testiluvan
 (krediitti veloitetaan). Lupa on raportin tunnus, ja raportin QR-koodi avaa sen tarkistussivun.
 
 Peruminen: lupa on perumisajan (oletus 60 min) sisällä peruttavissa, jos mittaus keskeytetään, ja krediitti

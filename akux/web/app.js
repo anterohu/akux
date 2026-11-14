@@ -41,13 +41,13 @@ function esc(s) {
 }
 function n(x, d = 1) {
   if (x === null || x === undefined || Number.isNaN(x)) return "–";
-  return Number(x).toLocaleString("fi-FI", { minimumFractionDigits: d, maximumFractionDigits: d });
+  return Number(x).toLocaleString(LOKAALI, { minimumFractionDigits: d, maximumFractionDigits: d });
 }
 function date(ts, time = true) {
   if (!ts) return "–";
   const o = { day: "numeric", month: "numeric", year: "numeric" };
   if (time) Object.assign(o, { hour: "2-digit", minute: "2-digit" });
-  return new Date(ts * 1000).toLocaleString("fi-FI", o);
+  return new Date(ts * 1000).toLocaleString(LOKAALI, o);
 }
 function dur(s) {
   if (s == null) return "–";
@@ -777,7 +777,7 @@ views.autot = {
         <div class="card"><h2>Perustiedot</h2><dl class="kv">
           <dt>Valmistenumero</dt><dd>${esc(v.vin || "–")}</dd><dt>Rekisteri</dt><dd>${esc(v.rekisteri || "–")}</dd>
           <dt>Omistaja</dt><dd>${esc(v.omistaja || "–")}</dd><dt>Vuosimalli</dt><dd>${esc(v.vuosimalli || "–")}</dd>
-          <dt>Käyttöönotto</dt><dd>${esc(v.kayttoonotto || "–")}</dd>
+          <dt>Käyttöönottopäivä</dt><dd>${esc(v.kayttoonotto || "–")}</dd>
           <dt>Tehdas</dt><dd>${esc((v.vin_tiedot || {}).tehdas || "–")}</dd><dt>Voimalinja</dt><dd>${esc((v.vin_tiedot || {}).voimalinja || "–")}</dd></dl></div>
         <div class="card"><h2>Akku</h2><dl class="kv">
           <dt>Akkutyyppi</dt><dd>${esc(m.kennotyyppi || m.kemia || o.kemia || "–")}</dd>
@@ -949,8 +949,8 @@ views.ohjeet = {
 const LUPA_TILAT = {
   rekisteroity: ["good", "Rekisteröity", "Raportti on rekisteröity. Vastaanottaja voi tarkistaa sen QR-koodilla tai osoitteessa akveri.fi/v/"],
   varattu: ["warn", "Odottaa rekisteröintiä", "Raportti rekisteröidään tarkistettavaksi, kun mittaus on valmis ja verkkoyhteys on käytettävissä. Tarkistusosoite: akveri.fi/v/"],
-  peruttu: ["bad", "Peruttu", "Testilupa peruttiin ja krediitti palautui. Mittauksesta ei tehdä raporttia."],
-  peru_odottaa: ["warn", "Peruminen odottaa", "Lupa perutaan ja krediitti palautuu, kun verkkoyhteys palaa."],
+  peruttu: ["bad", "Peruttu", "Testilupa peruttiin ja krediitit palautuivat. Mittauksesta ei tehdä raporttia."],
+  peru_odottaa: ["warn", "Peruminen odottaa", "Lupa perutaan ja krediitit palautuvat, kun verkkoyhteys palaa."],
   osa: ["good", "Osa mittauksesta", "Tämä on osa täydestä akkutestistä. Tarkistettava raportti on koko mittauksen raportti: akveri.fi/v/"],
   tuotu: ["", "Avattu tiedostosta", "Mittaus on avattu mittaustiedostosta. Raportti rekisteröidään sillä laitteella, jolla mittaus tehtiin. Tarkistusosoite: akveri.fi/v/"],
   ei_rekisteroitavissa: ["bad", "Rekisteröinti hylätty", "AKVERI-palvelu ei hyväksynyt raportin rekisteröintiä. Syy näkyy tapahtumissa. Ota tarvittaessa yhteyttä asiakaspalveluun."],
@@ -1023,6 +1023,10 @@ views.asetukset = {
     view.innerHTML = `<div class="head"><div><h1>Asetukset</h1><div class="muted">Raporttien yritystiedot, mittauksen raja-arvot, puhelinkäyttö ja ilmoitukset</div></div>
       <button class="btn primary" id="sSave">Tallenna asetukset</button></div>
     <div id="sForm">
+      <div class="card"><h2>Kieli</h2>
+        <label class="f"><span>Ohjelman ja raporttien kieli</span><select id="sKieli">${[["fi", "Suomi"], ["en", "English"], ["sv", "Svenska"]].map(([k, t]) => `<option value="${k}" ${KIELI === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        <p class="small muted">Uudet raportit tehdään valitulla kielellä. Jo tehdyn raportin voi tulostaa uudelleen uudella kielellä.</p>
+      </div>
       <div class="card"><h2>Yritys ja raportit</h2>
         <p class="small muted">Tiedot näkyvät jokaisen raportin yläreunassa.</p>
         <div class="grid g2">
@@ -1107,6 +1111,10 @@ views.asetukset = {
       </div>
     </div>`;
     const save = () => act(() => api("/api/asetukset", { method: "POST", body: form($("#sForm")) }), "Asetukset tallennettu");
+    $("#sKieli").onchange = async e => {
+      try { await api("/api/kieli", { method: "POST", body: { kieli: e.target.value } }); } catch (x) { toast(x.message, true); return; }
+      asetaKieli(e.target.value); location.reload();
+    };
     $("#sSave").onclick = () => save().then(() => this.render());
     $("#nTest").onclick = () => act(() => api("/api/ilmoitus/testi", { method: "POST", body: { osoite: $("#nUrl").value } }), "Testi-ilmoitus lähetetty. Tarkista puhelin.");
     const rs = $("#sRestart");
@@ -1267,8 +1275,29 @@ document.addEventListener("click", e => {
 $("#quitM").onclick = e => { e.preventDefault(); document.body.classList.remove("menu-open"); quitApp(); };
 
 // ---------- käynnistys ----------
-route();
-poll();
-pollTimer = setInterval(poll, 1000);
+// Kieli: ensimmäisellä käynnistyksellä asiakas valitsee kielen. Valinta tallennetaan ohjelmaan (koskee myös raportteja).
+async function kaynnista() {
+  let k = null;
+  try { k = (await api("/api/kieli")).kieli; } catch (e) { /* ohjelma vastaa pian */ }
+  if (k && k !== KIELI) { asetaKieli(k); location.reload(); return; }
+  if (!k) { naytaKielivalinta(); return; }
+  await alustaKieli();
+  if (ANDROID && window.AkuxAndroid.asetaKieli) { try { window.AkuxAndroid.asetaKieli(KIELI); } catch (e) { /* vanha sovellus */ } }
+  route();
+  poll();
+  pollTimer = setInterval(poll, 1000);
+}
+function naytaKielivalinta() {
+  view.innerHTML = `<div class="card kielivalinta" style="max-width:460px;margin:40px auto;text-align:center">
+    <h1>AKVERI</h1><p class="muted">Valitse kieli · Choose your language · Välj språk</p>
+    <div class="row" style="justify-content:center;gap:10px;flex-wrap:wrap">
+      <button class="btn primary" data-kieli="fi">Suomi</button><button class="btn primary" data-kieli="en">English</button><button class="btn primary" data-kieli="sv">Svenska</button>
+    </div><p class="small muted" style="margin-top:14px">Kielen voi vaihtaa myöhemmin asetuksista. · You can change it later in Settings. · Du kan ändra det senare i inställningarna.</p></div>`;
+  $$("[data-kieli]").forEach(b => (b.onclick = async () => {
+    try { await api("/api/kieli", { method: "POST", body: { kieli: b.dataset.kieli } }); } catch (e) { toast(e.message, true); return; }
+    asetaKieli(b.dataset.kieli); location.reload();
+  }));
+}
+kaynnista();
 // Google Play: kesken jääneet ostot kirjataan, kun käyttöliittymä on valmis
 if (ANDROID && window.AkuxAndroid.palautaOstot) setTimeout(() => { try { window.AkuxAndroid.palautaOstot(); } catch (e) { /* ei Google Playta */ } }, 1500);

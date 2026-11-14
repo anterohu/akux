@@ -34,8 +34,8 @@ class AkuxService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL, "AKVERI käynnissä", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Näkyy, kun AKVERI on käynnissä ja voi mitata"
+            NotificationChannel(CHANNEL, Kieli.t(this, "AKVERI käynnissä", "AKVERI running", "AKVERI körs"), NotificationManager.IMPORTANCE_LOW).apply {
+                description = Kieli.t(this@AkuxService, "Näkyy, kun AKVERI on käynnissä ja voi mitata", "Shown when AKVERI is running and can measure", "Visas när AKVERI körs och kan mäta")
             }
         )
         val open = PendingIntent.getActivity(
@@ -43,8 +43,8 @@ class AkuxService : Service() {
             PendingIntent.FLAG_IMMUTABLE
         )
         val n: Notification = Notification.Builder(this, CHANNEL)
-            .setContentTitle("AKVERI on käynnissä")
-            .setContentText("Mittaus jatkuu, vaikka näyttö sammuu.")
+            .setContentTitle(Kieli.t(this, "AKVERI on käynnissä", "AKVERI is running", "AKVERI körs"))
+            .setContentText(Kieli.t(this, "Mittaus jatkuu, vaikka näyttö sammuu.", "The test continues even when the screen turns off.", "Testet fortsätter även när skärmen släcks."))
             .setSmallIcon(R.drawable.ic_stat_akux)
             .setContentIntent(open)
             .setOngoing(true)

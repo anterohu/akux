@@ -132,15 +132,15 @@ OHJE = [
     {
         "id": "krediitit", "otsikko": "Krediitit ja raportin tarkistus",
         "osat": [
-            ("p", "Yksi krediitti kattaa yhden mittauksen ja sen raportin. Krediitit ostetaan Android-sovelluksen "
-                  "<b>Krediitit</b>-sivulla Google Playn kautta. Krediitti veloitetaan, kun mittaus aloitetaan."),
+            ("p", "Mittaukset maksetaan krediiteillä. Kunkin mittauksen hinta näkyy ennen aloitusta. Krediitit ostetaan "
+                  "Android-sovelluksen <b>Krediitit</b>-sivulla Google Playn kautta. Krediitit veloitetaan, kun mittaus aloitetaan."),
             ("ul", [
                 "<b>Raportin tunnus:</b> jokainen mittaus saa tunnuksen (esimerkiksi AK-7H2QK-M4XPC). Tunnus ja QR-koodi ovat "
                 "raportin ensimmäisellä sivulla. QR-koodi avaa sivun akveri.fi/v/tunnus, jolla raportin vastaanottaja näkee "
                 "rekisteröidyt tulokset ja voi verrata auton valmistenumeroa.",
                 "<b>Rekisteröinti:</b> valmis mittaus rekisteröidään akveri.fi-palveluun automaattisesti. Jos verkkoyhteyttä ei ole, "
                 "rekisteröinti tehdään heti, kun yhteys palaa. Mittauksen aloittaminen vaatii verkkoyhteyden.",
-                "<b>Keskeytys:</b> jos keskeytät mittauksen tunnin kuluessa alusta, krediitti palautuu automaattisesti. "
+                "<b>Keskeytys:</b> jos mittaus keskeytyy heti alussa, sen krediitit palautuvat automaattisesti. "
                 "Jos mittaus keskeytyy myöhemmin AKVERIsta johtuvasta syystä, lähetä mittauksen sivulta hyvityspyyntö.",
                 "<b>Akun kunto ennen mittausta:</b> akun kunto ja kapasiteetti näkyvät mittauksen aikana ja raportissa, eivät "
                 "yhteyden muodostamisen jälkeen ilman mittausta.",
@@ -441,6 +441,10 @@ def as_html() -> list[dict]:
 
 
 def build_pdf(path, settings=None):
+    from . import kielet  # noqa: PLC0415  ohje ohjelman kielellä
+
+    def _P(text, *a, **kw):
+        return Paragraph(kielet.t_html(text), *a, **kw)
     """Käyttöohje PDF-muodossa."""
     from reportlab.platypus import (KeepTogether, ListFlowable, ListItem, PageBreak, Paragraph, SimpleDocTemplate,
                                     Spacer, Table, TableStyle)
@@ -453,33 +457,33 @@ def build_pdf(path, settings=None):
         c.saveState()
         c.setFont("Inter", 7)
         c.setFillColor(MUTED)
-        c.drawString(18 * mm, 10 * mm, f"{NIMI} {VERSIO} · Käyttöohje")
+        c.drawString(18 * mm, 10 * mm, f"{NIMI} {VERSIO} · " + kielet.t("Käyttöohje"))
         c.drawRightString(A4[0] - 18 * mm, 10 * mm, f"Sivu {d.page}")
         c.restoreState()
 
     doc = SimpleDocTemplate(str(path), pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm,
                             topMargin=18 * mm, bottomMargin=18 * mm, title=f"{NIMI} – käyttöohje", author=NIMI)
-    E = [Paragraph(f"{NIMI}", ST["h1"]), Paragraph("Käyttöohje", ST["sub"]), Spacer(1, 4 * mm),
-         Paragraph(f"Versio {VERSIO}", ST["small"]), Spacer(1, 8 * mm)]
-    E.append(Paragraph("Sisältö", ST["h3"]))
+    E = [_P(f"{NIMI}", ST["h1"]), _P("Käyttöohje", ST["sub"]), Spacer(1, 4 * mm),
+         _P(f"Versio {VERSIO}", ST["small"]), Spacer(1, 8 * mm)]
+    E.append(_P("Sisältö", ST["h3"]))
     for i, sec in enumerate(OHJE, 1):
-        E.append(Paragraph(f"{i}. {sec['otsikko']}", ST["body"]))
-    E.append(Paragraph(f"{len(OHJE) + 1}. Sanasto", ST["body"]))
+        E.append(_P(f"{i}. {sec['otsikko']}", ST["body"]))
+    E.append(_P(f"{len(OHJE) + 1}. Sanasto", ST["body"]))
     E.append(PageBreak())
     for i, sec in enumerate(OHJE, 1):
-        block = [Paragraph(f"{i}. {sec['otsikko']}", ST["h2"])]
+        block = [_P(f"{i}. {sec['otsikko']}", ST["h2"])]
         for kind, body in sec["osat"]:
             if kind == "p":
-                block.append(Paragraph(body, ST["body"]))
+                block.append(_P(body, ST["body"]))
                 block.append(Spacer(1, 2 * mm))
             elif kind == "note":
-                t = Table([[Paragraph(body, ST["smallink"])]], colWidths=[A4[0] - 36 * mm])
+                t = Table([[_P(body, ST["smallink"])]], colWidths=[A4[0] - 36 * mm])
                 t.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), PANEL),
                                        ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
                                        ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6)]))
                 block += [t, Spacer(1, 2 * mm)]
             else:
-                items = [ListItem(Paragraph(x, ST["body"]), leftIndent=14) for x in body]
+                items = [ListItem(_P(x, ST["body"]), leftIndent=14) for x in body]
                 block.append(ListFlowable(items, bulletType="1" if kind == "ol" else "bullet",
                                           start="1" if kind == "ol" else None, bulletFontName="Inter",
                                           bulletFormat="%s." if kind == "ol" else None,
@@ -489,8 +493,8 @@ def build_pdf(path, settings=None):
         E.append(KeepTogether(block[:3]))
         E += block[3:]
         E.append(Spacer(1, 5 * mm))
-    E.append(Paragraph(f"{len(OHJE) + 1}. Sanasto", ST["h2"]))
-    rows = [[Paragraph(a, ST["cellb"]), Paragraph(b, ST["cell"])] for a, b in SANASTO]
+    E.append(_P(f"{len(OHJE) + 1}. Sanasto", ST["h2"]))
+    rows = [[_P(a, ST["cellb"]), _P(b, ST["cell"])] for a, b in SANASTO]
     t = Table(rows, colWidths=[48 * mm, A4[0] - 36 * mm - 48 * mm])
     t.setStyle(TableStyle([("LINEBELOW", (0, 0), (-1, -1), 0.5, LINE), ("VALIGN", (0, 0), (-1, -1), "TOP"),
                            ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),

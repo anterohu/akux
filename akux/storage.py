@@ -67,6 +67,7 @@ def default_data_dir() -> Path:
 
 
 OLETUSASETUKSET = {
+    "kieli": None,  # fi, en tai sv; valitaan ensimmäisellä käynnistyksellä (kielet.py)
     "yritys_nimi": "",
     "yritys_osoite": "",
     "yritys_ytunnus": "",

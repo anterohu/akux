@@ -143,7 +143,7 @@ def selftest(app, full: bool = True) -> dict:
 
     def files():
         need = [PKG / "web" / "index.html", PKG / "web" / "app.js", PKG / "web" / "style.css",
-                PKG / "data" / "profiles.json"] + [PKG / "data" / "fonts" / f"Inter-{w}.ttf"
+                PKG / "data" / "profiles.json", PKG / "web" / "kaannos.js", PKG / "data" / "kielet" / "en.json", PKG / "data" / "kielet" / "sv.json"] + [PKG / "data" / "fonts" / f"Inter-{w}.ttf"
                                                     for w in ("Regular", "Medium", "SemiBold", "Bold")]
         missing = [p.name for p in need if not p.exists()]
         return ("ok", "Kaikki ohjelmatiedostot löytyvät.") if not missing else ("virhe", "Puuttuu: " + ", ".join(missing))
@@ -156,6 +156,16 @@ def selftest(app, full: bool = True) -> dict:
             nt = st.db.execute("SELECT COUNT(*) FROM tests").fetchone()[0]
         return ("ok", f"Tietokanta on eheä. Autoja {nv}, mittauksia {nt}.") if r == "ok" else ("virhe", r)
     out.append(_check("Tietokanta", db))
+
+    def kieli_ok():
+        from . import kielet  # noqa: PLC0415
+        en, sv = kielet.sanasto("en"), kielet.sanasto("sv")
+        if not en or set(en) != set(sv):
+            return "virhe", "Kielitiedostot puuttuvat tai ovat keskenään eri laajuiset."
+        if kielet.t("Aloita mittaus", "en") != "Start test" or kielet.t("Aloita mittaus", "sv") != "Starta testet":
+            return "virhe", "Käännös ei toimi."
+        return "ok", f"Suomi, englanti ja ruotsi käytössä ({len(en)} tekstiä). Valittu kieli: {kielet.KIELET.get(kielet.nykyinen())}."
+    out.append(_check("Kielet", kieli_ok))
 
     def disk():
         free = shutil.disk_usage(st.dir).free / 1e9

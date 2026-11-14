@@ -16,7 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import NIMI, VERSIO, analysis, docs, maintenance, mittaustiedosto, profiles, report
+from . import NIMI, VERSIO, analysis, docs, kielet, maintenance, mittaustiedosto, profiles, report
 from . import krediitit as krediittimoduuli
 from . import vin as vinmod
 from .app import App
@@ -658,6 +658,26 @@ class Api:
         return {"ok": ok, "rivit": n, "tarkiste": h.hexdigest(), "tallennettu": t.get("tarkiste"),
                 "viesti": "Raakadata on muuttumaton." if ok else "Raakadatan tarkiste ei täsmää."}
 
+    # -- kieli -----------------------------------------------------------
+    # Kieli valitaan ensimmäisellä käynnistyksellä ja sitä voi vaihtaa asetuksista. Sama kieli koskee raportteja.
+    def kieli(self, q, body):
+        k = self.app.settings.get("kieli")
+        return {"kieli": k if k in kielet.KIELET else None, "kielet": kielet.KIELET}
+
+    def aseta_kieli(self, q, body):
+        k = str(body.get("kieli") or "")
+        if k not in kielet.KIELET:
+            raise ApiError("Tuntematon kieli.")
+        self.app.storage.save_settings({"kieli": k})
+        kielet.aseta(k)
+        return {"ok": True, "kieli": k}
+
+    def kielen_sanasto(self, q, body):
+        k = (q.get("kieli") or [""])[0]
+        if k not in kielet.KIELET:
+            raise ApiError("Tuntematon kieli.")
+        return kielet.sanasto(k)
+
     # -- asetukset ------------------------------------------------------
     def asetukset(self, q, body):
         s = self.app.settings
@@ -672,6 +692,11 @@ class Api:
     def tallenna_asetukset(self, q, body):
         for k in ("puhelin_avain", "tili", "tili_avain", "palvelu_osoite", "esittely"):
             body.pop(k, None)
+        if "kieli" in body:
+            if body["kieli"] not in kielet.KIELET:
+                body.pop("kieli")
+            else:
+                kielet.aseta(body["kieli"])
         # Mittausten raja-arvot: virheellinen tai tyhjä arvo jätetään pois, muut rajataan järkevälle välille
         limits = {"lepo_alku_min": (0, 240), "lepo_loppu_min": (0, 240), "kapasiteetti_lahto_soc_max": (5, 60),
                   "lampotila_min": (-20, 40), "lampotila_max": (0, 60), "ajo_lepo_min": (0, 240),
@@ -776,6 +801,7 @@ ROUTES = [
     ("POST", r"/api/mittaukset/(\d+)/tallenna", "tallenna_kansioon"), ("GET", r"/api/mittaukset/(\d+)/tarkista", "tarkista"),
     ("POST", r"/api/mittaukset/(\d+)/laske-uudelleen", "laske_uudelleen"),
     ("POST", r"/api/mittaukset/(\d+)/riippumattomuus", "aseta_riippumattomuus"), ("POST", r"/api/mittaukset/(\d+)/jaa", "jaa_osiin"),
+    ("GET", r"/api/kieli", "kieli"), ("POST", r"/api/kieli", "aseta_kieli"), ("GET", r"/api/kieli/sanasto", "kielen_sanasto"),
     ("GET", r"/api/asetukset", "asetukset"), ("POST", r"/api/asetukset", "tallenna_asetukset"),
     ("POST", r"/api/vaylakartoitus", "aloita_kartoitus"), ("GET", r"/api/vaylakartoitus", "kartoitus"),
     ("POST", r"/api/ajoneuvot/(\d+)/kuva", "auton_kuva"),

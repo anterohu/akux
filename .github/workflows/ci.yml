@@ -52,6 +52,8 @@ jobs:
         run: python tests/test_mittaustiedosto.py
       - name: Kaikki automallit
         run: python tests/test_mallit.py
+      - name: Kielet (suomi, englanti, ruotsi)
+        run: python tests/test_kielet.py
 
   palvelin:
     name: akveri.fi-palvelin ja krediitit

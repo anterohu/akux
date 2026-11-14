@@ -16,7 +16,7 @@ from reportlab.platypus import (BaseDocTemplate, CondPageBreak, Flowable, Frame,
                                 NextPageTemplate, PageBreak, PageTemplate, Paragraph, Spacer, Table,
                                 TableStyle)
 
-from . import NIMI, VERSIO, charts, profiles
+from . import NIMI, VERSIO, charts, kielet, profiles
 from .analysis import fmt
 
 FONT_DIR = Path(__file__).parent / "data" / "fonts"
@@ -65,13 +65,22 @@ ST = {
 }
 
 
-_BRAND = {"gen": "Teslan"}       # raportin auton merkki genetiivissä (asetetaan raporttia muodostettaessa)
+_BRAND = {"gen": "Teslan", "nimi": "Tesla"}  # raportin auton merkki (asetetaan raporttia muodostettaessa)
+
+
+def _t(text):
+    """Raportin teksti valitulla kielellä (kielet.py). Sanastossa merkkinä on Tesla; muu merkki vaihdetaan käännökseen."""
+    if not isinstance(text, str):
+        return text
+    if kielet.nykyinen() == "fi":
+        return text.replace("Teslan ", _BRAND["gen"] + " ") if _BRAND["gen"] != "Teslan" else text
+    lahde = text.replace(_BRAND["gen"] + " ", "Teslan ") if _BRAND["gen"] != "Teslan" else text
+    tulos = kielet.t(lahde)
+    return tulos.replace("Tesla", _BRAND["nimi"]) if _BRAND["nimi"] != "Tesla" else tulos
 
 
 def P(text, style="body"):
-    if _BRAND["gen"] != "Teslan" and isinstance(text, str):
-        text = text.replace("Teslan ", _BRAND["gen"] + " ")
-    return Paragraph(text, ST[style] if isinstance(style, str) else style)
+    return Paragraph(_t(text), ST[style] if isinstance(style, str) else style)
 
 
 GRADE_LEVEL = {"Erinomainen": 5, "Kunnossa": 5, "Hyvä": 4, "Tyydyttävä": 3, "Huomioitava": 3,
@@ -326,6 +335,7 @@ class SohBand(Flowable):
 
 
 def _table(rows, widths, header=True, zebra=False, valign="MIDDLE", pad=4):
+    rows = [[_t(c) if isinstance(c, str) else c for c in r] for r in rows]
     t = Table(rows, colWidths=widths, hAlign="LEFT")
     style = [
         ("VALIGN", (0, 0), (-1, -1), valign),
@@ -705,7 +715,27 @@ class ReportDoc(BaseDocTemplate):
 
 
 # ----------------------------------------------------------------------
-def build(storage, tid: int, out_path: Path | None = None) -> Path:
+def build(storage, tid: int, out_path: Path | None = None, kieli: str | None = None) -> Path:
+    """Muodostaa raportin. Kieli on ohjelman kieli (asetukset), ellei sitä anneta. Sivujen kehyksen tekstit (otsakkeet,
+    allekirjoitusrivit, mittarien otsikot) käännetään piirtovaiheessa samalla sanastolla kuin kappaleet."""
+    from reportlab.pdfgen.canvas import Canvas
+    alkuperaiset = {n: getattr(Canvas, n) for n in ("drawString", "drawCentredString", "drawRightString")}
+
+    def kaantava(f):
+        def piirra(self, x, y, text, *a, **kw):
+            return f(self, x, y, _t(text) if isinstance(text, str) else text, *a, **kw)
+        return piirra
+    with kielet.kaytossa(kieli or kielet.nykyinen()):
+        try:
+            for n, f in alkuperaiset.items():
+                setattr(Canvas, n, kaantava(f))
+            return _build(storage, tid, out_path)
+        finally:
+            for n, f in alkuperaiset.items():
+                setattr(Canvas, n, f)
+
+
+def _build(storage, tid: int, out_path: Path | None = None) -> Path:
     test = storage.test(tid)
     from . import krediitit as _kr
     if test and not _kr.tulos_naytettavissa(test):
@@ -721,6 +751,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
     from .analysis import MERKKI_GEN
     brand = veh.get("merkki") or "Tesla"
     _BRAND["gen"] = MERKKI_GEN.get(brand, f"{brand}in")
+    _BRAND["nimi"] = brand
     vi = veh.get("vin_tiedot") or {}
     cap = r.get("kapasiteetti") or {}
     bms = r.get("bms") or {}
@@ -911,7 +942,7 @@ def build(storage, tid: int, out_path: Path | None = None) -> Path:
         ("Valmistustehdas", vi.get("tehdas")),
         ("Voimalinja", vi.get("voimalinja")),
         ("Mittarilukema", f"{fmt(odo, 0)} km" if odo else None),
-        ("Käyttöönotto", (r.get("takuu") or {}).get("kayttoonotto")),
+        ("Käyttöönottopäivä", (r.get("takuu") or {}).get("kayttoonotto")),
     ]
     kk = r.get("kapasiteetit") or {}
     right = [
