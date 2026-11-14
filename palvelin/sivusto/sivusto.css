@@ -182,8 +182,8 @@ section.osio { scroll-margin-top: 76px; }
 
 /* Kielivalinta (etusivu: suomi, englanti, ruotsi) */
 .kielet { display: inline-flex; gap: 2px; border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
-.valikko .kielet a { padding: 2px 9px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--muted); }
-.valikko .kielet a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
+.kielet a { padding: 2px 9px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.kielet a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
 #hinta .selite { max-width: 680px; }
 
 /* Huoltosivu */
@@ -198,3 +198,55 @@ section.osio { scroll-margin-top: 76px; }
 .valinta-rivi { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
 .valinta-rivi input[type="checkbox"] { width: auto; min-height: 0; margin: 0; flex: none; }
 .valinta-rivi { font-weight: 500; }
+
+/* Kaksi polkua etusivun alussa: myyjä mittaa, ostaja tarkistaa */
+.polut { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; max-width: 540px; }
+.polku { display: flex; flex-direction: column; gap: 2px; padding: 16px 18px; border-radius: var(--radius); border: 2px solid var(--accent); color: var(--ink); text-decoration: none; background: var(--panel); }
+.polku svg { width: 24px; height: 24px; color: var(--accent); margin-bottom: 8px; }
+.polku b { font-size: 17px; line-height: 1.25; }
+.polku span { font-size: 14px; color: var(--muted); }
+.polku em { font-style: normal; font-weight: 600; font-size: 14px; color: var(--accent); margin-top: 12px; }
+.polku.ensisijainen { background: var(--accent); color: var(--accent-ink); }
+.polku.ensisijainen svg, .polku.ensisijainen span, .polku.ensisijainen em { color: var(--accent-ink); }
+.polku.ensisijainen span { opacity: .85; }
+.polku:hover { filter: brightness(1.06); }
+
+/* Valikkopainike ja kielivalinta puhelimessa */
+.valikkonappi, .mobiili-kielet { display: none; }
+.valikkonappi { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); flex-direction: column; align-items: center; justify-content: center; gap: 5px; cursor: pointer; padding: 0; }
+.valikkonappi span { display: block; width: 20px; height: 2px; background: var(--ink); border-radius: 1px; }
+
+@media (max-width: 760px) {
+  .yla { flex-wrap: wrap; gap: 0 10px; padding-top: 8px; padding-bottom: 8px; }
+  .yla .logo { margin-right: auto; }
+  .valikkonappi, .mobiili-kielet { display: inline-flex; }
+  .valikko { display: none; width: 100%; flex-direction: column; align-items: stretch; gap: 0; padding: 6px 0 10px; }
+  .yla.auki .valikko { display: flex; }
+  .valikko > a { padding: 12px 2px; border-bottom: 1px solid var(--line); }
+  .valikko > .kielet { display: none; }
+  .valikko > .nappi.pieni { margin-top: 12px; border-bottom: 0; }
+  .sankari { gap: 22px; padding-top: 18px; padding-bottom: 30px; }
+  .sankari h1 { font-size: 31px; margin-bottom: 10px; }
+  .sankari p.johdanto { font-size: 16px; margin-bottom: 18px; }
+  .ylaotsikko { display: none; }
+  .play-tila { margin-top: 12px; font-size: 13px; }
+  /* Edut kolmena pienenä ruutuna ilman selitystekstiä */
+  .perusteet { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .perusteet > div { padding: 12px 8px; border-bottom: 0 !important; border-right: 1px solid var(--line) !important; text-align: center; }
+  .perusteet > div:last-child { border-right: 0 !important; }
+  .perusteet b { font-size: 13px; line-height: 1.3; }
+  .perusteet span { display: none; }
+  section.osio { padding: 30px 0 0; }
+  section.osio > .leveys > p.selite { margin-bottom: 14px; }
+  /* Vaiheet tiiviinä luettelona */
+  .vaiheet { gap: 8px; }
+  .vaiheet .kortti { display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: 12px; padding: 12px 14px; }
+  .vaiheet .numero { width: 30px; height: 30px; margin: 0; grid-row: span 2; font-size: 14px; }
+  .vaiheet .kortti h3 { font-size: 16px; margin: 0; }
+  .vaiheet .kortti p { font-size: 14px; }
+  .merkit { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .merkit span { flex: none; padding: 6px 12px; font-size: 14px; }
+  .kortti.lataa { gap: 14px; }
+  .kortti.lataa > * { min-width: 0; }
+}
+@media (max-width: 380px) { .polut { grid-template-columns: 1fr; } }

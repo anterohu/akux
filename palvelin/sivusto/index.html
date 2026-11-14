@@ -15,7 +15,8 @@
 <body data-sivu="etusivu">
 <div class="yla-tausta"><header class="leveys yla">
   <a class="logo" href="/" aria-label="AKVERI – etusivulle"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46.5" fill="none" stroke="currentColor" stroke-width="6"/><circle cx="50" cy="50" r="37" fill="none" stroke="currentColor" stroke-opacity=".38" stroke-width="1.8" stroke-dasharray="2 4"/><path d="M33 71 L50 28 L67 71" fill="none" stroke="currentColor" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><line x1="40.5" y1="57" x2="59.5" y2="57" stroke="#6CC193" stroke-width="7.5" stroke-linecap="round"/></svg><span>AKVERI</span></a>
-  <nav class="valikko" aria-label="Päävalikko"><a href="#miten">Näin se toimii</a><a href="#hinta">Hinta</a><a href="#tarkista">Tarkista raportti</a><a href="/yhteystiedot">Yhteystiedot</a><span class="kielet" role="group" aria-label="Kieli"><a href="/" lang="fi" aria-current="page">FI</a><a href="/en" lang="en" hreflang="en">EN</a><a href="/sv" lang="sv" hreflang="sv">SV</a></span><a class="nappi pieni" href="#lataa">Lataa sovellus</a></nav>
+  <span class="kielet mobiili-kielet" role="group" aria-label="Kieli"><a href="/" lang="fi" aria-current="page">FI</a><a href="/en" lang="en" hreflang="en">EN</a><a href="/sv" lang="sv" hreflang="sv">SV</a></span><button class="valikkonappi" type="button" aria-expanded="false" aria-controls="paavalikko" aria-label="Valikko"><span></span><span></span><span></span></button>
+  <nav class="valikko" id="paavalikko" aria-label="Päävalikko"><a href="#miten">Näin se toimii</a><a href="#hinta">Hinta</a><a href="#tarkista">Tarkista raportti</a><a href="/yhteystiedot">Yhteystiedot</a><span class="kielet" role="group" aria-label="Kieli"><a href="/" lang="fi" aria-current="page">FI</a><a href="/en" lang="en" hreflang="en">EN</a><a href="/sv" lang="sv" hreflang="sv">SV</a></span><a class="nappi pieni" href="#lataa">Lataa sovellus</a></nav>
 </header></div>
 <main>
 
@@ -24,9 +25,9 @@
     <p class="ylaotsikko">Sähköauton akun kuntotesti</p>
     <h1>Tiedä akun kunto ennen kauppaa.</h1>
     <p class="johdanto">AKVERI mittaa sähköauton akun kunnon puhelimella. Saat selkeän raportin, jonka aitouden ostaja voi tarkistaa.</p>
-    <div class="toiminnot">
-      <a class="play-nappi" data-play href="#lataa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5v17a.5.5 0 0 0 .76.43l14-8.5a.5.5 0 0 0 0-.86l-14-8.5A.5.5 0 0 0 5 3.5z" fill="currentColor"/></svg><span><small>Lataa sovellus</small>Google Playsta</span></a>
-      <a class="nappi toissijainen" href="#tarkista">Tarkista raportti</a>
+    <div class="polut">
+      <a class="polku ensisijainen" data-play-linkki href="#lataa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><b>Mittaa akku</b><span>Myyjälle ja omistajalle</span><em>Lataa sovellus ›</em></a>
+      <a class="polku" href="/tarkista"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2v2h-2zM18 14h2v2h-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><b>Tarkista raportti</b><span>Ostajalle</span><em>Skannaa QR-koodi ›</em></a>
     </div>
     <p class="play-tila" data-play-tila><span class="piste"></span><span data-play-teksti>Android-sovellus · Google Play</span></p>
   </div>
@@ -47,7 +48,7 @@
 
 <section class="osio" id="miten"><div class="leveys">
   <h2>Näin se toimii</h2>
-  <div class="ruudukko">
+  <div class="ruudukko vaiheet">
     <div class="kortti"><span class="numero">1</span><h3>Kytke lukulaite</h3><p>Pieni lukulaite kytketään auton OBD-liitäntään ja yhdistetään puhelimeen.</p></div>
     <div class="kortti"><span class="numero">2</span><h3>Tee mittaus</h3><p>Sovellus neuvoo vaihe vaiheelta.</p></div>
     <div class="kortti"><span class="numero">3</span><h3>Saat raportin</h3><p>Raportissa on akun kunto ja QR-koodi, jolla ostaja voi tarkistaa sen.</p></div>

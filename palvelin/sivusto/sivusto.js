@@ -98,10 +98,24 @@
       var tx = tilat[j].querySelector('[data-play-teksti]');
       if (tx) tx.textContent = saatavilla ? T.saatavilla : T.eiViela;
     }
+    // Etusivun "Mittaa akku" -polku vie suoraan Google Playhin, kun linkki on asetettu; muuten lataus-osioon.
+    var polut = document.querySelectorAll('[data-play-linkki]');
+    for (var p = 0; p < polut.length; p++) if (saatavilla) { polut[p].href = t.playLinkki; polut[p].rel = 'noopener'; }
     var hinnasto = document.getElementById('hinnasto');
     if (hinnasto && t.hinnasto && KIELI === 'fi') hinnasto.textContent = t.hinnasto;
     var aika = document.getElementById('hyvitysaika');
     if (aika && t.hyvitysaikaMin) aika.textContent = String(t.hyvitysaikaMin);
+  }
+
+  // Puhelimen valikkopainike: avaa ja sulkee yläpalkin valikon. Linkin valinta sulkee valikon.
+  function valikko() {
+    var nappi = document.querySelector('.valikkonappi'), yla = nappi && nappi.closest('.yla');
+    if (!yla) return;
+    function aseta(auki) { yla.classList.toggle('auki', auki); nappi.setAttribute('aria-expanded', auki ? 'true' : 'false'); }
+    nappi.addEventListener('click', function () { aseta(!yla.classList.contains('auki')); });
+    var linkit = yla.querySelectorAll('.valikko a');
+    for (var i = 0; i < linkit.length; i++) linkit[i].addEventListener('click', function () { aseta(false); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && yla.classList.contains('auki')) { aseta(false); nappi.focus(); } });
   }
 
   function yhteyslomake() {
@@ -125,6 +139,7 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
+    valikko();
     yhteyslomake();
     var tiedot = hae('/api/sivusto/tiedot').catch(function () { return {}; });
     Promise.all([tiedot, asiakirja()]).then(function (x) {

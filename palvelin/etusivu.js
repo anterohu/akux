@@ -26,6 +26,7 @@ const KIELET = {
     hinta: 'Sovellus on maksuton. Mittaukset maksetaan krediiteillä, jotka ostetaan sovelluksessa Google Playn kautta. Mittauksen hinta näkyy ennen kuin aloitat. Jos mittaus keskeytyy heti alussa, krediitit palautuvat automaattisesti.',
     hinnasto: 'Hinnat näkyvät sovelluksessa ennen ostoa.',
     tarkistaOtsikko: 'Tarkista raportti', tarkistaOhje: 'Skannaa raportin QR-koodi puhelimen kameralla, niin näet raportin tiedot AKVERIn palvelimelta. Jos koodi ei lue, kirjoita raportin tunnus tarkistussivulle.', tarkista: 'Kirjoita tunnus',
+    polut: [['Mittaa akku', 'Myyjälle ja omistajalle', 'Lataa sovellus'], ['Tarkista raportti', 'Ostajalle', 'Skannaa QR-koodi']], valikkoNappi: 'Valikko',
     ala: ['Käyttöehdot', 'Tietosuojaseloste', 'Yhteystiedot'], ytunnus: 'Y-tunnus', kieliValikko: 'Kieli', alatunniste: 'Alatunniste', logo: 'AKVERI – etusivulle', paavalikko: 'Päävalikko'
   },
   en: {
@@ -47,6 +48,7 @@ const KIELET = {
     hinta: 'The app is free. Checks are paid with credits that you buy in the app through Google Play. You see the price of a check before you start. If a check stops right at the start, the credits are returned automatically.',
     hinnasto: 'Prices are shown in the app before you buy.',
     tarkistaOtsikko: 'Verify a report', tarkistaOhje: 'Scan the QR code on the report with your phone camera to see the report details from the AKVERI server. If the code cannot be read, enter the report ID on the verification page.', tarkista: 'Enter report ID',
+    polut: [['Check a battery', 'For sellers and owners', 'Get the app'], ['Verify a report', 'For buyers', 'Scan the QR code']], valikkoNappi: 'Menu',
     ala: ['Terms of use', 'Privacy policy', 'Contact'], ytunnus: 'Business ID', kieliValikko: 'Language', alatunniste: 'Footer', logo: 'AKVERI – home', paavalikko: 'Main menu'
   },
   sv: {
@@ -68,6 +70,7 @@ const KIELET = {
     hinta: 'Appen är gratis. Testerna betalas med krediter som du köper i appen via Google Play. Du ser testets pris innan du börjar. Om ett test avbryts direkt i början återförs krediterna automatiskt.',
     hinnasto: 'Priserna visas i appen innan du köper.',
     tarkistaOtsikko: 'Kontrollera en rapport', tarkistaOhje: 'Skanna QR-koden på rapporten med telefonens kamera, så ser du rapportens uppgifter från AKVERIs server. Om koden inte kan läsas, ange rapportkoden på kontrollsidan.', tarkista: 'Ange rapportkod',
+    polut: [['Testa ett batteri', 'För säljare och ägare', 'Ladda ner appen'], ['Kontrollera en rapport', 'För köpare', 'Skanna QR-koden']], valikkoNappi: 'Meny',
     ala: ['Användarvillkor', 'Dataskydd', 'Kontakt'], ytunnus: 'FO-nummer', kieliValikko: 'Språk', alatunniste: 'Sidfot', logo: 'AKVERI – startsida', paavalikko: 'Huvudmeny'
   }
 };
@@ -83,6 +86,10 @@ const SIVUPOLUT = {
 const LOGO = '<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46.5" fill="none" stroke="currentColor" stroke-width="6"/><circle cx="50" cy="50" r="37" fill="none" stroke="currentColor" stroke-opacity=".38" stroke-width="1.8" stroke-dasharray="2 4"/><path d="M33 71 L50 28 L67 71" fill="none" stroke="currentColor" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><line x1="40.5" y1="57" x2="59.5" y2="57" stroke="#6CC193" stroke-width="7.5" stroke-linecap="round"/></svg>';
 const PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5v17a.5.5 0 0 0 .76.43l14-8.5a.5.5 0 0 0 0-.86l-14-8.5A.5.5 0 0 0 5 3.5z" fill="currentColor"/></svg>';
 const e = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const IKONI_MITTAA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
+const IKONI_QR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2v2h-2zM18 14h2v2h-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
+// Puhelimessa yläpalkissa näkyvät kielivalinta ja valikkopainike; valikko avautuu painikkeesta (sivusto.js).
+const valikkonappi = (t, kielet) => `<span class="kielet mobiili-kielet" role="group" aria-label="${e(t.kieliValikko)}">${kielet}</span><button class="valikkonappi" type="button" aria-expanded="false" aria-controls="paavalikko" aria-label="${e(t.valikkoNappi)}"><span></span><span></span><span></span></button>`;
 
 function sivu(kieli) {
   const t = KIELET[kieli];
@@ -106,7 +113,8 @@ ${JARJESTYS.map(k => `<link rel="alternate" hreflang="${k}" href="https://akveri
 <body data-sivu="etusivu">
 <div class="yla-tausta"><header class="leveys yla">
   <a class="logo" href="${t.polku}" aria-label="${e(t.logo)}">${LOGO}<span>AKVERI</span></a>
-  <nav class="valikko" aria-label="${e(t.paavalikko)}"><a href="#miten">${e(t.valikko[0])}</a><a href="#hinta">${e(t.valikko[1])}</a><a href="#tarkista">${e(t.valikko[2])}</a><a href="${SIVUPOLUT.yhteystiedot[kieli]}">${e(t.valikko[3])}</a><span class="kielet" role="group" aria-label="${e(t.kieliValikko)}">${kielet}</span><a class="nappi pieni" href="#lataa">${e(t.valikko[4])}</a></nav>
+  ${valikkonappi(t, kielet)}
+  <nav class="valikko" id="paavalikko" aria-label="${e(t.paavalikko)}"><a href="#miten">${e(t.valikko[0])}</a><a href="#hinta">${e(t.valikko[1])}</a><a href="#tarkista">${e(t.valikko[2])}</a><a href="${SIVUPOLUT.yhteystiedot[kieli]}">${e(t.valikko[3])}</a><span class="kielet" role="group" aria-label="${e(t.kieliValikko)}">${kielet}</span><a class="nappi pieni" href="#lataa">${e(t.valikko[4])}</a></nav>
 </header></div>
 <main>
 
@@ -115,9 +123,9 @@ ${JARJESTYS.map(k => `<link rel="alternate" hreflang="${k}" href="https://akveri
     <p class="ylaotsikko">${e(t.ylaotsikko)}</p>
     <h1>${e(t.h1)}</h1>
     <p class="johdanto">${e(t.johdanto)}</p>
-    <div class="toiminnot">
-      ${playNappi(false)}
-      <a class="nappi toissijainen" href="#tarkista">${e(t.tarkistaNappi)}</a>
+    <div class="polut">
+      <a class="polku ensisijainen" data-play-linkki href="#lataa">${IKONI_MITTAA}<b>${e(t.polut[0][0])}</b><span>${e(t.polut[0][1])}</span><em>${e(t.polut[0][2])} ›</em></a>
+      <a class="polku" href="${SIVUPOLUT.tarkista[kieli]}">${IKONI_QR}<b>${e(t.polut[1][0])}</b><span>${e(t.polut[1][1])}</span><em>${e(t.polut[1][2])} ›</em></a>
     </div>
     ${playTila}
   </div>
@@ -136,7 +144,7 @@ ${t.perusteet.map(([o, s]) => `  <div><b>${e(o)}</b><span>${e(s)}</span></div>`)
 
 <section class="osio" id="miten"><div class="leveys">
   <h2>${e(t.mitenOtsikko)}</h2>
-  <div class="ruudukko">
+  <div class="ruudukko vaiheet">
 ${t.vaiheet.map(([o, s], i) => `    <div class="kortti"><span class="numero">${i + 1}</span><h3>${e(o)}</h3><p>${e(s)}</p></div>`).join('\n')}
   </div>
 </div></section>
@@ -183,7 +191,7 @@ ${t.tarvitset.map(r => `        <li>${e(r)}</li>`).join('\n')}
 
 function kaikki() { return JARJESTYS.map(k => ({ tiedosto: KIELET[k].tiedosto, sisalto: sivu(k) })); }
 
-module.exports = { KIELET, JARJESTYS, SIVUPOLUT, LOGO, e, kaikki };
+module.exports = { KIELET, JARJESTYS, SIVUPOLUT, LOGO, e, valikkonappi, kaikki };
 
 if (require.main === module) {
   for (const s of kaikki()) fs.writeFileSync(path.join(__dirname, 'sivusto', s.tiedosto), s.sisalto);

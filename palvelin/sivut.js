@@ -9,7 +9,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { KIELET, JARJESTYS, SIVUPOLUT, LOGO, e } = require('./etusivu');
+const { KIELET, JARJESTYS, SIVUPOLUT, LOGO, e, valikkonappi } = require('./etusivu');
 
 const YT = {
   nimi: '<span data-yt="nimi">[yrityksen nimi]</span>',
@@ -340,7 +340,8 @@ ${JARJESTYS.map(x => `<link rel="alternate" hreflang="${x}" href="https://akveri
 <body data-sivu="${nimi}">
 <div class="yla-tausta"><header class="leveys yla">
   <a class="logo" href="${kotipolku}" aria-label="${e(k.logo)}">${LOGO}<span>AKVERI</span></a>
-  <nav class="valikko" aria-label="${e(k.paavalikko)}"><a href="${ankkuri('miten')}">${e(k.valikko[0])}</a><a href="${ankkuri('hinta')}">${e(k.valikko[1])}</a><a href="${SIVUPOLUT.tarkista[kieli]}">${e(k.valikko[2])}</a><a href="${SIVUPOLUT.yhteystiedot[kieli]}">${e(k.valikko[3])}</a><span class="kielet" role="group" aria-label="${e(k.kieliValikko)}">${kielet}</span><a class="nappi pieni" href="${ankkuri('lataa')}">${e(k.valikko[4])}</a></nav>
+  ${valikkonappi(k, kielet)}
+  <nav class="valikko" id="paavalikko" aria-label="${e(k.paavalikko)}"><a href="${ankkuri('miten')}">${e(k.valikko[0])}</a><a href="${ankkuri('hinta')}">${e(k.valikko[1])}</a><a href="${SIVUPOLUT.tarkista[kieli]}">${e(k.valikko[2])}</a><a href="${SIVUPOLUT.yhteystiedot[kieli]}">${e(k.valikko[3])}</a><span class="kielet" role="group" aria-label="${e(k.kieliValikko)}">${kielet}</span><a class="nappi pieni" href="${ankkuri('lataa')}">${e(k.valikko[4])}</a></nav>
 </header></div>
 <main>
 
