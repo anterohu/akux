@@ -1,4 +1,4 @@
-"""Kyselyihin perustuvat alustat (Hyundai ja Kia, Nissan Leaf, Volkswagen-konsernin MEB).
+"""Kyselyihin perustuvat alustat (Hyundai ja Kia, Nissan Leaf, Volkswagen-konsernin MEB, MG).
 
 Teslan akunhallinta lähettää tietonsa väylälle jatkuvasti, ja AKVERI vain kuuntelee. Muiden merkkien
 akunhallinta vastaa vain kyselyihin, joten sovitin kysyy tiedot vuorotellen. Jokainen alusta on oma
@@ -11,7 +11,7 @@ moduulinsa, jolla on sama rajapinta:
 """
 from __future__ import annotations
 
-_MODULES = ("hkmc", "leaf", "meb")
+_MODULES = ("hkmc", "leaf", "meb", "mg")
 
 
 def module(platform: str | None):
@@ -25,6 +25,9 @@ def module(platform: str | None):
     if platform == "meb":
         from . import meb
         return meb
+    if platform == "mg":
+        from . import mg
+        return mg
     return None
 
 

@@ -113,7 +113,7 @@ class App:
                 if pm:
                     loop, rare = pm.requests_for(model)
                     src = PolledSource(port, baud or None, loop=loop, rare=rare, rx=pm.RX,
-                                       protocol=getattr(pm, "PROTOKOLLA", "6"))
+                                       protocol=getattr(pm, "PROTOKOLLA", "6"), fc=getattr(pm, "FC", None))
                 else:
                     src = ObdLinkSource(port, baud or None)
                 src.malli_id = opts.get("malli_id")

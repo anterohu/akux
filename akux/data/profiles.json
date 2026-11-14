@@ -89,6 +89,11 @@
       "vuotta": 5,
       "km": 100000,
       "sailyvyys_pct": 66
+    },
+    "mg": {
+      "vuotta": 7,
+      "km": 150000,
+      "sailyvyys_pct": 70
     }
   },
   "mallit": [
@@ -1593,6 +1598,228 @@
       "kennotyyppi": "LG Energy Solution / CATL / SK On, NMC",
       "kyselyt_varmistettu": true,
       "akku_lyhyt": "77 kWh (brutto 82 kWh)"
+    },
+    {
+      "id": "mg4-51",
+      "merkki": "MG",
+      "nimi": "MG4 Electric 51 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "LFP",
+      "kennovalmistaja": null,
+      "sarjakennot": null,
+      "viite_kwh": 51.0,
+      "takuu": "mg",
+      "alusta": "mg",
+      "kyselyryhma": "mg4",
+      "soc_ikkuna": [
+        25,
+        930
+      ],
+      "kennotyyppi": "CATL, LFP",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "51 kWh"
+    },
+    {
+      "id": "mg4-64",
+      "merkki": "MG",
+      "nimi": "MG4 Electric 64 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 104,
+      "viite_kwh": 64.0,
+      "takuu": "mg",
+      "alusta": "mg",
+      "kyselyryhma": "mg4",
+      "soc_ikkuna": [
+        25,
+        930
+      ],
+      "kennotyyppi": "CATL, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "64 kWh"
+    },
+    {
+      "id": "mg4-77",
+      "merkki": "MG",
+      "nimi": "MG4 Electric 77 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": 104,
+      "viite_kwh": 77.0,
+      "takuu": "mg",
+      "alusta": "mg",
+      "kyselyryhma": "mg4",
+      "soc_ikkuna": [
+        25,
+        930
+      ],
+      "kennotyyppi": "CATL, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "77 kWh"
+    },
+    {
+      "id": "mg5-50",
+      "merkki": "MG",
+      "nimi": "MG5 Electric 50,3 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2021,
+        2022,
+        2023,
+        2024
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": null,
+      "viite_kwh": 50.3,
+      "takuu": "mg",
+      "alusta": "mg",
+      "kyselyryhma": "mg5",
+      "soc_ikkuna": [
+        36,
+        994
+      ],
+      "kennotyyppi": "CATL, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "50,3 kWh"
+    },
+    {
+      "id": "mg5-61",
+      "merkki": "MG",
+      "nimi": "MG5 Electric 61,1 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2021,
+        2022,
+        2023,
+        2024
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": null,
+      "viite_kwh": 61.1,
+      "takuu": "mg",
+      "alusta": "mg",
+      "kyselyryhma": "mg5",
+      "soc_ikkuna": [
+        36,
+        950
+      ],
+      "kennotyyppi": "CATL, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "61,1 kWh"
+    },
+    {
+      "id": "mg-zs-44",
+      "merkki": "MG",
+      "nimi": "MG ZS EV 44,5 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2019,
+        2020,
+        2021
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": null,
+      "viite_kwh": 44.5,
+      "takuu": "mg",
+      "alusta": "mg",
+      "kyselyryhma": "mg-zs1",
+      "soc_ikkuna": [
+        25,
+        940
+      ],
+      "kennotyyppi": "CATL, NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "44,5 kWh"
+    },
+    {
+      "id": "mg-zs-51",
+      "merkki": "MG",
+      "nimi": "MG ZS EV 51 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "LFP",
+      "kennovalmistaja": null,
+      "sarjakennot": null,
+      "viite_kwh": 51.0,
+      "takuu": "mg",
+      "alusta": "mg",
+      "kyselyryhma": "mg-zs2",
+      "soc_ikkuna": [
+        36,
+        1000
+      ],
+      "kennotyyppi": "LFP",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "51 kWh"
+    },
+    {
+      "id": "mg-zs-72",
+      "merkki": "MG",
+      "nimi": "MG ZS EV Long Range 72,6 kWh",
+      "malli_koodi": "",
+      "vuodet": [
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "tehtaat": [],
+      "veto": [],
+      "kemia": "NMC",
+      "kennovalmistaja": null,
+      "sarjakennot": null,
+      "viite_kwh": 72.6,
+      "takuu": "mg",
+      "alusta": "mg",
+      "kyselyryhma": "mg-zs2",
+      "soc_ikkuna": [
+        36,
+        1000
+      ],
+      "kennotyyppi": "NMC",
+      "kyselyt_varmistettu": true,
+      "akku_lyhyt": "72,6 kWh"
     }
   ]
 }

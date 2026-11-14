@@ -343,7 +343,108 @@ def test_meb_kyselyt():
     print("OK MEB-kyselyt:", round(st.nfp_kwh, 2), "kWh,", st.brick_count, "kennoa")
 
 
+
+def _mg_testi(malli_id, bms, odo_hdr, odo_pid):
+    """MG: kysely akunhallinnalle; lohkot (matalin ja korkein kenno), kuntoarvio, varaustila ja tunnisteet."""
+    from akux import mg, profiles
+    m = profiles.get(malli_id)
+    g = mg.ryhma(m)
+    lohkot = [(3.700 + 0.001 * k, 3.704 + 0.001 * k) for k in range(g["lohkot"])]
+    lohkot[4] = (3.652, 3.706)                    # lohkon 5 matalin kenno poikkeaa
+
+    def mg_payload(header, cmd):
+        if cmd == "015B":
+            return bytes([0x41, 0x5B]) + mg.encode(mg.M_SOC_UI, ui=60.0) if header == bms else None
+        pid = int(cmd[2:], 16)
+        echo = bytes([0x62]) + bytes.fromhex(cmd[2:])
+        if header == bms:
+            if pid in mg.LOHKO_PID[:g["lohkot"]]:
+                k = mg.LOHKO_PID.index(pid)
+                return echo + mg.encode(mg.M_BLK0 + k, vmin=lohkot[k][0], vmax=lohkot[k][1], tmin=18.5, tmax=21.0)
+            vals = {0xB042: (mg.M_V, {"v": 398.25}), 0xB043: (mg.M_I, {"i": -31.5}), 0xB046: (mg.M_SOC_RAW, {"raw": 58.4}),
+                    0xB056: (mg.M_TEMP, {"c": 20.0}), 0xB058: (mg.M_CMAX, {"v": 3.73}), 0xB059: (mg.M_CMIN, {"v": 3.652}),
+                    0xB061: (mg.M_SOH, {"soh": 94.6})}
+            if pid in vals:
+                cid, kw = vals[pid]
+                return echo + mg.encode(cid, **kw)
+        if header == odo_hdr and pid == 0xF190:
+            return echo + mg.encode(mg.M_VIN, vin="LSJWH4092PN012345")
+        if header == odo_hdr and pid == odo_pid:
+            return echo + mg.encode(mg.M_ODO, km=42_700)
+        return None
+
+    class FakeMg(FakeHk):
+        def write(self, data):
+            self.cmd += data
+            while b"\r" in self.cmd:
+                c, self.cmd = self.cmd.split(b"\r", 1)
+                c = c.decode().strip()
+                if not c:
+                    continue
+                FakeHk.commands.append(c)
+                if c.startswith("ATSH"):
+                    self.hdr, resp = c[4:], "OK"
+                elif c.startswith(("AT", "ST")):
+                    resp = {"ATI": "ELM327 v1.4b", "STI": "STN2255 v5.10.3", "ATZ": "\r\rELM327 v1.4b"}.get(c, "OK")
+                else:
+                    p = mg_payload(self.hdr, c)
+                    resp = isotp_text(p) if p else "NO DATA"
+                with self.lock:
+                    self.buf += (resp + "\r\r>").encode()
+
+    fake = types.ModuleType("serial")
+    fake.Serial = FakeMg
+    sys.modules["serial"] = fake
+    FakeHk.commands.clear()
+    from akux.sources import PolledSource
+    dec = TeslaDecoder()
+    dec.configure("mg", **mg.decoder_opts(m))
+    loop, rare = mg.requests_for(m)
+    src = PolledSource("COM8", loop=loop, rare=rare, rx=mg.RX, protocol=mg.PROTOKOLLA, fc=mg.FC)
+    src.start(dec.feed)
+    st = dec.state
+    end = time.time() + 30
+    while time.time() < end and not (st.vin and st.odometer_km and len(st.bricks) == 2 * g["lohkot"]
+                                     and st.bms_soh_pct and st.soc_avg is not None and st.pack_i is not None):
+        time.sleep(0.1)
+    src.stop()
+    return m, g, st, FakeHk.commands, lohkot
+
+
+def test_mg4_kyselyt():
+    """MG4: yleiskysely 7DF, vastaus 7ED ja vuonohjaus akunhallinnalle 7E5; näytön varaustila palvelulla 01."""
+    m, g, st, cmds, lohkot = _mg_testi("mg4-64", "7DF", "710", 0xB921)
+    i = cmds.index("ATSH7DF")
+    assert cmds[i + 1] == "ATCRA7ED" and cmds[i + 2] == "ATFCSH7E5", cmds[i:i + 4]
+    assert "ATAR" not in cmds[i:i + 3]
+    for c in ("22B042", "22B043", "015B", "22B001", "22B115", "22B061", "ATSH710", "ATCRA718", "22F190", "22B921"):
+        assert c in cmds, c
+    assert st.vin == "LSJWH4092PN012345" and st.odometer_km == 42_700
+    assert abs(st.pack_v - 398.25) < 0.01 and abs(st.pack_i + 31.5) < 0.03 and st.power_state == "lataus"
+    # Näytön 60 % vastaa koko akun aluetta 2,5 + 60 · 0,905 = 56,8 %
+    assert abs(st.soc_ui - 60.0) < 0.3 and abs(st.soc_avg - (2.5 + 60.0 * 0.905)) < 0.3
+    assert st.bms_soh_pct == 94.6 and abs(st.nfp_kwh - 64.0 * 0.946) < 0.01
+    assert st.brick_count == 48 and len(st.bricks) == 48
+    assert abs(st.bricks[9] - 3.652) < 0.001 and abs(st.bricks[10] - 3.706) < 0.001     # lohko 5: matalin, korkein
+    assert st.cell_v_min_num == 9 and abs(st.cell_v_min - 3.652) < 0.001
+    assert st.temp_min == 18.5 and st.temp_max == 21.0
+    print("OK MG4-kyselyt:", round(st.nfp_kwh, 2), "kWh,", g["lohkot"], "lohkoa")
+
+
+def test_mg_zs_kyselyt():
+    """MG ZS EV 2019–2021: akunhallinta 781 (vastaus 789), varaustila koko akun alueelta (22 B046)."""
+    m, g, st, cmds, lohkot = _mg_testi("mg-zs-44", "781", "7E3", 0xE101)
+    for c in ("ATSH781", "ATCRA789", "ATFCSH781", "22B046", "22B0B3", "ATSH7E3", "ATCRA7EB", "22E101"):
+        assert c in cmds, c
+    assert "22B0BB" not in cmds                    # vain 9 lohkoa
+    assert abs(st.soc_avg - 58.4) < 0.01 and abs(st.soc_ui - (584 - 25) * 100 / (940 - 25)) < 0.01
+    assert st.brick_count == 18 and abs(st.nfp_kwh - 44.5 * 0.946) < 0.01 and st.bol_kwh is None
+    print("OK MG ZS EV -kyselyt:", round(st.nfp_kwh, 2), "kWh,", g["lohkot"], "lohkoa")
+
+
 if __name__ == "__main__":
+    test_mg4_kyselyt()
+    test_mg_zs_kyselyt()
     test_meb_kyselyt()
     test_leaf_virran_suunta()
     test_leaf_kyselyt()

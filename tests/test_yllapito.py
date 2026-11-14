@@ -66,6 +66,9 @@ def call(base, path, method="GET", body=None, raw=None, ok=True):
 
 
 def test_yllapito():
+    # Puhelinilmoitukset ja raja-arvot ovat kehittäjän työkaluja (testitili tai kehitysversio). Asiakkaan
+    # asetusten rajaus testataan tiedostossa test_asetukset.py.
+    os.environ["AKVERI_ESITTELY"] = "1"
     with tempfile.TemporaryDirectory() as tmp:
         # ilmoituspalvelin
         np = free_port()

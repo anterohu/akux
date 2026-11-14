@@ -89,6 +89,7 @@ MUUT_VALMISTAJAT = {
     "SJN": ("Nissan", "Iso-Britannia"), "JN1": ("Nissan", "Japani"), "1N4": ("Nissan", "Yhdysvallat"),
     "WVW": ("Volkswagen", "Saksa"), "WVG": ("Volkswagen", "Saksa"), "1V2": ("Volkswagen", "Yhdysvallat"),
     "TMB": ("Škoda", "Tšekki"), "WAU": ("Audi", "Saksa"), "VSS": ("Cupra", "Espanja"),
+    "LSJ": ("MG", "Kiina"),
 }
 # Eurooppalaisissa Nissanin valmistenumeroissa 10. merkki ei ole vuosimalli
 VUOSI_EI_VIN = {"SJN"}
@@ -112,7 +113,7 @@ def decode(vin: str) -> dict:
                    tehdas=maa, sarjanumero=vin[11:], tarkistusmerkki=check_digit_ok(vin))
         return out
     if not valm:
-        out["virheet"].append(f"Valmistajatunnusta {wmi} ei tunneta. AKVERI tukee Teslan, Hyundain, Kian, Nissanin ja Volkswagen-konsernin MEB-alustan sähköautoja.")
+        out["virheet"].append(f"Valmistajatunnusta {wmi} ei tunneta. AKVERI tukee Teslan, Hyundain, Kian, Nissanin, Volkswagen-konsernin MEB-alustan ja MG:n sähköautoja.")
         return out
     out["kelvollinen"] = True
     out["valmistaja"] = valm[0]

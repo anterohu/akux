@@ -22,8 +22,9 @@ const MALLIRYHMAT = [
   ["Kia", m => m.merkki === "Kia"],
   ["Nissan", m => m.merkki === "Nissan"],
   ["Volkswagen-konserni (MEB)", m => m.alusta === "meb"],
+  ["MG", m => m.merkki === "MG"],
 ];
-const MERKIT = ["Tesla", "Hyundai", "Kia", "Nissan", "Volkswagen", "Škoda", "Audi", "Cupra"];
+const MERKIT = ["Tesla", "Hyundai", "Kia", "Nissan", "Volkswagen", "Škoda", "Audi", "Cupra", "MG"];
 const merkki = m => (m && m.merkki) || "Tesla";
 // Mallivalikon sisältö merkin mukaan; Teslan mallit ryhmitellään mallisarjoittain
 function malliOptions(mallit, brand, selected) {
@@ -237,7 +238,8 @@ views.yleiskuva = {
               <option value="ev6-77">Kia EV6 77,4 kWh</option><option value="leaf-40">Nissan Leaf 40 kWh</option>
               <option value="leaf-24">Nissan Leaf 24 kWh</option><option value="id3-58">Volkswagen ID.3 58 kWh</option>
               <option value="enyaq-77">Škoda Enyaq 77 kWh</option><option value="q4-77">Audi Q4 e-tron 77 kWh</option>
-              <option value="born-58">Cupra Born 58 kWh</option></select>
+              <option value="born-58">Cupra Born 58 kWh</option><option value="mg4-64">MG4 Electric 64 kWh</option>
+              <option value="mgzs-44">MG ZS EV 44,5 kWh</option></select>
             <p class="small muted" style="margin-top:8px">Esittelytilassa voit kokeilla kaikkia toimintoja ja nähdä esimerkkiraportin ilman autoa. Aika kulkee nopeutettuna.</p>
             <div class="row"><button class="btn" id="bDemo">Käynnistä esittelytila</button>
               <button class="btn" id="bEx">Esimerkkiraportit</button></div>
@@ -1086,7 +1088,7 @@ views.asetukset = {
       <dl class="kv"><dt>Versio</dt><dd>${esc(info.nimi)} ${esc(info.versio)}</dd>
         <dt>Päivitykset</dt><dd>${ANDROID ? "Google Play päivittää AKVERIn automaattisesti." : "Asenna uusi versio vanhan päälle. Tiedot säilyvät."}</dd></dl>
       <details class="small muted" style="margin-top:10px"><summary>Tavaramerkit ja aineistot</summary>
-        <p>Viestimäärittelyt perustuvat Tesla-omistajien yhteisön ylläpitämään avoimeen aineistoon. Muiden merkkien kyselyt perustuvat avoimiin aineistoihin (OBD-PIDs-for-HKMC-EVs, evDash, Open Vehicle Monitoring System, Battery-Emulator ja py-nissan-leaf-obd-ble). Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä; Hyundai, Ioniq ja Kona Hyundai Motor Companyn; Kia, EV6, e-Niro ja e-Soul Kia Corporationin; Nissan ja Leaf Nissan Motor Co:n; Volkswagen, ID.3, ID.4 ja ID.5 Volkswagen AG:n; Škoda ja Enyaq Škoda Auto a.s:n; Audi ja Q4 e-tron Audi AG:n sekä Cupra ja Born SEAT S.A:n tavaramerkkejä.</p></details>
+        <p>Viestimäärittelyt perustuvat Tesla-omistajien yhteisön ylläpitämään avoimeen aineistoon. Muiden merkkien kyselyt perustuvat avoimiin aineistoihin (OBD-PIDs-for-HKMC-EVs, evDash, Open Vehicle Monitoring System, Battery-Emulator ja py-nissan-leaf-obd-ble). Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä; Hyundai, Ioniq ja Kona Hyundai Motor Companyn; Kia, EV6, e-Niro ja e-Soul Kia Corporationin; Nissan ja Leaf Nissan Motor Co:n; Volkswagen, ID.3, ID.4 ja ID.5 Volkswagen AG:n; Škoda ja Enyaq Škoda Auto a.s:n; Audi ja Q4 e-tron Audi AG:n; Cupra ja Born SEAT S.A:n sekä MG ja ZS SAIC Motor Corporationin tavaramerkkejä.</p></details>
       <p class="small muted" style="margin-top:8px">AKVERI ei ole minkään autonvalmistajan tekemä eikä hyväksymä.</p></div>
     ${E ? `<div class="card kehittaja"><h2>Kehittäjän työkalut</h2>
       <p class="small muted">Näkyy vain testitileillä. Asiakkaan ohjelmassa käytetään oletusarvoja.</p>

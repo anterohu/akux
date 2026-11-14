@@ -878,6 +878,15 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
     kwh = summ.get("kapasiteetti_kwh")
     unc = summ.get("epavarmuus_kwh")
     cs = r.get("kennot")
+    # MG: akunhallinta ilmoittaa kennojännitteet lohkoittain (lohkon matalin ja korkein kenno). Jännitelista on
+    # järjestyksessä lohko 1 matalin, lohko 1 korkein, lohko 2 matalin, …
+    _lohko = veh.get("alusta") == "mg"
+
+    def _lkm_txt(c):
+        return f"{c['lkm'] // 2} lohkoa" if _lohko else f"{c['lkm']} kennoryhmää"
+
+    def _nro_txt(n):
+        return (f"lohko {(n + 1) // 2}, {'matalin' if n % 2 else 'korkein'} kenno" if _lohko else f"ryhmä {n}")
     kpis = []
 
     def kpi(label, value, unit, extra=None):
@@ -900,7 +909,7 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
                  ("NETTO", f"{fmt(_kk0['netto_nyt'])} kWh" if _kk0.get("netto_nyt") else "–",
                   f"suojavara {fmt(_kk0.get('puskuri_kwh'), 1)} kWh" if _kk0.get("puskuri_kwh") is not None else ""),
                  ("JÄNNITE-ERO", (f"alle {fmt(veh['kenno_resoluutio_mv'], 0)} mV" if cs and (veh.get("kenno_resoluutio_mv") or 0) > 1 and cs["ero_mv"] < veh["kenno_resoluutio_mv"] else f"{fmt(cs['ero_mv'], 0)} mV") if cs else "–",
-                  f"{cs['lkm']} kennoryhmää" if cs else "")]
+                  _lkm_txt(cs) if cs else "")]
         E.append(SohBand(soh, CW, caption, summ.get("kunto_luokka"), items))
         E.append(Spacer(1, 3 * mm))
     elif style_ == "b":
@@ -924,7 +933,7 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
     _ero_txt = (f"alle {fmt(_res, 0)} mV" if cs and (_res or 0) > 1 and cs["ero_mv"] < _res else
                 f"{fmt(cs['ero_mv'], 0)} mV" if cs else "–")
     kpis.append(kpi("KENNORYHMIEN JÄNNITE-ERO", _ero_txt,
-                    f"{cs['luokka']}  ·  {cs['lkm']} kennoryhmää" if cs else "Ei mitattu"))
+                    f"{cs['luokka']}  ·  {_lkm_txt(cs)}" if cs else "Ei mitattu"))
     kt = Table([kpis], colWidths=[kw, kw, kw], hAlign="LEFT") if style_ != "c" else Spacer(1, 0)
     if style_ != "c":
         kt.setStyle(TableStyle([
@@ -970,7 +979,8 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
     kk = r.get("kapasiteetit") or {}
     # Tekniset ajoneuvo- ja akkutiedot ovat lisätiedoissa (sivu 2)
     tekniset_l = [("Valmistustehdas", vi.get("tehdas")), ("Voimalinja", vi.get("voimalinja")),
-                  ("Kennoryhmiä sarjassa", str(veh.get("kennoryhmat") or "–"))]
+                  (("Lohkoja", str((cs or {}).get("lkm", 0) // 2 or "–")) if _lohko else
+                   ("Kennoryhmiä sarjassa", str(veh.get("kennoryhmat") or "–")))]
     tekniset_r = [
         ("Uutena, brutto / netto", (_bn(kk.get("brutto_uutena"), kk.get("netto_uutena")) or "") + (
             "" if r["viite"]["lahde"].startswith("Auton akunhallinta") or not kk.get("brutto_uutena")
@@ -1011,7 +1021,7 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
         E.append(Spacer(1, 4 * mm))
         E.append(P("Huomiot", "h3"))
         for h in r["huomiot"]:
-            E.append(P("– " + h, "smallink"))
+            E.append(P("– " + _t(h), "smallink"))
 
     # Mittausolosuhteet
     E.append(Spacer(1, 6 * mm))
@@ -1076,7 +1086,8 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
         cond("Akun virta mittaushetkellä", f"{fmt(cs.get('virta_a'))} A", "Alle 3 A tarkoittaa, että akku on levossa")
         cond("Varaustila", f"{fmt(cs.get('soc'))} %" if cs.get("soc") is not None else None, "Kennoryhmien keskiarvo")
         if cs.get("naytteita"):
-            cond("Kennojännitteiden näytteitä", f"{cs['naytteita']} kpl kennoryhmää kohden", "Tulos on näytteiden keskiarvo")
+            cond("Kennojännitteiden näytteitä", f"{cs['naytteita']} kpl " + ("lohkoa" if _lohko else "kennoryhmää") + " kohden",
+                 "Tulos on näytteiden keskiarvo")
     src_info = meta.get("sovitin") or {}
     cond("Tietolähde", src_info.get("sovitin") or meta.get("lahde"), "Auton akunhallinta diagnostiikkaliitännän kautta")
     # Lyhyt taulukko pidetään otsikkonsa kanssa samalla sivulla, jottei sivulle jää yksittäisiä rivejä
@@ -1416,10 +1427,16 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
     if cs:
         E.append(CondPageBreak(150 * mm) if tyyppi in ("ajotesti", "pika_ajo") else PageBreak())
         E.append(Spacer(1, 4 * mm))
-        E.append(P("Kennoryhmät", "h2"))
-        E.append(P(f"Akussa on {cs['lkm']} sarjaan kytkettyä kennoryhmää. Kunkin ryhmän jännite on luettu "
-                   "akunhallinnasta. Levossa mitattu jännite-ero kertoo, kuinka tasaisesti kennoryhmät ovat "
-                   "varautuneet. Suuri yksittäinen poikkeama voi viitata heikentyneeseen ryhmään.", "body"))
+        E.append(P("Kennojännitteet" if _lohko else "Kennoryhmät", "h2"))
+        if _lohko:
+            E.append(P(f"Akussa on {cs['lkm'] // 2} lohkoa. Akunhallinta ilmoittaa kunkin lohkon matalimman ja "
+                       "korkeimman kennon jännitteen, ja kaaviossa ne ovat lohkoittain vierekkäin. Levossa mitattu "
+                       "jännite-ero kertoo, kuinka tasaisesti kennot ovat varautuneet. Suuri yksittäinen poikkeama voi "
+                       "viitata heikentyneeseen kennoon.", "body"))
+        else:
+            E.append(P(f"Akussa on {cs['lkm']} sarjaan kytkettyä kennoryhmää. Kunkin ryhmän jännite on luettu "
+                       "akunhallinnasta. Levossa mitattu jännite-ero kertoo, kuinka tasaisesti kennoryhmät ovat "
+                       "varautuneet. Suuri yksittäinen poikkeama voi viitata heikentyneeseen ryhmään.", "body"))
         E.append(Spacer(1, 3 * mm))
         layout = (charts.module_layout(veh.get("malli"), len(cs["jannitteet"]))
                   if s.get("kennokuvaaja") == "moduulit" else None)
@@ -1427,7 +1444,8 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
         def main_cell_chart(stats, title):
             if layout and len(stats["jannitteet"]) == sum(layout):
                 return charts.module_chart(stats["jannitteet"], layout, title, poikkeavat=stats["poikkeavat"])
-            return charts.cell_chart(stats["jannitteet"], title, poikkeavat=stats["poikkeavat"])
+            return charts.cell_chart(stats["jannitteet"], title, poikkeavat=stats["poikkeavat"],
+                                     xlabel="Lohkojen matalin ja korkein kenno" if _lohko else "Kennoryhmä")
 
         E.append(_img(main_cell_chart(cs, r.get("kennot_otsikko", "Kennoryhmät")), CW))
         low = r.get("kennot_matala")
@@ -1452,11 +1470,13 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
             rows.append(row)
         line("Varaustila", lambda c: f"{fmt(c['soc'])} %" if c.get("soc") is not None else "–")
         line("Keskiarvo", lambda c: f"{fmt(c['ka_v'], 4)} V")
-        line("Suurin", lambda c: f"{fmt(c['max_v'], 4)} V (ryhmä {c['max_nro']})")
-        line("Pienin", lambda c: f"{fmt(c['min_v'], 4)} V (ryhmä {c['min_nro']})")
+        line("Suurin", lambda c: f"{fmt(c['max_v'], 4)} V ({_nro_txt(c['max_nro'])})")
+        line("Pienin", lambda c: f"{fmt(c['min_v'], 4)} V ({_nro_txt(c['min_nro'])})")
         line("Suurin ero", lambda c: f"{fmt(c['ero_mv'], 1)} mV")
         line("Keskihajonta", lambda c: f"{fmt(c['keskihajonta_mv'], 1)} mV")
-        line("Poikkeavat ryhmät", lambda c: ", ".join(str(p["nro"]) for p in c["poikkeavat"]) or "Ei havaittu")
+        line("Poikkeavat lohkot" if _lohko else "Poikkeavat ryhmät",
+             lambda c: ("; ".join(_nro_txt(p["nro"]) for p in c["poikkeavat"]) if _lohko else
+                        ", ".join(str(p["nro"]) for p in c["poikkeavat"])) or "Ei havaittu")
         line("Akun virta", lambda c: f"{fmt(c['virta_a'])} A" if c.get("virta_a") is not None else "–")
         cols = [50 * mm, 60 * mm] + ([CW - 110 * mm] if low else [])
         E.append(_table(rows, cols))
@@ -1482,7 +1502,8 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
                     k = c * per_col + i
                     if k < n and vals[k]:
                         stl = "cellb" if (k + 1) in out_set else "cell"
-                        row += [P(str(k + 1), "small"), P(f"{fmt(vals[k], 4)}", stl),
+                        nro = f"{k // 2 + 1} {'min' if k % 2 == 0 else 'max'}" if _lohko else str(k + 1)
+                        row += [P(nro, "small"), P(f"{fmt(vals[k], 4)}", stl),
                                 P(_signed((vals[k] - mean) * 1000), "small"), ""]
                     else:
                         row += ["", "", "", ""]
@@ -1511,7 +1532,8 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
                                      ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5)]))
             E.append(KeepTogether(st_))
             E.append(Spacer(1, 3 * mm))
-            E.append(P(f"{n} kennoryhmää. Jännitteet voltteina (V), ero millivoltteina (mV). Lihavoidut arvot "
+            E.append(P((f"{n // 2} lohkoa, kustakin matalin (min) ja korkein (max) kenno." if _lohko else
+                        f"{n} kennoryhmää.") + " Jännitteet voltteina (V), ero millivoltteina (mV). Lihavoidut arvot "
                        "poikkeavat muista. Arvot on luettu auton akunhallinnasta.", "small"))
 
         cell_table(cs, "Kennoryhmien jännitteet", r.get("kennot_otsikko", "") + ".")

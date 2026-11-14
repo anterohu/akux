@@ -62,6 +62,12 @@ ESITTELYAUTOT = {
     "born-58": {"nimi": "Cupra Born 58 kWh 2022 (NMC)", "malli_id": "cupra-meb-58",
                 "opts": {"chem": "NMC", "cells": 108, "nfp_kwh": 56.2, "bol_kwh": 62.0, "weak_cell": 90,
                          "vin": "VSSZZZK1ZNP012345"}},
+    "mg4-64": {"nimi": "MG4 Electric 64 kWh 2023 (NMC)", "malli_id": "mg4-64",
+               "opts": {"chem": "NMC", "cells": 104, "nfp_kwh": 60.8, "bol_kwh": 64.0, "weak_cell": 33,
+                        "vin": "LSJWH4092PN012345"}},
+    "mgzs-44": {"nimi": "MG ZS EV 44,5 kWh 2020 (NMC)", "malli_id": "mg-zs-44",
+                "opts": {"chem": "NMC", "cells": 96, "nfp_kwh": 40.6, "bol_kwh": 44.5, "weak_cell": 50,
+                         "vin": "LSJA24U91LS012345"}},
 }
 
 
@@ -382,7 +388,7 @@ class BatterySimulator(Source):
     def _run(self):
         self.status = "Esittelytila käynnissä"
         self.info = {"sovitin": "Simuloitu " + getattr(self, "car_name", {"hkmc": "Hyundai Kona Electric", "leaf": "Nissan Leaf",
-                                                                     "meb": "Volkswagen ID.3"}.get(
+                                                                     "meb": "Volkswagen ID.3", "mg": "MG4"}.get(
                                                                self.platform, "Model 3 Long Range 2020")),
                      "portti": "-", "suodatus": True}
         tick = 0.1
@@ -518,4 +524,48 @@ class MebSimulator(HkmcSimulator):
                     (meb.M_ODO, meb.encode(meb.M_ODO, km=self.odo)),
                     (meb.M_LIFE, meb.encode(meb.M_LIFE, chg=self.total_chg, dis=self.total_dis)),
                     (meb.M_SOH, meb.encode(meb.M_SOH, soh=self.nfp / self.bol * 100))]
+        return out
+
+
+class MgSimulator(HkmcSimulator):
+    """MG: akunhallinta vastaa kyselyihin; kennojännitteet lohkoittain (lohkon matalin ja korkein kenno)."""
+
+    def __init__(self, *, model: dict | None = None, **kw):
+        from . import mg
+        kw.setdefault("platform", "mg")
+        super().__init__(ryhma="kona", **kw)
+        self.model = model or {}
+        self.g = mg.ryhma(self.model) if self.model else mg.RYHMAT["mg4"]
+        self.soc_ikkuna = tuple(self.model.get("soc_ikkuna") or (25.0, 930.0))
+
+    def _hv_frame(self, pack_v, cur):
+        from . import mg
+        cb = self._cb
+        if cb:
+            cb(self.sim_t, mg.M_V, mg.encode(mg.M_V, v=pack_v))
+        return mg.M_I, mg.encode(mg.M_I, i=cur)
+
+    def _frames(self, t):
+        from . import mg
+        vs = self._volts(self.current)
+        lohkot = self.g["lohkot"]
+        out = []
+        for k in range(lohkot):
+            osa = vs[round(k * self.n / lohkot):round((k + 1) * self.n / lohkot)] or vs[-1:]
+            out.append((mg.M_BLK0 + k, mg.encode(mg.M_BLK0 + k, vmin=min(osa), vmax=max(osa),
+                                                 tmin=self.temp - 0.5, tmax=self.temp + 0.5)))
+        raw = sum(self._cell_socs()) / self.n * 100
+        ala, yla = self.soc_ikkuna
+        if self.g["soc"] == "ui":
+            ui = (raw * 10 - ala) * 100 / (yla - ala)
+            out.append((mg.M_SOC_UI, mg.encode(mg.M_SOC_UI, ui=max(0.0, min(100.0, ui)))))
+        else:
+            out.append((mg.M_SOC_RAW, mg.encode(mg.M_SOC_RAW, raw=max(0.0, min(100.0, raw)))))
+        out += [(mg.M_TEMP, mg.encode(mg.M_TEMP, c=self.temp)),
+                (mg.M_CMAX, mg.encode(mg.M_CMAX, v=max(vs))), (mg.M_CMIN, mg.encode(mg.M_CMIN, v=min(vs)))]
+        self._page += 1
+        if self._page % 20 == 1:
+            out += [(mg.M_VIN, mg.encode(mg.M_VIN, vin=self.vin)),
+                    (mg.M_ODO, mg.encode(mg.M_ODO, km=self.odo)),
+                    (mg.M_SOH, mg.encode(mg.M_SOH, soh=self.nfp / self.bol * 100))]
         return out

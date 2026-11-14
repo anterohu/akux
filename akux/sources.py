@@ -340,17 +340,18 @@ class PolledSource(ObdLinkSource):
     """Kyselyihin perustuva lukutapa (Hyundai, Kia): sovitin kysyy tiedot akunhallinnalta vuorotellen.
 
     Vastaukset välitetään tulkitsijalle virtuaalitunnisteella. Kyselyt ovat lukukyselyitä (palvelut 21, 22 ja
-    OBD-standardin 09), jotka eivät muuta auton asetuksia.
+    OBD-standardin 01 ja 09), jotka eivät muuta auton asetuksia.
     """
     name = "OBDLink"
     scan_supported = False
 
     def __init__(self, port: str, baud: int | None = None, *, loop: list, rare: list, rare_every: float = 60.0,
-                 rx: dict | None = None, protocol: str = "6"):
+                 rx: dict | None = None, protocol: str = "6", fc: dict | None = None):
         super().__init__(port, baud)
         self.loop, self.rare, self.rare_every = loop, rare, rare_every
         self.rx = rx or {}                  # kyselyosoite -> vastausosoite (oletus: osoite + 8, None: mikä tahansa)
         self.protocol = protocol            # 6 = 11-bittiset tunnisteet, 7 = 29-bittiset (MEB)
+        self.fc = fc or {}                  # yleiskysely, jonka vastauksen vuonohjaus menee tietylle laitteelle (MG4)
         self.max_gap = 8.0
         self._hdr = None
 
@@ -371,14 +372,14 @@ class PolledSource(ObdLinkSource):
     def request(self, header: str, cmd: str) -> bytes | None:
         if header != self._hdr:
             self._cmd(f"ATSH{header}")
-            if header == "7DF" or (header in self.rx and self.rx[header] is None):
+            if (header == "7DF" and header not in self.rx) or (header in self.rx and self.rx[header] is None):
                 self._cmd("ATAR")           # yleiskysely: vastaus mistä tahansa ohjainlaitteesta
                 self._cmd("ATFCSM0")        # sovittimen oma vuonohjaus
             else:
                 rx = self.rx.get(header) or f"{int(header, 16) + 8:03X}"
                 self._cmd(f"ATCRA{rx}")
                 # Monikehyksisen vastauksen vuonohjaus lähetetään samalle ohjainlaitteelle (Nissan: 79B -> 7BB)
-                self._cmd(f"ATFCSH{header}")
+                self._cmd(f"ATFCSH{self.fc.get(header, header)}")
                 self._cmd("ATFCSD300000")
                 self._cmd("ATFCSM1")
             self._hdr = header
@@ -388,7 +389,7 @@ class PolledSource(ObdLinkSource):
         sid = int(cmd[:2], 16)
         if data[0] != sid + 0x40:
             return None
-        echo = 2 if sid in (0x21, 0x09) else 3
+        echo = 2 if sid in (0x01, 0x21, 0x09) else 3
         if bytes.fromhex(cmd[2:]) != data[1:1 + len(cmd[2:]) // 2]:
             return None
         return data[echo:]

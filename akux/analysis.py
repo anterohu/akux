@@ -296,7 +296,8 @@ def reference_capacity(vehicle: dict, bms_bol: float | None, model: dict | None,
 
 
 MERKKI_GEN = {"Tesla": "Teslan", "Hyundai": "Hyundain", "Kia": "Kian", "Nissan": "Nissanin",
-              "Volkswagen": "Volkswagenin", "Škoda": "Škodan", "Audi": "Audin", "Cupra": "Cupran"}
+              "Volkswagen": "Volkswagenin", "Škoda": "Škodan", "Audi": "Audin", "Cupra": "Cupran",
+              "MG": "MG:n"}
 
 
 def _resolution(platform):
@@ -325,6 +326,8 @@ def _platform_notes(model, platform, ref_src, last) -> list[str]:
         gen = MERKKI_GEN.get((model or {}).get("merkki"), "Auton")
         if getattr(pm, "SOH_HUOM", None):
             out.append(pm.SOH_HUOM.format(gen=gen))
+        if getattr(pm, "KENNO_HUOM", None):
+            out.append(pm.KENNO_HUOM.format(gen=gen))
         if pm.RESOLUUTIO_MV and pm.RESOLUUTIO_MV > 1:
             out.append(f"Akunhallinta ilmoittaa kennojännitteet {pm.RESOLUUTIO_MV:.0f} mV:n tarkkuudella, joten "
                        "kennojen jännite-ero on arvioitu tämä tarkkuus huomioiden.")
@@ -994,8 +997,12 @@ def _summarize(res):
 
     cs = res.get("kennot")
     if cs:
-        kuv = (f"Suurin {fmt(cs['max_v'], 3)} V (ryhmä {cs['max_nro']}), "
-               f"pienin {fmt(cs['min_v'], 3)} V (ryhmä {cs['min_nro']}).")
+        if (res.get("ajoneuvo") or {}).get("alusta") == "mg":
+            kuv = (f"Suurin {fmt(cs['max_v'], 3)} V (lohko {(cs['max_nro'] + 1) // 2}), "
+                   f"pienin {fmt(cs['min_v'], 3)} V (lohko {(cs['min_nro'] + 1) // 2}).")
+        else:
+            kuv = (f"Suurin {fmt(cs['max_v'], 3)} V (ryhmä {cs['max_nro']}), "
+                   f"pienin {fmt(cs['min_v'], 3)} V (ryhmä {cs['min_nro']}).")
         if cs.get("alue") in ("lfp_taysi", "lfp_matala", "lfp_tasainen", "matala") and cs.get("soc") is not None:
             r = cs["rajat_mv"]
             kuv += (f" Mitattu {fmt(cs['soc'], 0)} %:n varauksessa, raja-arvot tällä varauksella: "
@@ -1073,16 +1080,25 @@ def _summarize(res):
         elif cs.get("alue") == "lfp_tasainen":
             parts.append("LFP-akun kennojen tasapaino arvioidaan luotettavimmin täyden latauksen jälkeen.")
         if cs["poikkeavat"]:
-            parts.append("Poikkeavia kennoryhmiä havaittiin: " +
-                         ", ".join(f"ryhmä {p['nro']}" for p in cs["poikkeavat"][:6]) + ".")
+            if (res.get("ajoneuvo") or {}).get("alusta") == "mg":
+                lohkot = sorted({(p["nro"] + 1) // 2 for p in cs["poikkeavat"]})[:6]
+                parts.append("Poikkeavia kennoja havaittiin: " + ", ".join(f"lohko {k}" for k in lohkot) + ".")
+            else:
+                parts.append("Poikkeavia kennoryhmiä havaittiin: " +
+                             ", ".join(f"ryhmä {p['nro']}" for p in cs["poikkeavat"][:6]) + ".")
         else:
             parts.append("Täydessä akussa poikkeavia kennoryhmiä ei havaittu." if res.get("kennot_matala")
                          else "Poikkeavia kennoryhmiä ei havaittu.")
     hr = cap.get("heikoin_ryhma")
     low = res.get("kennot_matala") or {}
     if hr and hr["poikkeama_mv"] < -(low.get("poikkeama_raja_mv") or 15):
-        parts.append(f"Kennoryhmä {hr['nro']} on matalassa varauksessa {fmt(abs(hr['poikkeama_mv']), 0)} mV muita "
-                     "alempana, mikä viittaa muita pienempään kapasiteettiin.")
+        if (res.get("ajoneuvo") or {}).get("alusta") == "mg":
+            parts.append(f"Lohkon {(hr['nro'] + 1) // 2} {'matalin' if hr['nro'] % 2 else 'korkein'} kenno on "
+                         f"matalassa varauksessa {fmt(abs(hr['poikkeama_mv']), 0)} mV muita alempana, mikä viittaa "
+                         "muita pienempään kapasiteettiin.")
+        else:
+            parts.append(f"Kennoryhmä {hr['nro']} on matalassa varauksessa {fmt(abs(hr['poikkeama_mv']), 0)} mV muita "
+                         "alempana, mikä viittaa muita pienempään kapasiteettiin.")
     summary["teksti"] = " ".join(parts) if parts else "Mittauksesta ei saatu riittävästi tietoa tuloksen muodostamiseen."
     if soh is not None:
         summary["tulkinta"] = interpretation(soh, cs, cap)

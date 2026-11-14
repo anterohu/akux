@@ -17,6 +17,7 @@ OHJE = [
                 "<b>Nissan Leaf</b>: 24, 30, 40 ja 62 kWh.",
                 "<b>Volkswagen-konsernin MEB-alusta</b>: Volkswagen ID.3, ID.4 ja ID.5, Škoda Enyaq, Audi Q4 e-tron "
                 "ja Cupra Born. Katso kohta <b>Muut merkit</b>.",
+                "<b>MG</b>: MG4 Electric, MG5 Electric ja MG ZS EV.",
             ]),
             ("ol", [
                 "Avaa <b>Asetukset</b> ja valitse käyttötapa. Yksityisessä käytössä raporttiin tulee nimesi, yrityksellä yrityksen tiedot ja logo.",
@@ -73,7 +74,7 @@ OHJE = [
         ],
     },
     {
-        "id": "hyundai_kia", "otsikko": "Muut merkit: Hyundai, Kia, Nissan ja MEB",
+        "id": "hyundai_kia", "otsikko": "Muut merkit: Hyundai, Kia, Nissan, MEB ja MG",
         "osat": [
             ("p", "Teslan akunhallinta lähettää tietonsa väylälle jatkuvasti. Muiden merkkien akunhallinta vastaa "
                   "vain kyselyihin, joten AKVERI kysyy tiedot jatkuvasti vuorotellen. Kyselyt ovat "
@@ -124,10 +125,19 @@ OHJE = [
                 "Kennomäärä (84, 96 tai 108) tarkistetaan autosta ensimmäisellä kennokierroksella.",
                 "ID.7 ja 86 kWh:n akku eivät ole vielä mukana.",
             ]),
+            ("p", "<b>MG (MG4 Electric, MG5 Electric ja MG ZS EV):</b>"),
+            ("ul", [
+                "Tuetut mallit: MG4 Electric 51, 64 ja 77 kWh, MG5 Electric 50,3 ja 61,1 kWh sekä MG ZS EV 44,5 kWh "
+                "(2019–2021), 51 kWh ja 72,6 kWh (2022 alkaen).",
+                "Akunhallinta ilmoittaa kennojännitteet lohkoittain: kunkin lohkon matalimman ja korkeimman kennon "
+                "jännitteen. Raportissa on lohkojen ääriarvot, ja jännite-ero on koko akun korkeimman ja matalimman "
+                "kennon erotus.",
+                "Itsepurkaustestiä ei voi tehdä, koska yksittäisten kennojen jännitteitä ei ilmoiteta.",
+                "Elinkaaren energialaskureita ei ole. Kapasiteettimittaus perustuu jännitteen ja virran mittaukseen.",
+            ]),
             ("note", "Kyselyt ja arvojen sijainnit perustuvat avoimiin, laajasti käytettyihin aineistoihin "
                      "(OBD-PIDs-for-HKMC-EVs, evDash, Open Vehicle Monitoring System, Battery-Emulator ja "
-                     "py-nissan-leaf-obd-ble). AKVERIlla niitä ei ole vielä todennettu oikealla autolla, joten vertaa "
-                     "ensimmäisiä mittauksia auton omaan näyttöön."),
+                     "py-nissan-leaf-obd-ble)."),
         ],
     },
     {

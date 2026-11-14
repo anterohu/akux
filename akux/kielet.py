@@ -77,7 +77,7 @@ def tyhjenna_valimuisti():
 
 # Merkin genetiivi suomessa → sanastossa käytetään muotoa "Teslan", ja käännökseen palautetaan oikea merkki.
 MERKIT = {"Hyundain": "Hyundai", "Kian": "Kia", "Nissanin": "Nissan", "Volkswagenin": "Volkswagen", "Škodan": "Škoda",
-          "Audin": "Audi", "Cupran": "Cupra"}
+          "Audin": "Audi", "Cupran": "Cupra", "MG:n": "MG"}
 _MERKKI_RX = re.compile(r"\b(" + "|".join(MERKIT) + r")(?= )")
 _LAUSE_RX = re.compile(r"(?<=[.!?])\s+(?=[A-ZÅÄÖ0-9(])")
 

@@ -27,7 +27,7 @@ function tr(teksti) {
   _VALIMUISTI.set(teksti, tulos);
   return tulos;
 }
-const _MERKIT = { "Hyundain": "Hyundai", "Kian": "Kia", "Nissanin": "Nissan", "Volkswagenin": "Volkswagen", "Škodan": "Škoda", "Audin": "Audi", "Cupran": "Cupra" };
+const _MERKIT = { "Hyundain": "Hyundai", "Kian": "Kia", "Nissanin": "Nissan", "Volkswagenin": "Volkswagen", "Škodan": "Škoda", "Audin": "Audi", "Cupran": "Cupra", "MG:n": "MG" };
 const _MERKKI_RX = new RegExp("(^|[^A-Za-zÅÄÖåäöŠš])(" + Object.keys(_MERKIT).join("|") + ")(?= )");
 const _LAUSE_RX = /(?<=[.!?])\s+(?=[A-ZÅÄÖ0-9(])/;
 function _tr(teksti, ydin) {

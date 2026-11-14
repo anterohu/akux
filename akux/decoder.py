@@ -55,6 +55,7 @@ ALUSTAT = {
     "hkmc": "Hyundai ja Kia",
     "leaf": "Nissan Leaf",
     "meb": "Volkswagen-konsernin MEB",
+    "mg": "MG",
 }
 
 TUNNISTE_KUVAUS = {

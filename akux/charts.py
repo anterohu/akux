@@ -65,7 +65,7 @@ def _png(fig) -> bytes:
     return buf.getvalue()
 
 
-def cell_chart(volts: list, title: str, width_mm=174, height_mm=62, poikkeavat=()) -> bytes:
+def cell_chart(volts: list, title: str, width_mm=174, height_mm=62, poikkeavat=(), xlabel: str = "Kennoryhmä") -> bytes:
     vals = [v for v in volts if v]
     mean = sum(vals) / len(vals)
     dev = [((v - mean) * 1000) if v else 0 for v in volts]
@@ -78,7 +78,7 @@ def cell_chart(volts: list, title: str, width_mm=174, height_mm=62, poikkeavat=(
     lim = max(5.0, max(abs(x) for x in dev) * 1.25)
     ax.set_ylim(-lim, lim)
     ax.set_ylabel("Poikkeama keskiarvosta (mV)")
-    ax.set_xlabel("Kennoryhmä")
+    ax.set_xlabel(xlabel)
     step = 8 if len(volts) > 60 else 4
     ax.set_xticks([1] + list(range(step, len(volts) + 1, step)))
     ax.yaxis.set_major_formatter(_fi(0))
