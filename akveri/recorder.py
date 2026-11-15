@@ -131,6 +131,7 @@ class Recorder:
         self.notes: list[str] = []
         self.finishing = False
         self.i2_out = 0.0            # ∫ I² dt purussa (A²s)
+        self.aukot_s = 0.0           # virtamittauksen katkojen yhteiskesto (s), jota ei voitu integroida
         # Resistanssi lasketaan lyhyistä aikaikkunoista, joissa varaustila ei ehdi muuttua: kunkin ikkunan
         # arvot keskistetään ikkunan keskiarvoon, jolloin lepojännitteen hidas muutos ei vääristä tulosta.
         self.bricks_reg: dict = {}   # kennoryhmä -> [n, Sii, Siv, Svv] (keskistetyt summat)
@@ -290,7 +291,7 @@ class Recorder:
     _STATE_KEYS = ("vaihe", "marks", "gaps", "notes", "t_start", "e_in", "e_out", "ah_in", "ah_out", "i2_in",
                    "i2_out", "bricks_reg", "pack_reg", "p_max_kw", "p_min_kw", "v_min_load", "load_events", "curve", "osat",
                    "brick_acc", "quick_started", "ch_e_neg", "ch_e_pos", "ch_ah_neg", "ch_ah_pos", "ch_i2",
-                   "ch_seconds", "r_window")
+                   "ch_seconds", "r_window", "aukot_s")
 
     def _state_dict(self) -> dict:
         d = {k: getattr(self, k) for k in self._STATE_KEYS}
@@ -392,6 +393,8 @@ class Recorder:
                             self.ch_ah_pos += ia * dt / 3600
                         self.ch_i2 += ia * ia * dt
                         self.ch_seconds += dt
+                elif dt > max_gap and self.vaihe != "lataus":
+                    self.aukot_s += dt
                 elif dt > max_gap and self.vaihe == "lataus":
                     # Katkon jälkeinen energialukema otetaan vasta, kun akunhallinnan
                     # energiaviesti on ehditty vastaanottaa uudelleen.
@@ -601,7 +604,7 @@ class Recorder:
              "ner": st.nominal_remaining_kwh, "nfp": st.nfp_kwh, "laskurit": st.counters_raw,
              "km": st.odometer_km, "v": st.pack_v, "t_min": st.temp_min, "t_max": st.temp_max,
              "e_in": self.e_in, "e_out": self.e_out, "i2_out": self.i2_out, "i2_in": self.i2_in,
-             "ah_in": self.ah_in, "ah_out": self.ah_out}
+             "ah_in": self.ah_in, "ah_out": self.ah_out, "aukot_s": self.aukot_s}
         if extra:
             m.update(extra)
         return m

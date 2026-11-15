@@ -519,7 +519,8 @@ class Api:
 
     # -- mittaukset -----------------------------------------------------
     def _test_row(self, t):
-        r = t.get("tulos") or {}
+        # Perutun tai perumisaikaa odottavan mittauksen kuntoa, kapasiteettia ja kennoeroa ei näytetä listoissakaan.
+        r = (t.get("tulos") or {}) if krediittimoduuli.tulos_naytettavissa(t) else {}
         y = r.get("yhteenveto") or {}
         return {"id": t["id"], "ajoneuvo_id": t["vehicle_id"], "tyyppi": t["tyyppi"], "tila": t["tila"],
                 "aloitettu": t["aloitettu"], "paattynyt": t["paattynyt"], "mittarilukema": t["mittarilukema"],
@@ -694,6 +695,8 @@ class Api:
         if not krediittimoduuli.tulos_naytettavissa(t):
             t["tulos_odottaa"] = krediittimoduuli.tulos_odottaa(t)
             t["tulos"] = None
+            # Näytteistä poistetaan akunhallinnan energia-arvot ja kennojännitteet, joista kunnon voisi päätellä.
+            t["naytteet"] = [{**n, "nfp": None, "ner": None, "c_min": None, "c_max": None} for n in t["naytteet"]]
         t.update(self._lupa(t))
         return t
 
@@ -715,6 +718,7 @@ class Api:
         return r
 
     def tallenna_kansioon(self, q, body, tid):
+        self._vaadi_tulos(tid)
         try:
             paths = mittaustiedosto.save_to_folder(self.app.storage, tid)
         except (ValueError, OSError) as e:
@@ -739,7 +743,15 @@ class Api:
         self.app.storage.update_test(tid, riippumaton=_riippumaton(body.get("riippumaton")))
         return {"ok": True}
 
+    def _vaadi_tulos(self, tid):
+        t = self.app.storage.test(tid)
+        if not t:
+            raise ApiError("Mittausta ei löydy.", 404)
+        if not krediittimoduuli.tulos_naytettavissa(t):
+            raise ApiError("Tulos on käytettävissä, kun raportti on rekisteröity. Perutun mittauksen tulosta ei näytetä.", 409)
+
     def laske_uudelleen(self, q, body, tid):
+        self._vaadi_tulos(tid)
         rec = self.app.recorder
         if rec.active and rec.test_id == tid:
             raise ApiError("Mittaus on käynnissä.", 409)
@@ -762,6 +774,7 @@ class Api:
             pass
 
     def jaa_osiin(self, q, body, tid):
+        self._vaadi_tulos(tid)
         try:
             return {"ok": True, "osat": analysis.split_full_test(self.app.storage, tid)}
         except ValueError as e:

@@ -455,18 +455,29 @@ const TYYPPI = {
 };
 const tyyppi = t => TYYPPI[t] || t;
 const AJO_TURVA = ANDROID ? "Älä käytä sovellusta ajon aikana. Aseta puhelin telineeseen tai paikkaan, jossa se ei liiku ajossa." : "Älä käytä ohjelmaa ajon aikana. Aseta tietokone niin, ettei se liiku ajossa.";
+// Muut merkit kuin Tesla (akunhallinta vastaa kyselyihin vain, kun auto on päällä tai latautuu)
+const PIDA_PAALLA = "Pidä auto käynnistettynä (READY tai virta päällä) tämän vaiheen ajan, muuten akunhallinta ei vastaa kyselyihin. Ilmastointi kannattaa sammuttaa, jotta akun virta pysyy pienenä.";
+const PHASE_TEXT_KYSELY = {
+  lepo_alku: "Pidä auto pysäköitynä. Lepo tasaa kennojännitteet ja antaa tarkan lähtötason. Jos kytket latauksen jo nyt, mittaus siirtyy suoraan lataukseen.",
+  odota_lataus: "Aseta latausrajaksi 100 % auton näytöllä tai sovelluksessa. Kytke latauskaapeli ja aloita lataus. Käytä tavallista vaihtovirtalatausta, enintään 11 kW. Pikalatausta ei käytetä, koska suuri virta lisää häviöitä ja lämpenemistä. Ohjelma tunnistaa latauksen alkamisen itse.",
+  lepo_ajo_alku: "Pidä auto pysäköitynä. Lepo antaa tarkan lähtövarauksen. Jos lähdet ajamaan ennen lepojakson loppua, mittaus jatkuu, mutta tulos on epätarkempi.",
+  lepo_itse_alku: "Pysäköi auto lepojakson ajaksi. Lopuksi ohjelma lukee kaikkien kennoryhmien lähtöjännitteet.",
+  lepo_ajo_loppu: "Pysäköi auto lepojakson ajaksi. Lepo antaa tarkan loppuvarauksen. Älä kytke latausta ennen kuin mittaus on valmis.",
+};
 const PHASE_TEXT = {
   keruu: ["Tietoja luetaan", "Ohjelma lukee akunhallinnan tiedot ja kaikkien kennoryhmien jännitteet. Pidä auto paikallaan. Tarkastus kestää yleensä 1–3 minuuttia."],
   lepo_alku: ["Akku lepää ennen latausta", "Pidä auto pysäköitynä ja hereillä, esimerkiksi ilmastointi päällä tai Leiriytymistila käytössä, jotta sovitin saa virtaa. Lepo tasaa kennojännitteet ja antaa tarkan lähtötason. Jos kytket latauksen jo nyt, mittaus siirtyy suoraan lataukseen."],
   odota_lataus: ["Aloita lataus", "Aseta latausrajaksi 100 % Tesla-sovelluksessa tai auton näytöllä. Kytke latauskaapeli ja aloita lataus. Käytä tavallista vaihtovirtalatausta, enintään 11 kW. Pikalatausta ei käytetä, koska suuri virta lisää häviöitä ja lämpenemistä. Ohjelma tunnistaa latauksen alkamisen itse."],
-  lataus: ["Lataus käynnissä", "Mittaus jatkuu itsestään, kunnes akunhallinta ilmoittaa akun täydeksi. Älä irrota sovitinta. Tietokone saa jäädä autoon, kunhan se ei mene lepotilaan."],
+  lataus: ["Lataus käynnissä", "Mittaus jatkuu itsestään, kunnes akunhallinta ilmoittaa akun täydeksi. Älä irrota sovitinta. " + (ANDROID
+    ? "Puhelin saa jäädä autoon. Pidä se laturissa, jos lataus kestää pitkään."
+    : "Tietokone saa jäädä autoon, kunhan se ei mene lepotilaan.")],
   lepo_loppu: ["Akku lepää latauksen jälkeen", "Lataus on valmis. Älä käytä autoa lepojakson aikana. Kennojännitteet tasaantuvat, ja lopulliset arvot tallennetaan raporttia varten."],
   lepo_ajo_alku: ["Akku lepää ennen ajoa", "Pidä auto pysäköitynä ja hereillä. Lepo antaa tarkan lähtövarauksen. Jos lähdet ajamaan ennen lepojakson loppua, mittaus jatkuu, mutta tulos on epätarkempi."],
   ajo: ["Aja autoa", "Aja tavalliseen tapaan, kunnes tavoite on saavutettu. Ajon voi jakaa useaan kertaan: valitse Jatka myöhemmin, kun pysäköit, ja jatka mittausta seuraavalla ajokerralla. Älä lataa autoa ennen kuin tavoite on saavutettu. " + AJO_TURVA],
   lepo_ajo_loppu: ["Akku lepää ajon jälkeen", "Pysäköi auto ja pidä se hereillä lepojakson ajan. Lepo antaa tarkan loppuvarauksen. Älä kytke latausta ennen kuin mittaus on valmis."],
   kuorma_lepo: ["Lepoarvot", "Pidä auto paikallaan. Ohjelma lukee kennoryhmien lepojännitteet ennen kiihdytyksiä."],
   kuormitus: ["Tee kiihdytykset", "Tee turvallisessa paikassa reippaita kiihdytyksiä, esimerkiksi 30–80 km/h, ja noudata liikennesääntöjä. Ohjelma laskee kiihdytykset itse. Pysäköi auto lopuksi, niin mittaus päättyy. " + AJO_TURVA],
-  odota_pikalataus: ["Aloita pikalataus", "Navigoi pikalaturille auton navigaattorilla, jotta akku esilämmitetään ja teho on vertailukelpoinen. Kytke laturi. Ohjelma tunnistaa latauksen alkamisen itse."],
+  odota_pikalataus: ["Aloita pikalataus", "Jos autossa on akun esilämmitys, navigoi pikalaturille auton navigaattorilla, jotta akku lämpenee ja teho on vertailukelpoinen. Kytke laturi. Ohjelma tunnistaa latauksen alkamisen itse."],
   pikalataus: ["Pikalataus käynnissä", "Anna latauksen jatkua vähintään 80 %:iin. Mittaus päättyy, kun lataus loppuu, tai voit lopettaa sen painikkeesta."],
   lepo_itse_alku: ["Lepo ja lähtöarvot", "Pysäköi auto ja pidä se hereillä lepojakson ajan. Lopuksi ohjelma lukee kaikkien kennoryhmien lähtöjännitteet."],
   odotus: ["Seisonta", "Auto saa nyt nukkua. Valitse Jatka myöhemmin ja sulje ohjelma. Kun seisonta-aika on kulunut, herätä auto, kytke sovitin ja jatka mittausta Mittaus-sivulta. Älä aja tai lataa autoa seisonnan aikana."],
@@ -648,10 +659,9 @@ views.mittaus = {
     $("#aSteps").innerHTML = m.vaiheet.map((v, i) => `<div class="s ${i < idx ? "done" : (i === idx ? "now" : "")}">${i + 1}. ${esc(v.nimi)}</div>`).join("");
     let [ttl, txt] = PHASE_TEXT[m.vaihe] || ["", ""];
     if (S.live && S.live.kyselyalusta) {
-      // Muut merkit: akunhallinta vastaa vain, kun auto on päällä tai latautuu
-      txt = txt.replace(/,? ?esimerkiksi ilmastointi päällä tai Leiriytymistila käytössä,?/, "").replace(" Tesla-sovelluksessa tai auton näytöllä", " auton näytöllä tai sovelluksessa");
-      if (/^(lepo_|kuorma_lepo|itse_loppu|keruu)/.test(m.vaihe))
-        txt += " Pidä auto käynnistettynä (READY tai virta päällä) tämän vaiheen ajan; muuten akunhallinta ei vastaa kyselyihin. Ilmastointi kannattaa sammuttaa, jotta akun virta pysyy pienenä.";
+      // Muut merkit kuin Tesla: akunhallinta vastaa vain, kun auto on päällä tai latautuu
+      if (PHASE_TEXT_KYSELY[m.vaihe]) txt = PHASE_TEXT_KYSELY[m.vaihe];
+      if (/^(lepo_|kuorma_lepo|itse_loppu|keruu)/.test(m.vaihe)) txt += " " + PIDA_PAALLA;
     }
     $("#aTitle").textContent = ttl;
     $("#aText").textContent = txt;
@@ -847,13 +857,16 @@ views.autot = {
 
 function testTable(rows, withCar = false) {
   if (!rows.length) return `<div class="empty">Ei mittauksia.</div>`;
-  return `<table class="t"><tr><th>Päivämäärä</th>${withCar ? "<th>Auto</th>" : ""}<th>Mittaus</th><th class="num">Kunto</th><th class="num hide-m">Kapasiteetti</th><th class="num hide-m">Jännite-ero</th><th>Tila</th></tr>
-    ${rows.map(t => `<tr class="click" data-tid="${t.id}"><td>${date(t.aloitettu)}</td>${withCar ? `<td>${esc(t.ajoneuvo || "–")}<div class="small muted">${esc(t.rekisteri || "")}</div></td>` : ""}
-      <td>${esc(tyyppi(t.tyyppi))}${t.osat > 1 ? `<div class="small muted">${t.osat} osaa</div>` : ""}</td>
+  return `<table class="t"><tr><th class="hide-m">Päivämäärä</th>${withCar ? "<th>Auto</th>" : ""}<th>Mittaus</th><th class="num">Kunto</th><th class="num hide-m">Kapasiteetti</th><th class="num hide-m">Jännite-ero</th><th class="hide-m">Tila</th></tr>
+    ${rows.map(t => `<tr class="click" data-tid="${t.id}"><td class="hide-m">${date(t.aloitettu)}</td>${withCar ? `<td>${esc(t.ajoneuvo || "–")}<div class="small muted">${esc(t.rekisteri || "")}</div></td>` : ""}
+      <td>${esc(tyyppi(t.tyyppi))}<div class="small muted show-m">${date(t.aloitettu)}</div>${t.osat > 1 ? `<div class="small muted">${t.osat} osaa</div>` : ""}${t.tila !== "valmis" ? `<div class="show-m">${tilaPill(t.tila)}</div>` : ""}</td>
       <td class="num">${t.kunto_pct ? `<span class="pill ${pillClass(t.kunto_luokka)}">${n(t.kunto_pct)} %</span>` : "–"}</td>
       <td class="num hide-m">${t.kapasiteetti_kwh ? n(t.kapasiteetti_kwh) + " kWh" : "–"}</td>
       <td class="num hide-m">${t.ero_mv != null ? n(t.ero_mv, 0) + " mV" : "–"}</td>
-      <td>${{ "valmis": '<span class="pill good">Valmis</span>', "käynnissä": '<span class="pill info">Käynnissä</span>', "kesken": '<span class="pill warn">Kesken</span>', "keskeytetty": '<span class="pill">Keskeytetty</span>' }[t.tila] || `<span class="pill">${esc(t.tila)}</span>`}</td></tr>`).join("")}</table>`;
+      <td class="hide-m">${tilaPill(t.tila)}</td></tr>`).join("")}</table>`;
+}
+function tilaPill(tila) {
+  return { "valmis": '<span class="pill good">Valmis</span>', "käynnissä": '<span class="pill info">Käynnissä</span>', "kesken": '<span class="pill warn">Kesken</span>', "keskeytetty": '<span class="pill">Keskeytetty</span>' }[tila] || `<span class="pill">${esc(tila)}</span>`;
 }
 function bindTestRows() {
   $$("tr[data-tid]").forEach(r => (r.onclick = () => (location.hash = `#/mittaukset/${r.dataset.tid}`)));

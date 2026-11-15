@@ -4,6 +4,7 @@ kaikille samat. Yksityisessä käytössä raportissa ei ole yrityksen tietoja. L
 Ajo: python tests/test_asetukset.py
 """
 import io
+import json
 import subprocess
 import sys
 import tempfile
@@ -164,3 +165,54 @@ def test_kennotiedot_piilossa_ilman_mittausta():
         a.live_kunto_sallittu = lambda: True
         assert len(api.kennot({}, {})["kennot"]) == 4
         assert k.suodata_live(a.decoder.snapshot(), True)["brick_delta_mv"] > 0
+
+
+def test_ajotesti_katkot_ilman_energialaskureita():
+    """Ilman energialaskureita (esim. Nissan Leaf) katkojen ajalta ei arvioida energiaa: pienet katkot kasvattavat
+    epävarmuutta, ja yli 5 %:n katkot hylkäävät tuloksen selkeällä syyllä."""
+    from akveri.analysis_ext import analyze_discharge
+
+    def mittaa(aukot_s):
+        A = {"t": 0, "soc_avg": 90.0, "e_in": 0.0, "e_out": 0.0, "i2_out": 0.0, "aukot_s": 0.0}
+        L = {"t": 3600, "soc_avg": 30.0, "e_in": 0.5, "e_out": 12.0, "i2_out": 1.0e7, "aukot_s": aukot_s}
+        return analyze_discharge({}, {"merkinnat": {"ajo_alku": A, "ajo_loppu": L}}, "NMC", 96, None, None, "ajo", None)
+
+    ehja, pieni, suuri = mittaa(0), mittaa(90), mittaa(400)
+    assert ehja["valmis"] and pieni["valmis"]
+    assert ehja["epavarmuus_osat"]["katkot"] == 0
+    assert pieni["epavarmuus_kwh"] > ehja["epavarmuus_kwh"]
+    assert abs(pieni["taysi_kwh"] - ehja["taysi_kwh"]) < 1e-9, "katkojen energiaa ei arvioida tulokseen"
+    assert not suuri["valmis"] and "katkesi" in suuri["syy"] and suuri["kattavuus_pct"] < 95
+
+
+def test_perutun_mittauksen_kuntoa_ei_nayteta_missaan():
+    """Akun kuntoa, kapasiteettia tai kennoeroa ei saa ilman maksua: perutun mittauksen tulos on piilossa listassa,
+    mittausnäkymässä, näytteissä, tallennuksessa, uudelleenlaskennassa ja jaossa."""
+    from akveri.app import App
+    with tempfile.TemporaryDirectory() as d:
+        a = App(Path(d))
+        api = server.Api(a)
+        vid = a.storage.add_vehicle({"nimi": "Testiauto", "malli_id": "hy-kona-64", "vin": "KMHK581GFLU123456"})
+        tid = a.storage.add_test(vid, "pikatarkastus")
+        tulos = {"yhteenveto": {"kunto_pct": 91.2, "kunto_luokka": "Erinomainen", "kapasiteetti_kwh": 58.4, "epavarmuus_kwh": 0.6},
+                 "kennot": {"ero_mv": 12}}
+        a.storage.update_test(tid, tila="valmis", tulos=tulos, lupa="ABCD1234", lupa_tila="peruttu")
+        a.storage.add_samples(tid, [(1.0, "lepo", 358.0, 0.1, 60.0, 60.0, 58.4, 35.0, 20.0, 21.0, 3.70, 3.71, 0, 0, 0)])
+        rivi = api.mittaukset({}, {})["mittaukset"][0]
+        assert rivi["kunto_pct"] is None and rivi["kapasiteetti_kwh"] is None and rivi["ero_mv"] is None
+        assert api.ajoneuvo({}, {}, vid)["mittaukset"][0]["kunto_pct"] is None
+        m = api.mittaus({}, {}, tid)
+        assert m["tulos"] is None
+        assert all(n["nfp"] is None and n["c_max"] is None for n in m["naytteet"])
+        assert "91" not in json.dumps({k: v for k, v in m.items() if k != "tapahtumat"})
+        for kutsu in (api.tallenna_kansioon, api.laske_uudelleen, api.jaa_osiin):
+            try:
+                kutsu({}, {}, tid)
+            except server.ApiError as e:
+                assert e.code == 409
+            else:
+                raise AssertionError(kutsu.__name__)
+        # Rekisteröidyn (maksetun) mittauksen tulos näkyy
+        a.storage.update_test(tid, lupa_tila="rekisteroity")
+        assert api.mittaukset({}, {})["mittaukset"][0]["kunto_pct"] == 91.2
+        assert api.mittaus({}, {}, tid)["naytteet"][0]["nfp"] == 58.4

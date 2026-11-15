@@ -50,7 +50,7 @@ Palvelu ajetaan omalla järjestelmäkäyttäjällä `akveri` (ei kirjautumista).
 
 ## Google Play -ostojen tarkistus
 
-1. Play Consolessa: luo kertakäyttöiset tuotteet (esim. `akveri_testi_1`, `akveri_testi_5`, `akveri_testi_20`) ja aseta hinnat.
+1. Play Consolessa: luo kertakäyttöiset tuotteet, joiden tunnukset ovat valmiina palvelimen oletuksissa: `akveri_krediitit_1` (1 krediitti), `akveri_krediitit_3`, `akveri_krediitit_10` ja `akveri_krediitit_30`. Aseta hinnat, esimerkiksi 9,90 €, 24,90 €, 69 € ja 179 €.
 2. Google Cloudissa: luo palvelutili ja sille JSON-avain. Play Consolessa: Käyttäjät ja oikeudet → kutsu palvelutilin sähköpostiosoite ja anna oikeus "Talous- ja tilaustietojen tarkastelu" sekä "Tilausten ja tilausten hallinta".
 3. Hallintatyökalun AKVERI-välilehdellä: lisää sovelluksen paketti (`fi.akveri.app`) ja palvelutilin avaintiedosto, ja paina Julkaise.
 4. akveri.fi/hallinta → Sivusto ja ehdot: tarkista, että tuotetunnukset ja krediittimäärät vastaavat Play Consolea.

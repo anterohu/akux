@@ -18,7 +18,7 @@ const { json, Virhe, lueJson, ipOsoite, puhdista, yksiRivi, vakioaikainenVertail
 const { osoiteOsasta } = require('./posti');
 const kayttajat = require('./kayttajat');
 const KIELTEN_NIMET = { fi: 'suomi', en: 'englanti', sv: 'ruotsi' };
-const { normalisoiTunnus, muotoileTunnus, MITTAUSTYYPIT, OLETUSHINTA, OLETUSTUOTTEET, OLETUS_VAHIMMAISVERSIO, VERSIO_RE, vertaaVersioita } = require('./sovellus');
+const { normalisoiTunnus, muotoileTunnus, MITTAUSTYYPIT, OLETUSHINNAT, OLETUSTUOTTEET, OLETUS_VAHIMMAISVERSIO, VERSIO_RE, vertaaVersioita } = require('./sovellus');
 
 const ISTUNTO_MS = 8 * 3600000;
 const EVASTE = 'akveri_hallinta';
@@ -300,7 +300,7 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
     return {
       yhteystiedot: a.yhteystiedot || {}, playLinkki: a.playLinkki || '', hinnasto: a.hinnasto || '',
       tuotteet: Array.isArray(a.tuotteet) && a.tuotteet.length ? a.tuotteet : OLETUSTUOTTEET,
-      hinnat: Object.fromEntries(MITTAUSTYYPIT.map(t => [t, Number.isInteger((a.hinnat || {})[t]) && a.hinnat[t] >= 1 ? a.hinnat[t] : OLETUSHINTA])),
+      hinnat: Object.fromEntries(MITTAUSTYYPIT.map(t => [t, Number.isInteger((a.hinnat || {})[t]) && a.hinnat[t] >= 1 ? a.hinnat[t] : OLETUSHINNAT[t]])),
       hyvitysaikaMin: Number(a.hyvitysaikaMin) > 0 ? Number(a.hyvitysaikaMin) : 60,
       vahimmaisversio: VERSIO_RE.test(String(a.vahimmaisversio)) ? a.vahimmaisversio : OLETUS_VAHIMMAISVERSIO, uusinVersio: a.uusinVersio || '',
       asiakirjat: { ehdot: a.asiakirjat && a.asiakirjat.ehdot || null, tietosuoja: a.asiakirjat && a.asiakirjat.tietosuoja || null },
@@ -353,7 +353,7 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
       if (!Array.isArray(body.tuotteet) || !body.tuotteet.length || body.tuotteet.length > 10) throw new Virhe('Anna 1–10 tuotetta.');
       const lista = body.tuotteet.map(t => ({ tuote: puhdista(t.tuote, 100), krediitit: Number(t.krediitit) }));
       for (const t of lista) {
-        if (!/^[a-z0-9][a-z0-9._]{0,98}$/.test(t.tuote)) throw new Virhe('Tuotetunnus on Play Consolen tunnus, esim. akveri_testi_5 (pienet kirjaimet, numerot, _ ja .).');
+        if (!/^[a-z0-9][a-z0-9._]{0,98}$/.test(t.tuote)) throw new Virhe('Tuotetunnus on Play Consolen tunnus, esim. akveri_krediitit_10 (pienet kirjaimet, numerot, _ ja .).');
         if (!Number.isInteger(t.krediitit) || t.krediitit < 1 || t.krediitit > 1000) throw new Virhe('Krediittimäärä on 1–1000.');
       }
       if (new Set(lista.map(t => t.tuote)).size !== lista.length) throw new Virhe('Sama tuotetunnus on listassa kahdesti.');
@@ -363,7 +363,7 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
       if (!body.hinnat || typeof body.hinnat !== 'object') throw new Virhe('Anna mittausten hinnat.');
       const uusi = {};
       for (const t of MITTAUSTYYPIT) {
-        const n = Number(body.hinnat[t] === undefined ? (a.hinnat || {})[t] || OLETUSHINTA : body.hinnat[t]);
+        const n = Number(body.hinnat[t] === undefined ? (a.hinnat || {})[t] || OLETUSHINNAT[t] : body.hinnat[t]);
         if (!Number.isInteger(n) || n < 1 || n > 100) throw new Virhe('Mittauksen hinta on 1–100 krediittiä.');
         uusi[t] = n;
       }
@@ -534,8 +534,8 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
       if (p === '/posti/testi' && req.method === 'POST') {
         if (!postitus || !postitus.kaytossa()) throw new Virhe('Sähköpostia ei ole asetettu.', 409);
         try { await postitus.ilmoita('AKVERI: sähköpostin testi', 'Tämä on testiviesti akveri.fi:n hallinnasta. Jos luet tämän, ilmoitukset toimivat.\n'); }
-        catch (e) { throw new Virhe('Testiviesti epäonnistui: ' + e.message, 502); }
-        return json(res, 200, { ok: true });
+        catch (e) { throw new Virhe(e.message, 502); }
+        return json(res, 200, { ok: true, viesti: 'Testiviesti lähetettiin osoitteeseen ' + (postiNakyma() || {}).vastaanottaja + '. Tarkista myös roskapostikansio.' });
       }
       if (m && req.method === 'DELETE') { delete varasto.get('viestit')[m[1]]; varasto.tallenna('viestit'); return json(res, 200, { ok: true }); }
       if (p === '/asetukset' && req.method === 'GET') return json(res, 200, julkisetAsetukset());

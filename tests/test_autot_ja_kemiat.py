@@ -326,8 +326,8 @@ def run_types(car, tmp):
     if not _hk(car) or polled.for_model(_hk(car)).ITSEPURKAUS_OK:
         check_self_discharge(app, car)
 
-    # Täysi akkutesti
-    src = _sim(car, soc=0.95, accel=500)
+    # Täysi akkutesti (sama nopeutus kuin ajotestissä: ilman energialaskureita näytteitä tarvitaan tiheästi)
+    src = _sim(car, soc=0.95, accel=60 if _pm and not _pm.ELINKAARILASKURIT else 500)
     tid = _start(app, src, "taysi")
     _phase(app, "ajo", 90)
     src.set_mode("drive", 20.0)

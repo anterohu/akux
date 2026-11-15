@@ -120,7 +120,20 @@ def analyze_discharge(res: dict, meta: dict, chem: str, n_bricks: int, ref_kwh, 
         out["syy"] = "Akusta otettua energiaa ei saatu mitattua."
         return out
     coverage = integ / net if net else 0
-    out["kattavuus_pct"] = max(0.0, min(100.0, coverage * 100))
+    gap_frac = 0.0
+    if not cd:
+        # Ilman energialaskureita energia saadaan vain jännitteestä ja virrasta. Katkojen ajalta energiaa
+        # ei arvioida; katkojen osuus otetaan huomioon epävarmuudessa, ja liian katkonainen ajo hylätään.
+        kesto = (L.get("t") or 0) - (A.get("t") or 0)
+        aukot = max(0.0, (L.get("aukot_s") or 0) - (A.get("aukot_s") or 0))
+        gap_frac = aukot / kesto if kesto > 0 else 0.0
+        if gap_frac > 0.05:
+            out["kattavuus_pct"] = (1.0 - gap_frac) * 100
+            out["syy"] = (f"Yhteys autoon katkesi ajon aikana yhteensä {fmt(aukot / 60)} minuutiksi "
+                          f"({fmt(gap_frac * 100)} % ajasta). Tulosta ei laskettu, koska akusta otettua "
+                          "energiaa ei saatu mitattua katkojen ajalta. Tarkista lukulaitteen kiinnitys ja toista testi.")
+            return out
+    out["kattavuus_pct"] = max(0.0, min(100.0, (coverage if cd else 1.0 - gap_frac) * 100))
 
     # Akun sisäiset häviöt: R · ∫I²dt (R kennoryhmien mittauksesta tai kemian tyypillinen arvo)
     r_ohm = (load or {}).get("r_akku_mohm", 0) / 1000
@@ -148,13 +161,14 @@ def analyze_discharge(res: dict, meta: dict, chem: str, n_bricks: int, ref_kwh, 
     u_soc = e_full * math.sqrt(2) * su / dsoc
     u_ext = 0.03 * (e_low + e_high)
     u_ocv = 0.01 * e_full
-    u = math.sqrt(u_cnt ** 2 + (u_loss * e_full / e_chem) ** 2 + u_soc ** 2 + u_ext ** 2 + u_ocv ** 2)
+    u_gap = gap_frac * e_full
+    u = math.sqrt(u_cnt ** 2 + (u_loss * e_full / e_chem) ** 2 + u_soc ** 2 + u_ext ** 2 + u_ocv ** 2 + u_gap ** 2)
     km = (L.get("km") or 0) - (A.get("km") or 0) if (L.get("km") and A.get("km")) else None
     out.update(valmis=True, netto_kwh=net, haviot_kwh=loss, kemiallinen_kwh=e_chem, ah_ikkuna=ah_win,
                ah_taysi=ah_full, e_alapuoli_kwh=e_low, e_ylapuoli_kwh=e_high, taysi_kwh=e_full,
                epavarmuus_kwh=u, r_kaytetty_mohm=r_ohm * 1000,
                epavarmuus_osat={"laskurit": u_cnt, "varaustila": u_soc, "haviot": u_loss,
-                                "ekstrapolointi": u_ext, "jannitekayra": u_ocv},
+                                "ekstrapolointi": u_ext, "jannitekayra": u_ocv, "katkot": u_gap},
                matka_km=km, kulutus_wh_km=(net * 1000 / km) if km and km > 5 else None,
                osat=meta.get("osat", 1), kesto_h=(L["t"] - A["t"]) / 3600)
     if ref_kwh:

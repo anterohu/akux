@@ -151,6 +151,8 @@ def test_krediitit():
 
             # 3. Omistaja lisää krediitit hallinnassa
             palvelin.kirjaudu()
+            # Testi olettaa yhden krediitin hinnan kaikille mittauksille (oletushinnat testataan palvelimen testeissä)
+            palvelin.pyynto("PUT", "/api/hallinta/asetukset", {"hinnat": {k: 1 for k in ("pikatarkastus", "kapasiteetti", "taysi", "ajotesti", "pika_ajo", "kuormitus", "pikalataus", "itsepurkaus")}}, True)
             palvelin.pyynto("POST", f"/api/hallinta/tilit/{tili}/krediitit", {"muutos": 3, "selite": "Testi"}, True)
             assert api.krediitit({}, {})["saldo"] == 3
             v = api.krediitit({}, {})["versiot"]

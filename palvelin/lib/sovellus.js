@@ -29,11 +29,15 @@ const VIN_RE = /^[A-HJ-NPR-Z0-9]{17}$/;
 // Mittaustyypit ja niiden oletushinta krediitteinä. Omistaja muuttaa hinnat hallinnassa (Sivusto ja ehdot → Lataus ja hinnat),
 // ja sovellus hakee ne palvelimelta (saldo-kysely), joten muutos näkyy sovelluksessa heti.
 const MITTAUSTYYPIT = ['pikatarkastus', 'kapasiteetti', 'taysi', 'ajotesti', 'pika_ajo', 'kuormitus', 'pikalataus', 'itsepurkaus'];
-const OLETUSHINTA = 1;
+// Oletushinnat: lyhyet testit 1, pidemmät ajo- ja seisontatestit 2, kapasiteettimittaus 3 ja täysi akkutesti 4 krediittiä.
+const OLETUSHINTA = 1;   // tyypitön varaus (vanhat sovellusversiot)
+const OLETUSHINNAT = { pikatarkastus: 1, pika_ajo: 1, kuormitus: 1, pikalataus: 1, ajotesti: 2, itsepurkaus: 2, kapasiteetti: 3, taysi: 4 };
+// Krediittipaketit (Play Consolen tuotetunnukset). Isommat paketit ovat krediittiä kohden edullisempia (yritykset).
 const OLETUSTUOTTEET = [
-  { tuote: 'akveri_testi_1', krediitit: 1 },
-  { tuote: 'akveri_testi_5', krediitit: 5 },
-  { tuote: 'akveri_testi_20', krediitit: 20 }
+  { tuote: 'akveri_krediitit_1', krediitit: 1 },
+  { tuote: 'akveri_krediitit_3', krediitit: 3 },
+  { tuote: 'akveri_krediitit_10', krediitit: 10 },
+  { tuote: 'akveri_krediitit_30', krediitit: 30 }
 ];
 const OLETUS_HYVITYSAIKA_MIN = 60;
 // Sovelluksen versiot: palvelin hyväksyy krediittitoiminnot vain sovellukselta, joka on vähintään vahimmaisversio.
@@ -67,7 +71,7 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
   const hinnat = () => {
     const a = asetukset().hinnat || {};
     const h = {};
-    for (const t of MITTAUSTYYPIT) h[t] = Number.isInteger(a[t]) && a[t] >= 1 ? a[t] : OLETUSHINTA;
+    for (const t of MITTAUSTYYPIT) h[t] = Number.isInteger(a[t]) && a[t] >= 1 ? a[t] : OLETUSHINNAT[t];
     return h;
   };
   const tuotteet = () => (Array.isArray(asetukset().tuotteet) && asetukset().tuotteet.length ? asetukset().tuotteet : OLETUSTUOTTEET);
@@ -395,4 +399,4 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
   return { kasittele, tarkistaPerutut, google, julkinenAvain: avain.julkinen, tuotteet, tyhjennaRaportti, poistaTiliTiedot, tilinTiedot, tilasto };
 }
 
-module.exports = { luoSovellusRajapinta, MITTAUSTYYPIT, OLETUSHINTA, muotoileTunnus, normalisoiTunnus, TUNNUS_RE, TILI_RE, OLETUSTUOTTEET, OLETUS_VAHIMMAISVERSIO, vertaaVersioita, VERSIO_RE };
+module.exports = { luoSovellusRajapinta, MITTAUSTYYPIT, OLETUSHINTA, OLETUSHINNAT, muotoileTunnus, normalisoiTunnus, TUNNUS_RE, TILI_RE, OLETUSTUOTTEET, OLETUS_VAHIMMAISVERSIO, vertaaVersioita, VERSIO_RE };

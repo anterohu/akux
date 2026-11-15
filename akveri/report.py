@@ -1244,8 +1244,8 @@ def _build(storage, tid: int, out_path: Path | None = None) -> Path:
         urows = [[P("Epävarmuuden osa", "label"), P("kWh", "label")]]
         for k, label in (("laskurit", "Energialaskurit (1 %)"), ("varaustila", "Varaustilan lukema"),
                          ("haviot", "Häviöiden korjaus"), ("ekstrapolointi", "Mittausvälin ulkopuolinen osuus"),
-                         ("jannitekayra", "Lepojännitekäyrä")):
-            if uo.get(k) is not None:
+                         ("jannitekayra", "Lepojännitekäyrä"), ("katkot", "Katkot mittausdatassa")):
+            if uo.get(k) is not None and (k != "katkot" or uo[k] > 0):
                 urows.append([P(label, "cell"), P(fmt(uo[k], 2), "cellr")])
         urows.append([P("Yhdistetty epävarmuus", "cellb"), P(fmt(purku["epavarmuus_kwh"], 2), "cellr")])
         side = Table([[_table(qrows, [44 * mm, 24 * mm, 22 * mm]), _table(urows, [CW - 90 * mm - 26 * mm, 18 * mm])]],

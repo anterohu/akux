@@ -59,22 +59,32 @@
 
   // Sähköpostin lähetyspalvelut: valinta täyttää palvelimen ja portin (sama ohje akveri.fi:n ja vuoropiste.fi:n hallinnassa)
   var POSTIPALVELUT = {
-    brevo: { host: 'smtp-relay.brevo.com', port: 587, secure: false, ohje: 'Käyttäjätunnus ja salasana ovat Brevon SMTP-tunnus ja SMTP-avain, jotka löytyvät Brevon SMTP-asetuksista. Lisää verkkotunnus Brevon lähettäjäasetuksiin ja vahvista se DNS-tietueilla.' },
+    webhotelli: { tunniste: /\.hostingpalvelu\.fi$/, port: 465, secure: true, ohje: 'Palvelimen nimi on hosting-tilin tiedoissa, esimerkiksi mail36.hostingpalvelu.fi. Käyttäjätunnus on koko sähköpostiosoite ja salasana postilaatikon salasana. Portti 465 ja salattu yhteys ovat valmiina.' },
     gmail: { host: 'smtp.gmail.com', port: 587, secure: false, ohje: 'Käyttäjätunnus on Gmail-osoitteesi ja salasana sovellussalasana (Google-tili → Turvallisuus → Sovellussalasanat; vaatii kaksivaiheisen kirjautumisen). Lisää lähettäjäosoitteet Gmailiin: Asetukset → Tilit → Lähetä viestejä osoitteesta. Gmail lähettää enintään noin 500 viestiä vuorokaudessa.' },
     muu: { ohje: 'Täytä palvelin, portti ja tunnukset sähköpostipalvelusi ohjeen mukaan. Portti on yleensä 587 tai salatulla yhteydellä 465.' }
   };
   function postipalvelu(valinta, host, port, secure, ohje, asetaArvot) {
     var tunnista = function () {
       var h = (host.value || '').trim().toLowerCase();
-      valinta.value = h ? (Object.keys(POSTIPALVELUT).filter(function (k) { return POSTIPALVELUT[k].host === h; })[0] || 'muu') : '';
+      valinta.value = h ? (Object.keys(POSTIPALVELUT).filter(function (k) { var p = POSTIPALVELUT[k]; return p.host === h || (p.tunniste && p.tunniste.test(h)); })[0] || 'muu') : '';
       ohje.textContent = valinta.value ? POSTIPALVELUT[valinta.value].ohje : '';
     };
     valinta.addEventListener('change', function () {
       var p = POSTIPALVELUT[valinta.value];
       ohje.textContent = p ? p.ohje : '';
-      if (p && p.host && asetaArvot) { host.value = p.host; port.value = p.port; secure.checked = p.secure; }
+      if (p && asetaArvot) {
+        if (p.host) host.value = p.host;
+        else if (p.tunniste && POSTIPALVELUT.gmail.host === (host.value || '').trim().toLowerCase()) host.value = '';
+        if (p.port) { port.value = p.port; secure.checked = p.secure; }
+        if (!host.value) host.focus();
+      }
     });
     host.addEventListener('change', tunnista);
+    // Portti ja salaus pidetään yhteensopivina: 465 = salattu heti alusta, 587 ja 25 = STARTTLS.
+    port.addEventListener('change', function () {
+      var n = Number(port.value);
+      if (n === 465) secure.checked = true; else if (n === 587 || n === 25) secure.checked = false;
+    });
     return tunnista;
   }
 
@@ -126,7 +136,7 @@
   function naytaPosti(p) {
     $('#posti-tila').textContent = p ? ('Käytössä: ' + p.host + ':' + p.port + (p.salasanaAsetettu ? ', salasana tallennettu.' : '.')) : 'Sähköpostia ei ole asetettu. Ilmoituksia ei lähetetä, eikä viesteihin voi vastata täältä.';
     p = p || {};
-    $('#po-host').value = p.host || ''; $('#po-port').value = p.port || 587; $('#po-secure').checked = !!p.secure; $('#po-user').value = p.user || ''; $('#po-pass').value = '';
+    $('#po-host').value = p.host || ''; $('#po-port').value = p.port || 465; $('#po-secure').checked = p.host ? !!p.secure : true; $('#po-user').value = p.user || ''; $('#po-pass').value = '';
     if (window.__postiTunnista) window.__postiTunnista();
     $('#po-lahettaja').value = p.lahettaja || ''; $('#po-omat').value = p.lahettajaOmat || ''; $('#po-vastaanottaja').value = p.vastaanottaja || '';
   }

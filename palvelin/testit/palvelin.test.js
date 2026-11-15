@@ -40,8 +40,16 @@ function googleKorvike() {
   return { haku, tili, ostot, perutut, kutsut };
 }
 
-async function kaynnista(t, { lisaEnv = {}, kello } = {}) {
+async function kaynnista(t, { lisaEnv = {}, kello, oletukset = false } = {}) {
   const kansio = fs.mkdtempSync(path.join(os.tmpdir(), 'akveri-palvelin-'));
+  if (!oletukset) {
+    // Testit käyttävät kiinteitä testituotteita ja yhden krediitin hintoja; oletushinnat testataan erikseen.
+    fs.mkdirSync(path.join(kansio, 'data'), { recursive: true });
+    fs.writeFileSync(path.join(kansio, 'data', 'asetukset.json'), JSON.stringify({
+      tuotteet: [{ tuote: 'akveri_testi_1', krediitit: 1 }, { tuote: 'akveri_testi_5', krediitit: 5 }, { tuote: 'akveri_testi_20', krediitit: 20 }],
+      hinnat: { pikatarkastus: 1, kapasiteetti: 1, taysi: 1, ajotesti: 1, pika_ajo: 1, kuormitus: 1, pikalataus: 1, itsepurkaus: 1 }
+    }));
+  }
   const g = googleKorvike();
   const tiliTiedosto = path.join(kansio, 'palvelutili.json');
   fs.writeFileSync(tiliTiedosto, JSON.stringify(g.tili));
@@ -643,13 +651,14 @@ test('sähköposti: otsakkeisiin ei voi syöttää rivinvaihtoja', () => {
   assert.match(posti.rakennaViesti({ from: 'AKVERI <a@b.fi>', to: 'c@d.fi', subject: 'Hei', text: 'x' }), /^From: AKVERI <a@b\.fi>\r\n/);
 });
 
-test('hallinnan sähköposti: ohje pelkälle verkkotunnukselle ja ohjaukselle sekä lähetyspalvelun valinta (sama kuin vuoropiste.fi:ssä)', () => {
+test('hallinnan sähköposti: ohje verkkotunnuksen omalle sähköpostille sekä lähetyspalvelun valinta (sama kuin vuoropiste.fi:ssä)', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'sivusto', 'hallinta.html'), 'utf8');
   const js = fs.readFileSync(path.join(__dirname, '..', 'sivusto', 'hallinta.js'), 'utf8');
   assert.match(html, /class="posti-ohje"/);
-  assert.match(html, /SPF- ja DKIM-tietueet/);
-  assert.match(html, /<select id="po-palvelu">.*brevo.*gmail.*muu/s);
-  assert.match(js, /smtp-relay\.brevo\.com/);
+  assert.match(html, /SPF-tietue/);
+  assert.match(html, /<select id="po-palvelu">.*webhotelli.*gmail.*muu/s);
+  assert.doesNotMatch(html + js, /brevo/i);
+  assert.match(js, /hostingpalvelu/);
   assert.match(js, /smtp\.gmail\.com/);
   // Sama ohjeteksti molemmissa hallinnoissa (verkkotunnusta lukuun ottamatta)
   const vp = path.join(__dirname, '..', '..', '..', 'vuoro', 'myyja-tyokalut', 'vuoropiste-sivusto', 'sivusto', 'yllapito.html');
@@ -657,4 +666,73 @@ test('hallinnan sähköposti: ohje pelkälle verkkotunnukselle ja ohjaukselle se
     const ohje = (s) => (/<details class="posti-ohje">[\s\S]*?<\/details>/.exec(s) || [''])[0].replace(/akveri\.fi|vuoropiste\.fi/g, 'X').replace(/\s+/g, ' ');
     assert.equal(ohje(html), ohje(fs.readFileSync(vp, 'utf8')));
   }
+});
+
+// Paikallinen SMTP-palvelin (127.0.0.1, salaamaton vain testissä): AUTH PLAIN/LOGIN, hylkää vieraan lähettäjän.
+function smtpKorvike(t, { kayttaja = 'noreply@akveri.fi', salasana = 'postin-salasana' } = {}) {
+  const net = require('net');
+  const viestit = [];
+  const palvelin = net.createServer((s) => {
+    let puskuri = '', data = null, auth = false, tila = '';
+    const w = (r) => s.write(r + '\r\n');
+    w('220 testi ESMTP');
+    s.on('data', (d) => {
+      puskuri += d.toString();
+      let i;
+      while ((i = puskuri.indexOf('\r\n')) >= 0) {
+        const l = puskuri.slice(0, i); puskuri = puskuri.slice(i + 2);
+        if (data !== null) { if (l === '.') { viestit.push(data); data = null; w('250 OK'); } else data += l + '\n'; continue; }
+        if (tila === 'u') { tila = Buffer.from(l, 'base64').toString() === kayttaja ? 'p' : 'x'; w('334 UGFzc3dvcmQ6'); continue; }
+        if (tila === 'p' || tila === 'x') { auth = tila === 'p' && Buffer.from(l, 'base64').toString() === salasana; tila = ''; w(auth ? '235 OK' : '535 5.7.8 Authentication failed'); continue; }
+        const k = l.slice(0, 4).toUpperCase();
+        if (k === 'EHLO') { s.write('250-testi\r\n250 AUTH LOGIN\r\n'); }
+        else if (k === 'AUTH') { tila = 'u'; w('334 VXNlcm5hbWU6'); }
+        else if (k === 'MAIL') { if (!auth) w('530 Authentication required'); else if (!l.includes('<' + kayttaja + '>')) w('553 5.7.1 Sender address rejected'); else w('250 OK'); }
+        else if (k === 'RCPT') w('250 OK');
+        else if (k === 'DATA') { data = ''; w('354 Go'); }
+        else if (k === 'QUIT') { w('221 Bye'); s.end(); }
+        else w('250 OK');
+      }
+    });
+    s.on('error', () => {});
+  });
+  return new Promise((ok) => palvelin.listen(0, '127.0.0.1', () => { t.after(() => palvelin.close()); ok({ portti: palvelin.address().port, viestit }); }));
+}
+
+test('sähköposti: verkkotunnuksen oma postilaatikko toimii, ja virheistä kerrotaan selkeästi', async (t) => {
+  const smtp = await smtpKorvike(t);
+  const { pyynto, aika } = await kaynnista(t);
+  const s = await kirjauduHallintaan(pyynto, aika);
+  const put = (body) => pyynto('/api/hallinta/asetukset', { method: 'PUT', evaste: s.evaste, otsakkeet: s.otsakkeet, body });
+  const testi = () => pyynto('/api/hallinta/posti/testi', { method: 'POST', evaste: s.evaste, otsakkeet: s.otsakkeet, body: {} });
+  const asetus = { host: '127.0.0.1', port: smtp.portti, secure: false, user: 'noreply@akveri.fi', pass: 'postin-salasana', lahettaja: 'AKVERI <noreply@akveri.fi>', lahettajaOmat: 'AKVERI <noreply@akveri.fi>', vastaanottaja: 'omistaja@example.com' };
+  assert.equal((await put({ posti: asetus })).status, 200);
+  const ok = await testi();
+  assert.equal(ok.status, 200, JSON.stringify(ok.d));
+  assert.match(ok.d.viesti, /omistaja@example\.com/);
+  assert.equal(smtp.viestit.length, 1);
+  assert.match(smtp.viestit[0], /^From: AKVERI <noreply@akveri\.fi>$/m);
+  // Uusi yhteydenotto lähettää ilmoituksen omistajalle
+  await pyynto('/api/sivusto/viesti', { method: 'POST', body: { nimi: 'Matti', sahkoposti: 'matti@example.com', viesti: 'Kysymys akusta', suostumus: true } });
+  for (let i = 0; i < 50 && smtp.viestit.length < 2; i++) await new Promise((r) => setTimeout(r, 20));
+  assert.equal(smtp.viestit.length, 2, 'yhteydenotosta lähtee ilmoitus');
+  // Väärä salasana
+  assert.equal((await put({ posti: { ...asetus, pass: 'vaara' } })).status, 200);
+  const v1 = await testi();
+  assert.equal(v1.status, 502); assert.match(v1.d.virhe, /^Kirjautuminen epäonnistui\. Tarkista käyttäjätunnus \(koko sähköpostiosoite\) ja salasana\./);
+  // Lähettäjä eri kuin käyttäjätunnus
+  assert.equal((await put({ posti: { ...asetus, lahettaja: 'AKVERI <info@akveri.fi>' } })).status, 200);
+  const v2 = await testi();
+  assert.equal(v2.status, 502); assert.match(v2.d.virhe, /lähettäjää info@akveri\.fi\. Käytä lähettäjänä samaa osoitetta kuin käyttäjätunnus/);
+  // Väärä portti
+  assert.equal((await put({ posti: { ...asetus, port: 1 } })).status, 200);
+  const v3 = await testi();
+  assert.equal(v3.status, 502); assert.match(v3.d.virhe, /ei saatu yhteyttä porttiin 1\. Tarkista portti/);
+});
+
+test('oletushinnat ja krediittipaketit: lyhyet testit 1, ajo- ja itsepurkaustesti 2, kapasiteetti 3, täysi 4; paketit 1, 3, 10 ja 30', async (t) => {
+  const { pyynto } = await kaynnista(t, { oletukset: true });
+  const d = (await pyynto('/api/v1/tuotteet')).d;
+  assert.deepEqual(d.tuotteet.map(x => [x.tuote, x.krediitit]), [['akveri_krediitit_1', 1], ['akveri_krediitit_3', 3], ['akveri_krediitit_10', 10], ['akveri_krediitit_30', 30]]);
+  assert.deepEqual(d.hinnat, { pikatarkastus: 1, kapasiteetti: 3, taysi: 4, ajotesti: 2, pika_ajo: 1, kuormitus: 1, pikalataus: 1, itsepurkaus: 2 });
 });

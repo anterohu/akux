@@ -37,6 +37,23 @@ function rakennaViesti({ from, to, replyTo, subject, text, nyt = new Date() }) {
   return otsakkeet.join('\r\n') + '\r\n\r\n' + rungot + '\r\n';
 }
 
+// Ymmärrettävä selitys lähetyksen virheelle. Sama teksti akveri.fi:n ja vuoropiste.fi:n hallinnassa.
+// vaihe: 'yhteys' | 'kirjautuminen' | 'lahettaja' | 'vastaanottaja' | muu; vastaus: palvelimen vastaus tai virhekoodi.
+function selitaVirhe(vaihe, vastaus, asetus = {}, lahettaja = '') {
+  const v = String(vastaus || '').trim().split(/\r?\n/).pop().slice(0, 160);
+  const loppu = v ? ` (palvelin: ${v})` : '';
+  if (vaihe === 'kirjautuminen') return 'Kirjautuminen epäonnistui. Tarkista käyttäjätunnus (koko sähköpostiosoite) ja salasana.' + loppu;
+  if (vaihe === 'lahettaja') return `Palvelin ei hyväksynyt lähettäjää ${lahettaja}. Käytä lähettäjänä samaa osoitetta kuin käyttäjätunnus.` + loppu;
+  if (vaihe === 'vastaanottaja') return 'Palvelin ei hyväksynyt vastaanottajan osoitetta. Tarkista osoite.' + loppu;
+  if (vaihe === 'yhteys') {
+    if (/ENOTFOUND|EAI_AGAIN/.test(v)) return `Lähetyspalvelinta ${asetus.host || ''} ei löydy. Tarkista palvelimen nimi hosting-tilin tiedoista.`;
+    if (/ECONNREFUSED|ETIMEDOUT|ei vastannut/.test(v)) return `Palvelimeen ${asetus.host || ''} ei saatu yhteyttä porttiin ${asetus.port || ''}. Tarkista portti: 465 (salattu yhteys heti alusta) tai 587.`;
+    if (/certificate|altnames|self.signed|CERT/i.test(v)) return `Palvelimen varmenne ei vastaa nimeä ${asetus.host || ''}. Käytä palvelimen nimeä täsmälleen hosting-tilin tiedoista.`;
+    if (/wrong version number|EPROTO|packet length/i.test(v)) return 'Salauksen asetus ei vastaa porttia. Portissa 465 valitse ”Salattu yhteys heti alusta”, portissa 587 jätä se valitsematta.';
+  }
+  return 'Sähköpostin lähetys epäonnistui.' + loppu;
+}
+
 // Lähettää yhden viestin. asetus: { host, port, secure, user, pass }.
 function laheta(asetus, viesti) {
   const lahettaja = osoiteOsasta(viesti.from), vastaanottaja = osoiteOsasta(viesti.to);
@@ -47,7 +64,7 @@ function laheta(asetus, viesti) {
     let soketti = asetus.secure ? tls.connect({ host: asetus.host, port: asetus.port, servername: asetus.host }) : net.connect({ host: asetus.host, port: asetus.port });
     let puskuri = '', odottaja = null, valmis = false;
     const lopeta = (e) => { if (valmis) return; valmis = true; clearTimeout(ajastin); try { soketti.destroy(); } catch (x) { /* */ } e ? virhe(e) : ok(); };
-    const ajastin = setTimeout(() => lopeta(new Error('Sähköpostipalvelin ei vastannut ajoissa.')), asetus.aikaraja || AIKARAJA_MS);
+    const ajastin = setTimeout(() => lopeta(new Error(selitaVirhe('yhteys', 'Sähköpostipalvelin ei vastannut ajoissa.', asetus))), asetus.aikaraja || AIKARAJA_MS);
     const kuuntele = (s) => {
       s.setEncoding('utf8');
       s.on('data', (d) => {
@@ -59,14 +76,14 @@ function laheta(asetus, viesti) {
         const vastaus = puskuri; puskuri = '';
         if (odottaja) { const o = odottaja; odottaja = null; o(vastaus); }
       });
-      s.on('error', (e) => lopeta(new Error('Yhteys sähköpostipalvelimeen epäonnistui: ' + e.message)));
-      s.on('close', () => lopeta(new Error('Sähköpostipalvelin katkaisi yhteyden.')));
+      s.on('error', (e) => lopeta(new Error(selitaVirhe('yhteys', (e.code || '') + ' ' + e.message, asetus))));
+      s.on('close', () => lopeta(new Error(selitaVirhe('yhteys', 'Sähköpostipalvelin katkaisi yhteyden.', asetus))));
     };
     const odota = () => new Promise((r) => { odottaja = r; });
-    const komento = async (rivi, odotettu) => {
+    const komento = async (rivi, odotettu, vaihe) => {
       if (rivi !== null) soketti.write(rivi + '\r\n');
       const v = await odota();
-      if (!new RegExp('^' + odotettu).test(v)) throw new Error('Sähköpostipalvelin hylkäsi: ' + v.trim().split('\r\n').pop().slice(0, 200));
+      if (!new RegExp('^' + odotettu).test(v)) throw Object.assign(new Error(selitaVirhe(vaihe, v, asetus, lahettaja)), { selitetty: true });
       return v;
     };
     kuuntele(soketti);
@@ -84,16 +101,16 @@ function laheta(asetus, viesti) {
         } else if (!paikallinen) throw new Error('Sähköpostipalvelin ei tue salattua yhteyttä (STARTTLS). Käytä porttia 465 tai 587.');
       }
       if (asetus.user) {
-        if (/AUTH[^\r\n]*PLAIN/i.test(ehlo)) await komento('AUTH PLAIN ' + Buffer.from(`\0${asetus.user}\0${asetus.pass || ''}`).toString('base64'), '235');
-        else { await komento('AUTH LOGIN', '334'); await komento(Buffer.from(asetus.user).toString('base64'), '334'); await komento(Buffer.from(asetus.pass || '').toString('base64'), '235'); }
+        if (/AUTH[^\r\n]*PLAIN/i.test(ehlo)) await komento('AUTH PLAIN ' + Buffer.from(`\0${asetus.user}\0${asetus.pass || ''}`).toString('base64'), '235', 'kirjautuminen');
+        else { await komento('AUTH LOGIN', '334', 'kirjautuminen'); await komento(Buffer.from(asetus.user).toString('base64'), '334', 'kirjautuminen'); await komento(Buffer.from(asetus.pass || '').toString('base64'), '235', 'kirjautuminen'); }
       }
-      await komento(`MAIL FROM:<${lahettaja}>`, '250');
-      await komento(`RCPT TO:<${vastaanottaja}>`, '25');
+      await komento(`MAIL FROM:<${lahettaja}>`, '250', 'lahettaja');
+      await komento(`RCPT TO:<${vastaanottaja}>`, '25', 'vastaanottaja');
       await komento('DATA', '354');
       await komento(data.replace(/^\./gm, '..') + '.', '250');
       soketti.write('QUIT\r\n');
       lopeta();
-    })().catch(lopeta);
+    })().catch((e) => lopeta(e && e.selitetty ? e : new Error(selitaVirhe('yhteys', ((e && e.code) || '') + ' ' + ((e && e.message) || e), asetus))));
   });
 }
 
@@ -119,4 +136,4 @@ function luoPostitus(varasto, { lahetin = laheta } = {}) {
   return { kaytossa, ilmoita, ilmoitaTaustalla, omaViesti, infoOsoite: () => osoiteOsasta((asetus() || {}).lahettajaOmat) };
 }
 
-module.exports = { laheta, rakennaViesti, osoiteOsasta, luoPostitus };
+module.exports = { laheta, rakennaViesti, osoiteOsasta, luoPostitus, selitaVirhe };
