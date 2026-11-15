@@ -62,6 +62,29 @@ function pillClass(l) {
   return { "Erinomainen": "good", "Hyvä": "info", "Tyydyttävä": "warn", "Heikentynyt": "bad",
     "Poikkeava": "bad", "Takuurajan alittava": "bad" }[l] || "";
 }
+// AKVERIn oma vahvistusikkuna selaimen confirm/alert-ikkunoiden sijaan (niissä näkyisi sivun osoite).
+function kysy(teksti, { ok = "OK", peru = "Peruuta", vaara = false } = {}) {
+  return new Promise(valmis => {
+    const tausta = document.createElement("div");
+    tausta.className = "kysely-tausta";
+    tausta.innerHTML = `<div class="kysely" role="alertdialog" aria-modal="true"><p></p><div class="row"><span class="spacer"></span>
+      ${peru ? '<button class="btn" data-v="0"></button>' : ""}<button class="btn ${vaara ? "danger" : "primary"}" data-v="1"></button></div></div>`;
+    tausta.querySelector("p").textContent = teksti;
+    tausta.querySelector('[data-v="1"]').textContent = ok;
+    if (peru) tausta.querySelector('[data-v="0"]').textContent = peru;
+    const nappain = e => { if (e.key === "Escape") loppu(false); };
+    const loppu = v => { tausta.remove(); document.removeEventListener("keydown", nappain); valmis(v); };
+    tausta.onclick = e => {
+      const b = e.target.closest("[data-v]");
+      if (b) loppu(b.dataset.v === "1");
+      else if (e.target === tausta && peru) loppu(false);
+    };
+    document.addEventListener("keydown", nappain);
+    document.body.appendChild(tausta);
+    tausta.querySelector('[data-v="1"]').focus();
+  });
+}
+const ilmoita = teksti => kysy(teksti, { peru: null });
 function toast(msg, err = false) {
   const t = $("#toast");
   t.textContent = msg;
@@ -223,10 +246,11 @@ views.yleiskuva = {
         <div class="grid g2">
           <div>
             <label class="f"><span>Auto</span>
-              <select id="connModel"><option value="">Tesla (tunnistetaan automaattisesti)</option>${hkOpts}</select></label>
+              <select id="connModel"><option value="" disabled selected>Valitse merkki ja malli</option>
+                <optgroup label="Tesla"><option value="tesla">Tesla (malli tunnistetaan automaattisesti)</option></optgroup>${hkOpts}</select></label>
             <label class="f"><span>${ANDROID ? "OBDLink-sovitin" : "OBDLink-sovittimen portti"}</span>
               <select id="port">${opts || `<option value="">Sovitinta ei löytynyt</option>`}</select></label>
-            <div class="row"><button class="btn primary" id="bConnect" ${opts ? "" : "disabled"}>Yhdistä autoon</button>
+            <div class="row"><button class="btn primary" id="bConnect" disabled>Yhdistä autoon</button>
               <button class="btn" id="bRefresh">Päivitä portit</button></div>
             <p class="small muted" style="margin-top:10px">${ANDROID ? "Kytke sovitin auton diagnostiikkaliittimeen ja USB-C-sovittimella puhelimeen. Kun Android kysyy lupaa käyttää sovitinta, valitse Salli." : "Kytke sovitin auton diagnostiikkaliittimeen ja tietokoneeseen."} Auton on oltava hereillä: Teslassa riittää oven avaaminen, muissa merkeissä virta päälle. <a href="#/ohjeet/yhdistaminen">Ohje</a></p>
           </div>
@@ -254,8 +278,13 @@ views.yleiskuva = {
           if (s.portti && [...sel.options].some(o => o.value === s.portti)) sel.value = s.portti;
           const cm = $("#connModel");
           if (cm && s.yhteys_malli && [...cm.options].some(o => o.value === s.yhteys_malli)) cm.value = s.yhteys_malli;
+          const b = $("#bConnect"); if (b && cm) b.disabled = !cm.value;
         });
       }
+      // Yhdistä on käytössä, kun sovitin on löytynyt ja auton merkki ja malli on valittu.
+      const paivitaYhdista = () => { const b = $("#bConnect"); if (b) b.disabled = !(opts && $("#connModel").value); };
+      $("#connModel").onchange = paivitaYhdista;
+      paivitaYhdista();
       $("#bRefresh").onclick = () => { this.connRendered = null; this.renderConnCard(); };
       $("#bConnect").onclick = () => act(() => api("/api/yhdista", { method: "POST", body: { tyyppi: "obdlink", portti: $("#port").value, malli_id: $("#connModel").value } }), "Yhdistetään…").then(poll);
       if ($("#bEx")) $("#bEx").onclick = () => act(() => api("/api/esimerkit", { method: "POST", body: {} }), "Esimerkkiautot ovat käytettävissä").then(() => (location.hash = "#/mittaukset"));
@@ -266,8 +295,8 @@ views.yleiskuva = {
           <div class="small muted" id="connInfo"></div><div class="notice warn small" id="connErr" hidden style="margin:8px 0 0"></div></div><span class="spacer"></span>
           <button class="btn" id="bDisc">Katkaise yhteys</button></div>
         ${y.simuloitu ? demoControls() : ""}`;
-      $("#bDisc").onclick = () => {
-        if (S.mittaus && !confirm("Mittaus on käynnissä. Yhteyden katkaisu keskeyttää sen. Jatketaanko?")) return;
+      $("#bDisc").onclick = async () => {
+        if (S.mittaus && !(await kysy("Mittaus on käynnissä. Yhteyden katkaisu keskeyttää sen. Jatketaanko?", { ok: "Katkaise yhteys", vaara: true }))) return;
         act(() => api("/api/katkaise", { method: "POST" }), "Yhteys katkaistu").then(poll);
       };
       bindDemo(c);
@@ -528,8 +557,8 @@ views.mittaus = {
     };
     $("#mVeh").onchange = hint; hint();
     $$("[data-jatka]", b).forEach(x => (x.onclick = () => act(() => api(`/api/mittaukset/${x.dataset.jatka}/jatka`, { method: "POST" }), "Mittaus jatkuu").then(poll)));
-    $$("[data-hylkaa]", b).forEach(x => (x.onclick = () => {
-      if (!confirm("Hylätäänkö kesken oleva mittaus? Siitä ei tehdä raporttia.")) return;
+    $$("[data-hylkaa]", b).forEach(x => (x.onclick = async () => {
+      if (!(await kysy("Hylätäänkö kesken oleva mittaus? Siitä ei tehdä raporttia.", { ok: "Hylkää mittaus", vaara: true }))) return;
       act(() => api(`/api/mittaukset/${x.dataset.hylkaa}/hylkaa`, { method: "POST" }), "Mittaus hylätty").then(() => { this.mode = null; poll(); });
     }));
     $$(".choice button").forEach(btn => (btn.onclick = () => {
@@ -547,7 +576,7 @@ views.mittaus = {
       $$("[data-hinta]").forEach(e => { const h = this.hinnat && this.hinnat[e.dataset.hinta]; e.innerHTML = h ? ` · <b>${h}</b> ${h === 1 ? "krediitti" : "krediittiä"}` : ""; });
       this.updateNew(S);
     }).catch(() => {});
-    $("#mStart").onclick = () => !$("#mWho").value.trim() ? alert("Kirjoita mittauksen suorittaja (nimi tai yritys). Se näkyy raportissa.") : act(() => api("/api/mittaukset", { method: "POST", body: {
+    $("#mStart").onclick = () => !$("#mWho").value.trim() ? ilmoita("Kirjoita mittauksen suorittaja (nimi tai yritys). Se näkyy raportissa.") : act(() => api("/api/mittaukset", { method: "POST", body: {
       ajoneuvo_id: Number($("#mVeh").value), tyyppi: this.type, mittarilukema: $("#mOdo").value,
       mittaaja: $("#mWho").value.trim(), lisatiedot: $("#mNote").value } }), S && S.yhteys.simuloitu ? "Esittelymittaus aloitettu" : "Mittaus aloitettu").then(poll);
   },
@@ -581,8 +610,8 @@ views.mittaus = {
       </div>
       <div id="aDemo"></div>
       <div class="card"><h2>Huomiot</h2><div id="aNotes" class="small muted">Ei huomioita.</div></div>`;
-    $("#aCancel").onclick = () => {
-      if (!confirm("Keskeytetäänkö mittaus? Keskeytetystä mittauksesta ei tehdä raporttia.")) return;
+    $("#aCancel").onclick = async () => {
+      if (!(await kysy("Keskeytetäänkö mittaus? Keskeytetystä mittauksesta ei tehdä raporttia.", { ok: "Keskeytä mittaus", vaara: true }))) return;
       act(() => api("/api/mittaukset/aktiivinen/keskeyta", { method: "POST" })).then(r => {
         toast({ peruttu: "Mittaus keskeytetty. Krediitti palautui tilillesi.", peru_odottaa: "Mittaus keskeytetty. Krediitti palautuu, kun verkkoyhteys palaa.",
           hyvitettavissa: "Mittaus keskeytetty. Jos keskeytys johtui AKVERIsta, pyydä hyvitystä mittauksen sivulla." }[r.lupa] || "Mittaus keskeytetty");
@@ -590,9 +619,9 @@ views.mittaus = {
     };
     $("#aPause").onclick = () => act(() => api("/api/mittaukset/aktiivinen/tauko", { method: "POST" }),
       "Mittaus tallennettu. Jatka sitä myöhemmin Mittaus-sivulta.").then(() => { this.lastId = null; poll(); });
-    $("#aSkip").onclick = () => {
+    $("#aSkip").onclick = async () => {
       const q = (SKIP[S.mittaus.vaihe] || [])[1];
-      if (q && !confirm(q)) return;
+      if (q && !(await kysy(q, { ok: "Ohita" }))) return;
       act(() => api("/api/mittaukset/aktiivinen/ohita", { method: "POST" })).then(poll);
     };
     if (S.yhteys.simuloitu) { $("#aDemo").innerHTML = demoControls(); bindDemo($("#aDemo")); }
@@ -693,8 +722,8 @@ views.autot = {
       <div class="row">${hasEx || E ? `<button class="btn" id="vEx">${hasEx ? "Poista esimerkkiautot" : "Lisää esimerkkiautot"}</button>` : ""}<a class="btn primary" href="#/autot/uusi">Lisää auto</a></div></div>
       ${hasEx || !E ? "" : `<p class="small muted" style="margin:-8px 0 16px">Esimerkkiautoissa (vähintään yksi auto kustakin tuetusta merkistä) on valmiit raportit kaikista mittaustyypeistä, joten näet heti, miltä kaikki näyttää.</p>`}
       <div class="card" id="vList"></div>`;
-    if ($("#vEx")) $("#vEx").onclick = () => hasEx
-      ? (confirm("Poistetaanko esimerkkiautot ja niiden mittaukset? Omiin autoihisi ei kosketa.") &&
+    if ($("#vEx")) $("#vEx").onclick = async () => hasEx
+      ? ((await kysy("Poistetaanko esimerkkiautot ja niiden mittaukset? Omiin autoihisi ei kosketa.", { ok: "Poista esimerkkiautot", vaara: true })) &&
          act(() => api("/api/esimerkit", { method: "POST", body: { poista: true } }), "Esimerkkiautot poistettu").then(() => this.renderList()))
       : act(() => api("/api/esimerkit", { method: "POST", body: {} }), "Esimerkkiautot lisätty").then(() => this.renderList());
     $("#vList").innerHTML = ajoneuvot.length ? `<table class="t"><tr><th>Auto</th><th class="hide-m">Valmistenumero</th><th>Rekisteri</th><th class="num">Kunto</th><th class="num hide-m">Mittauksia</th><th class="hide-m">Viimeisin</th></tr>
@@ -795,8 +824,8 @@ views.autot = {
       <div class="row" style="margin-top:16px"><span class="spacer"></span><button class="btn danger sm" id="vDel">Poista auto ja sen mittaukset</button></div>`;
     $("#vEdit").onclick = () => (location.hash = `#/autot/${v.id}/muokkaa`);
     bindTestRows();
-    $("#vDel").onclick = () => {
-      if (!confirm(`Poistetaanko ${v.nimi} ja kaikki sen mittaukset pysyvästi?`)) return;
+    $("#vDel").onclick = async () => {
+      if (!(await kysy(`Poistetaanko ${v.nimi} ja kaikki sen mittaukset pysyvästi?`, { ok: "Poista auto", vaara: true }))) return;
       act(() => api(`/api/ajoneuvot/${id}`, { method: "DELETE" }), "Auto poistettu").then(() => (location.hash = "#/autot"));
     };
   },
@@ -883,21 +912,21 @@ views.mittaukset = {
         ${t.tyyppi === "taysi" ? `<button class="btn sm" id="tSplit">Jaa kapasiteettimittaukseksi ja ajotestiksi</button>` : ""}
         <span id="tCalcRes" class="small"></span></div></div>` : ""}
       <div class="row" style="margin-top:16px"><span class="spacer"></span><button class="btn danger sm" id="tDel">Poista mittaus</button></div>`;
-    if ($("#tPoistaPalvelusta")) $("#tPoistaPalvelusta").onclick = () => {
-      if (!confirm("Poistetaanko raportin tiedot akveri.fi-palvelusta? Raporttia ei voi sen jälkeen tarkistaa QR-koodilla eikä tunnuksella. Poistoa ei voi perua.")) return;
+    if ($("#tPoistaPalvelusta")) $("#tPoistaPalvelusta").onclick = async () => {
+      if (!(await kysy("Poistetaanko raportin tiedot akveri.fi-palvelusta? Raporttia ei voi sen jälkeen tarkistaa QR-koodilla eikä tunnuksella. Poistoa ei voi perua.", { ok: "Poista tiedot", vaara: true }))) return;
       act(() => api(`/api/mittaukset/${id}/poista-palvelusta`, { method: "POST" }), "Raportin tiedot poistettu palvelusta.").then(() => this.renderOne(id));
     };
     if ($("#tRefund")) $("#tRefund").onclick = () => act(() => api(`/api/mittaukset/${id}/hyvityspyynto`, { method: "POST", body: { syy: $("#tRefundTxt").value } }),
       "Hyvityspyyntö lähetetty. Saat krediitin takaisin, kun pyyntö on käsitelty.").then(() => this.renderOne(id));
     const rc = $("#tRecalc");
     if (rc) rc.onclick = async () => {
-      if (!confirm("Lasketaanko tulos uudelleen nykyisellä versiolla? Aiemmin tallennetut PDF-raportit eivät muutu, mutta uusi raportti muodostetaan uudella laskennalla.")) return;
+      if (!(await kysy("Lasketaanko tulos uudelleen nykyisellä versiolla? Aiemmin tallennetut PDF-raportit eivät muutu, mutta uusi raportti muodostetaan uudella laskennalla.", { ok: "Laske uudelleen" }))) return;
       const res = await act(() => api(`/api/mittaukset/${id}/laske-uudelleen`, { method: "POST" }), "Tulos laskettu uudelleen");
       if (res) this.renderOne(id);
     };
     const sp = $("#tSplit");
     if (sp) sp.onclick = async () => {
-      if (!confirm("Jaetaanko täysi akkutesti kahdeksi erilliseksi mittaukseksi (kapasiteettimittaus ja ajotesti)? Kumpikin saa oman raportin samasta mittausdatasta. Alkuperäinen täysi testi säilyy ennallaan.")) return;
+      if (!(await kysy("Jaetaanko täysi akkutesti kahdeksi erilliseksi mittaukseksi (kapasiteettimittaus ja ajotesti)? Kumpikin saa oman raportin samasta mittausdatasta. Alkuperäinen täysi testi säilyy ennallaan.", { ok: "Jaa osiin" }))) return;
       const res = await act(() => api(`/api/mittaukset/${id}/jaa`, { method: "POST" }), "Täysi testi jaettu osiin");
       if (res) $("#tCalcRes").innerHTML = res.osat.map(o => o.id ? `<a href="#/mittaukset/${o.id}">${esc(o.nimi)} (nro ${o.id})</a>` : `<span class="muted">${esc(o.syy)}</span>`).join(" · ");
     };
@@ -905,8 +934,8 @@ views.mittaukset = {
       const res = await act(() => api(`/api/mittaukset/${id}/tarkista`));
       $("#tVerRes").innerHTML = `<span class="pill ${res.ok ? "good" : "bad"}">${esc(res.viesti)}</span> <span class="muted">${res.rivit ? n(res.rivit, 0) + " viestiä" : ""}</span>`;
     };
-    $("#tDel").onclick = () => {
-      if (!confirm("Poistetaanko mittaus ja sen raakadata pysyvästi?")) return;
+    $("#tDel").onclick = async () => {
+      if (!(await kysy("Poistetaanko mittaus ja sen raakadata pysyvästi?", { ok: "Poista mittaus", vaara: true }))) return;
       act(() => api(`/api/mittaukset/${id}`, { method: "DELETE" }), "Mittaus poistettu").then(() => (location.hash = bk.target));
     };
   },
@@ -1004,8 +1033,8 @@ views.krediitit = {
         <p class="small muted">Krediittien kirjanpito ja ostot säilytetään kirjanpitolain edellyttämän ajan ilman muita tunnisteita. Anonyymi mittausaineisto ei sisällä tunnisteita, joten se ei muutu.</p>
         <p class="small"><a href="https://akveri.fi${({ en: "/en/privacy", sv: "/sv/dataskydd" })[typeof KIELI === "string" ? KIELI : "fi"] || "/tietosuoja"}" target="_blank" rel="noopener">Tietosuojaseloste</a></p></div>`;
     $("#kPoistaTili").onclick = async () => {
-      if (!confirm(`Poistetaanko tili? Tilillä on ${d.saldo} krediittiä, jotka poistuvat tilin mukana eikä niitä voi palauttaa. Poistoa ei voi perua.`)) return;
-      const raportit = confirm("Poistetaanko myös rekisteröityjen raporttien tiedot tarkistuspalvelusta? Valitse Peruuta, jos raportit jäävät tarkistettaviksi esimerkiksi auton ostajalle.");
+      if (!(await kysy(`Poistetaanko tili? Tilillä on ${d.saldo} krediittiä, jotka poistuvat tilin mukana eikä niitä voi palauttaa. Poistoa ei voi perua.`, { ok: "Poista tili", vaara: true }))) return;
+      const raportit = await kysy("Poistetaanko myös rekisteröityjen raporttien tiedot tarkistuspalvelusta? Valitse Jätä raportit, jos ne jäävät tarkistettaviksi esimerkiksi auton ostajalle.", { ok: "Poista myös raportit", peru: "Jätä raportit", vaara: true });
       try {
         const r = await api("/api/tietosuoja/poista-tili", { method: "POST", body: { vahvista: true, raportit } });
         toast((r.raportteja ? `Tili poistettu. Raportteja poistettu palvelusta: ${r.raportteja}.` : "Tili poistettu.") + " Sovellus luo uuden tyhjän tilin, kun käytät krediittejä seuraavan kerran.");
@@ -1146,7 +1175,7 @@ views.asetukset = {
         box.innerHTML = `<div class="notice warn">Varmuuskopio ${date(r.aika)}, versio ${esc(r.versio)}: ${r.autoja} autoa ja ${r.mittauksia} mittausta. Palautus korvaa nykyiset tiedot. Nykyiset tiedot siirretään ensin talteen.</div>
           <button class="btn primary" id="rGo">Palauta varmuuskopio</button>`;
         $("#rGo").onclick = async () => {
-          if (!confirm("Palautetaanko varmuuskopio? Ohjelma käynnistyy sen jälkeen uudelleen.")) return;
+          if (!(await kysy("Palautetaanko varmuuskopio? Ohjelma käynnistyy sen jälkeen uudelleen.", { ok: "Palauta" }))) return;
           try {
             await upload("/api/yllapito/palauta", f);
             toast("Varmuuskopio palautettu. Ohjelma käynnistyy uudelleen…");
@@ -1220,9 +1249,9 @@ function sizeTxt(b) { return b > 1e6 ? n(b / 1e6, 1) + " Mt" : n(b / 1e3, 0) + "
 async function quitApp() {
   let body = {};
   if (S && S.mittaus) {
-    if (!confirm("Mittaus on käynnissä. Ohjelman sulkeminen keskeyttää mittauksen. Suljetaanko silti?\n\nVoit myös vain sulkea ikkunan: mittaus jatkuu taustalla, ja saat sen näkyviin avaamalla ohjelman uudelleen.")) return;
+    if (!(await kysy("Mittaus on käynnissä. Ohjelman sulkeminen keskeyttää mittauksen. Suljetaanko silti?\n\nVoit myös vain sulkea ikkunan: mittaus jatkuu taustalla, ja saat sen näkyviin avaamalla ohjelman uudelleen.", { ok: "Sulje AKVERI", vaara: true }))) return;
     body = { vahvistettu: true };
-  } else if (!confirm("Suljetaanko AKVERI?")) return;
+  } else if (!(await kysy("Suljetaanko AKVERI?", { ok: "Sulje" }))) return;
   try { await api("/api/sulje", { method: "POST", body }); } catch (e) { toast(e.message, true); return; }
   clearInterval(pollTimer);
   document.body.innerHTML = `<div style="padding:40px;font-family:Inter,system-ui;color:var(--ink)"><h1>AKVERI on suljettu</h1><p class="muted">Voit sulkea tämän ikkunan.</p></div>`;

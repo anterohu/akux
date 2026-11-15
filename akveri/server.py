@@ -367,8 +367,11 @@ class Api:
                     import serial  # noqa: F401
                 except ImportError:
                     raise ApiError("Sovittimen yhteysosa puuttuu ohjelmasta. Asenna ohjelma uudelleen.")
-            self.app.connect("obdlink", port=port, baud=baud, malli_id=body.get("malli_id") or None)
-            self.app.storage.save_settings({"portti": port, "yhteys_malli": body.get("malli_id") or ""})
+            malli = body.get("malli_id") or None
+            if malli == "tesla":       # Tesla: malli tunnistetaan valmistenumerosta
+                malli = None
+            self.app.connect("obdlink", port=port, baud=baud, malli_id=malli)
+            self.app.storage.save_settings({"portti": port, "yhteys_malli": malli or "tesla"})
         return {"ok": True}
 
     def katkaise(self, q, body):
@@ -399,18 +402,25 @@ class Api:
     _MERKKIRYHMAT = ({"volkswagen", "škoda", "skoda", "audi", "cupra", "seat"}, {"hyundai", "kia"})
 
     @classmethod
-    def _merkki_ristiriita(cls, vin: str | None, malli_id: str | None) -> str | None:
-        """Palauttaa virheilmoituksen, jos valmistenumeron merkki ei sovi valittuun malliin."""
+    def _merkkiero(cls, vin: str | None, malli_id: str | None) -> tuple[str, str] | None:
+        """(valmistenumeron merkki, valitun mallin nimi), jos ne eivät sovi yhteen; muuten None."""
         if not vin or not malli_id:
             return None
         m = profiles.get(malli_id)
         info = vinmod.decode(vin)
-        vm = (info.get("merkki") or (info.get("valmistaja") or "").split(",")[0]).strip().lower()
-        mm = ((m or {}).get("merkki") or ("Tesla" if (m or {}).get("id", "").startswith(("m3", "my", "ms", "mx")) else "")).strip().lower()
+        merkki = (info.get("merkki") or (info.get("valmistaja") or "").split(",")[0]).strip()
+        vm, mm = merkki.lower(), ((m or {}).get("merkki") or "").strip().lower()
         if not vm or not mm or vm == mm or any(vm in r and mm in r for r in cls._MERKKIRYHMAT):
             return None
-        return (f"Valmistenumero {vin} on {info.get('merkki') or info.get('valmistaja', '').split(',')[0]}-auton, mutta malliksi on valittu "
-                f"{m['nimi']}. Tarkista valmistenumero ja malli.")
+        return merkki, m["nimi"]
+
+    @classmethod
+    def _merkki_ristiriita(cls, vin: str | None, malli_id: str | None) -> str | None:
+        """Virheilmoitus, jos auton tietoihin syötetty valmistenumero ei sovi valittuun malliin."""
+        ero = cls._merkkiero(vin, malli_id)
+        if not ero:
+            return None
+        return f"Valmistenumero {vin} on {ero[0]}-auton, mutta malliksi on valittu {ero[1]}. Tarkista valmistenumero ja malli."
 
     def _vehicle_payload(self, body):
         data = {k: body.get(k) for k in ("vin", "nimi", "rekisteri", "omistaja", "malli_id", "vari", "lisatiedot", "kayttoonotto")
@@ -533,9 +543,15 @@ class Api:
             hint = f" Autosta luettu numero kuuluu autoon {other['nimi']}." if other else \
                 " Lisää tämä auto ensin Autot-sivulla."
             raise ApiError(f"Kytketyn auton valmistenumero {bus_vin} ei vastaa valittua autoa ({veh['vin']})." + hint)
-        virhe = self._merkki_ristiriita(bus_vin or veh.get("vin"), veh.get("malli_id"))
-        if virhe:
-            raise ApiError(virhe + " Korjaa auton tiedot Autot-sivulla.")
+        if veh.get("vin"):
+            virhe = self._merkki_ristiriita(veh["vin"], veh.get("malli_id"))
+            if virhe:
+                raise ApiError(virhe + " Korjaa auton tiedot Autot-sivulla.")
+        elif bus_vin:
+            ero = self._merkkiero(bus_vin, veh.get("malli_id"))
+            if ero:
+                raise ApiError(f"Kytketty auto on {ero[0]}, mutta valittu auto on {ero[1]}. Valmistenumerot eivät täsmää. "
+                               "Valitse oikea auto tai kytke sovitin valittuun autoon.")
         tyyppi = body.get("tyyppi")
         from .recorder import TYYPIT
         if tyyppi not in TYYPIT:
