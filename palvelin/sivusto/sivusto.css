@@ -261,3 +261,15 @@ section.osio { scroll-margin-top: 76px; }
 .posti-ohje { margin: 0 0 14px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: var(--panel-2); }
 .posti-ohje summary { cursor: pointer; font-weight: 600; }
 .posti-ohje ol { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; }
+
+/* Lukulaite ja kaapelit */
+#kaapelit .valiotsikko { font-size: 18px; margin: 28px 0 14px; }
+#kaapelit .laitteet .ei-kay { background: var(--panel-2, var(--panel)); }
+#kaapelit .kytkennat { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+#kaapelit .kytkenta { padding: 18px 20px; }
+#kaapelit .kytkenta h4 { margin: 0 0 10px; font-size: 16px; }
+#kaapelit .kytkenta dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; }
+#kaapelit .kytkenta dt { color: var(--muted); font-size: 14px; }
+#kaapelit .kytkenta dd { margin: 0; min-width: 0; }
+#kaapelit .huomio { color: var(--muted); max-width: 760px; margin: 22px 0 0; }
+@media (max-width: 520px) { #kaapelit .kytkennat { grid-template-columns: 1fr; } #kaapelit .kytkenta dl { grid-template-columns: 1fr; gap: 2px; } #kaapelit .kytkenta dd { margin-bottom: 8px; } }

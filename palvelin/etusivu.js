@@ -22,6 +22,28 @@ const KIELET = {
     vaiheet: [['Kytke lukulaite', 'Pieni lukulaite kytketään auton OBD-liitäntään ja yhdistetään puhelimeen.'], ['Tee mittaus', 'Sovellus neuvoo vaihe vaiheelta.'], ['Saat raportin', 'Raportissa on akun kunto ja QR-koodi, jolla ostaja voi tarkistaa sen.']],
     tarvitsetOtsikko: 'Mitä tarvitset',
     tarvitset: ['Android-puhelin (Android 10 tai uudempi)', 'OBDLink-lukulaite: MX+, LX, EX tai SX', 'Teslaan lisäksi mallille sopiva OBD-välikaapeli. Muissa merkeissä lukulaite kytketään suoraan.', 'Sähköauto, esimerkiksi:'],
+    kaapelit: {
+      otsikko: 'Lukulaite ja kaapelit',
+      johdanto: 'Akun tiedot luetaan auton OBD-liitännästä OBDLink-lukulaitteella. Useimpiin autoihin lukulaite kytketään suoraan. Teslaan tarvitaan lisäksi mallille sopiva välikaapeli.',
+      laiteOtsikko: 'Lukulaite',
+      laitteet: [
+        ['OBDLink MX+ tai LX (Bluetooth)', 'Suositus puhelimelle. Puhelimen voi pitää laturissa koko mittauksen ajan.'],
+        ['OBDLink EX tai SX (USB)', 'Kytketään puhelimeen USB-C-sovittimella (OTG). Pitkässä mittauksessa sovittimessa pitää olla latausportti (PD).'],
+        ['Ei käy', 'Tavalliset ELM327-lukulaitteet eivät ole riittävän nopeita. OBDLink CX:ää ei vielä tueta.']
+      ],
+      autoOtsikko: 'Kytkentä autoon',
+      autot: [
+        ['Hyundai, Kia, Nissan Leaf, Volkswagen-konserni (ID.3, ID.4, ID.5, Enyaq, Q4 e-tron, Born) ja MG', 'Kuljettajan jalkatilan OBD-liitäntä', 'Lukulaite kytketään suoraan, välikaapelia ei tarvita.'],
+        ['Tesla Model 3 ja Model Y 2019–2020', '20-pinninen huoltoliitin keskikonsolin takapäässä', '20-pinninen Model 3/Y -välikaapeli'],
+        ['Tesla Model 3 ja Model Y 2021–2024', '26-pinninen huoltoliitin keskikonsolin takapäässä', '26-pinninen Model 3/Y -välikaapeli'],
+        ['Uudistettu Tesla Model 3 (2024–) ja Model Y (2025–)', 'Liitin ja sen paikka poikkeavat aiemmista', 'Juuri tälle mallille tehty välikaapeli. Varmista sopivuus myyjältä.'],
+        ['Tesla Model S 2012–2021 ja Model X 2015–2021', 'Huoltoliitin, josta akun tiedot saadaan', 'Model S/X -välikaapeli. Liitin on erilainen ennen 09/2015 valmistetussa Model S:ssä.'],
+        ['Tesla Model S ja Model X 2021–04/2024', 'Sininen 20-napainen liitin kosketusnäytön alla', 'Model S/X -välikaapeli'],
+        ['Tesla Model S ja Model X 05/2024 alkaen', 'Kuljettajan jalkatilan OBD-liitäntä', 'Lukulaite kytketään suoraan.']
+      ],
+      sarakkeet: ['Liitäntä', 'Tarvitset'],
+      huom: 'Teslan Model 3:n ja Model Y:n jalkatilan OBD-liitäntä ei välitä akun tietoja. Sovelluksen yhteystesti kertoo, saadaanko akun tiedot. Välikaapeli kytketään valmistajan ohjeen mukaan, eikä auton johtoja leikata.'
+    },
     hintaOtsikko: 'Hinta',
     hinta: 'Sovellus on maksuton. Mittaukset maksetaan krediiteillä, jotka ostetaan sovelluksessa Google Playn kautta. Mittauksen hinta näkyy ennen kuin aloitat. Jos mittaus keskeytyy heti alussa, krediitit palautuvat automaattisesti.',
     hinnasto: 'Hinnat näkyvät sovelluksessa ennen ostoa.',
@@ -44,6 +66,28 @@ const KIELET = {
     vaiheet: [['Plug in the reader', 'A small reader plugs into the car’s OBD port and connects to your phone.'], ['Run the check', 'The app guides you step by step.'], ['Get the report', 'The report shows battery health and a QR code the buyer can scan to verify it.']],
     tarvitsetOtsikko: 'What you need',
     tarvitset: ['Android phone (Android 10 or newer)', 'OBDLink reader: MX+, LX, EX or SX', 'For a Tesla, also an OBD adapter cable for the model. On other makes the reader plugs in directly.', 'An electric car, for example:'],
+    kaapelit: {
+      otsikko: 'Reader and cables',
+      johdanto: 'Battery data is read from the car’s OBD port with an OBDLink reader. On most cars the reader plugs in directly. A Tesla also needs an adapter cable that fits the model.',
+      laiteOtsikko: 'Reader',
+      laitteet: [
+        ['OBDLink MX+ or LX (Bluetooth)', 'Recommended for phones. The phone can stay on its charger for the whole test.'],
+        ['OBDLink EX or SX (USB)', 'Connects to the phone with a USB-C adapter (OTG). For long tests the adapter needs a charging port (PD).'],
+        ['Not suitable', 'Ordinary ELM327 readers are not fast enough. OBDLink CX is not supported yet.']
+      ],
+      autoOtsikko: 'Connecting to the car',
+      autot: [
+        ['Hyundai, Kia, Nissan Leaf, Volkswagen Group (ID.3, ID.4, ID.5, Enyaq, Q4 e-tron, Born) and MG', 'OBD port in the driver’s footwell', 'The reader plugs in directly; no adapter cable needed.'],
+        ['Tesla Model 3 and Model Y 2019–2020', '20-pin service connector at the rear of the centre console', '20-pin Model 3/Y adapter cable'],
+        ['Tesla Model 3 and Model Y 2021–2024', '26-pin service connector at the rear of the centre console', '26-pin Model 3/Y adapter cable'],
+        ['Refreshed Tesla Model 3 (2024–) and Model Y (2025–)', 'The connector and its location differ from earlier cars', 'An adapter cable made for this exact model. Check the fit with the seller.'],
+        ['Tesla Model S 2012–2021 and Model X 2015–2021', 'Service connector that carries the battery data', 'Model S/X adapter cable. The connector differs on Model S built before 09/2015.'],
+        ['Tesla Model S and Model X 2021–04/2024', 'Blue 20-pin connector below the touchscreen', 'Model S/X adapter cable'],
+        ['Tesla Model S and Model X from 05/2024', 'OBD port in the driver’s footwell', 'The reader plugs in directly.']
+      ],
+      sarakkeet: ['Port', 'You need'],
+      huom: 'The footwell OBD port in Tesla Model 3 and Model Y does not carry battery data. The app’s connection test shows whether battery data is received. The adapter cable is connected according to its maker’s instructions, and the car’s wiring is not cut.'
+    },
     hintaOtsikko: 'Price',
     hinta: 'The app is free. Checks are paid with credits that you buy in the app through Google Play. You see the price of a check before you start. If a check stops right at the start, the credits are returned automatically.',
     hinnasto: 'Prices are shown in the app before you buy.',
@@ -66,6 +110,28 @@ const KIELET = {
     vaiheet: [['Anslut läsaren', 'En liten läsare ansluts till bilens OBD-uttag och kopplas till telefonen.'], ['Gör testet', 'Appen guidar dig steg för steg.'], ['Få rapporten', 'Rapporten visar batterihälsan och en QR-kod som köparen kan skanna för att verifiera den.']],
     tarvitsetOtsikko: 'Det här behöver du',
     tarvitset: ['Android-telefon (Android 10 eller nyare)', 'OBDLink-läsare: MX+, LX, EX eller SX', 'För Tesla dessutom en OBD-adapterkabel för modellen. På andra märken ansluts läsaren direkt.', 'En elbil, till exempel:'],
+    kaapelit: {
+      otsikko: 'Läsare och kablar',
+      johdanto: 'Batteridata läses från bilens OBD-uttag med en OBDLink-läsare. På de flesta bilar ansluts läsaren direkt. En Tesla behöver dessutom en mellankabel som passar modellen.',
+      laiteOtsikko: 'Läsare',
+      laitteet: [
+        ['OBDLink MX+ eller LX (Bluetooth)', 'Rekommenderas för telefon. Telefonen kan ligga på laddning under hela testet.'],
+        ['OBDLink EX eller SX (USB)', 'Ansluts till telefonen med en USB-C-adapter (OTG). Vid långa tester behöver adaptern en laddningsport (PD).'],
+        ['Passar inte', 'Vanliga ELM327-läsare är inte tillräckligt snabba. OBDLink CX stöds inte ännu.']
+      ],
+      autoOtsikko: 'Anslutning till bilen',
+      autot: [
+        ['Hyundai, Kia, Nissan Leaf, Volkswagenkoncernen (ID.3, ID.4, ID.5, Enyaq, Q4 e-tron, Born) och MG', 'OBD-uttaget i förarens fotutrymme', 'Läsaren ansluts direkt, ingen mellankabel behövs.'],
+        ['Tesla Model 3 och Model Y 2019–2020', '20-polig servicekontakt baktill i mittkonsolen', '20-polig mellankabel för Model 3/Y'],
+        ['Tesla Model 3 och Model Y 2021–2024', '26-polig servicekontakt baktill i mittkonsolen', '26-polig mellankabel för Model 3/Y'],
+        ['Uppdaterad Tesla Model 3 (2024–) och Model Y (2025–)', 'Kontakten och dess placering skiljer sig från tidigare bilar', 'En mellankabel gjord för just den här modellen. Kontrollera passformen med säljaren.'],
+        ['Tesla Model S 2012–2021 och Model X 2015–2021', 'Servicekontakt som förmedlar batteridata', 'Mellankabel för Model S/X. Kontakten är annorlunda i Model S tillverkad före 09/2015.'],
+        ['Tesla Model S och Model X 2021–04/2024', 'Blå 20-polig kontakt under pekskärmen', 'Mellankabel för Model S/X'],
+        ['Tesla Model S och Model X från 05/2024', 'OBD-uttaget i förarens fotutrymme', 'Läsaren ansluts direkt.']
+      ],
+      sarakkeet: ['Uttag', 'Du behöver'],
+      huom: 'OBD-uttaget i fotutrymmet i Tesla Model 3 och Model Y förmedlar inte batteridata. Appens anslutningstest visar om batteridata tas emot. Mellankabeln ansluts enligt tillverkarens anvisningar, och bilens ledningar kapas inte.'
+    },
     hintaOtsikko: 'Pris',
     hinta: 'Appen är gratis. Testerna betalas med krediter som du köper i appen via Google Play. Du ser testets pris innan du börjar. Om ett test avbryts direkt i början återförs krediterna automatiskt.',
     hinnasto: 'Priserna visas i appen innan du köper.',
@@ -162,6 +228,20 @@ ${t.tarvitset.map(r => `        <li>${e(r)}</li>`).join('\n')}
       ${playTila}
     </div>
   </div>
+</div></section>
+
+<section class="osio" id="kaapelit"><div class="leveys">
+  <h2>${e(t.kaapelit.otsikko)}</h2>
+  <p class="selite">${e(t.kaapelit.johdanto)}</p>
+  <h3 class="valiotsikko">${e(t.kaapelit.laiteOtsikko)}</h3>
+  <div class="ruudukko laitteet">
+${t.kaapelit.laitteet.map(([o, s], i) => `    <div class="kortti${i === 2 ? ' ei-kay' : ''}"><h3>${e(o)}</h3><p>${e(s)}</p></div>`).join('\n')}
+  </div>
+  <h3 class="valiotsikko">${e(t.kaapelit.autoOtsikko)}</h3>
+  <div class="kytkennat">
+${t.kaapelit.autot.map(([a, l, tr]) => `    <div class="kortti kytkenta"><h4>${e(a)}</h4><dl><dt>${e(t.kaapelit.sarakkeet[0])}</dt><dd>${e(l)}</dd><dt>${e(t.kaapelit.sarakkeet[1])}</dt><dd>${e(tr)}</dd></dl></div>`).join('\n')}
+  </div>
+  <p class="huomio">${e(t.kaapelit.huom)}</p>
 </div></section>
 
 <section class="osio" id="hinta"><div class="leveys">

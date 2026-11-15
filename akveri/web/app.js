@@ -353,7 +353,9 @@ views.yleiskuva = {
         stat("Akun kunto", "–", "%", "Näkyy mittauksen aikana ja raportissa")] : [
         stat("Täyden akun energia", L.nfp_kwh != null ? n(L.nfp_kwh) : "–", "kWh", L.kyselyalusta ? "Akunhallinnan kuntoarviosta" : "Teslan akunhallinta"),
         stat("Akun kunto", soh != null ? n(soh) : "–", "%", L.viite_kwh ? `Uutena ${n(L.viite_kwh)} kWh, ${esc(L.viite_lahde || "")}` : "Alkuperäistä kapasiteettia ei tiedetä")]),
-      stat("Kennoryhmien ero", L.brick_delta_mv != null ? n(L.brick_delta_mv, 0) : "–", "mV", L.bricks_seen ? `${L.bricks_seen}/${L.brick_count || "–"} ryhmää luettu` : ""),
+      L.kunto_piilotettu
+        ? stat("Kennoryhmät", L.bricks_seen ? `${L.bricks_seen}/${L.brick_count || "–"}` : "–", "", "Jännite-ero näkyy mittauksen aikana ja raportissa")
+        : stat("Kennoryhmien ero", L.brick_delta_mv != null ? n(L.brick_delta_mv, 0) : "–", "mV", L.bricks_seen ? `${L.bricks_seen}/${L.brick_count || "–"} ryhmää luettu` : ""),
       stat("Mittarilukema", L.odometer_km != null ? n(L.odometer_km, 0) : "–", "km", L.vin || ""),
     ].join("");
     // tunnistettu auto
@@ -376,7 +378,14 @@ views.yleiskuva = {
     // kennot
     if (!this._cellT || Date.now() - this._cellT > 2000) {
       this._cellT = Date.now();
-      api("/api/kennot").then(r => { const b = $("#cellBox"); if (b) b.innerHTML = cellSvg(r.kennot); });
+      api("/api/kennot").then(r => {
+        const b = $("#cellBox");
+        if (!b) return;
+        b.innerHTML = r.piilotettu
+          ? `<div class="empty small">${r.luettu ? `${r.luettu} kennoryhmän jännitteet luettu.` : "Kennoryhmien jännitteitä luetaan."} Jännitteet, jännite-ero ja akun kunto näkyvät mittauksen aikana ja raportissa. Pikatarkastus kestää 1–3 minuuttia.</div>
+             <div class="row" style="margin-top:10px;justify-content:center"><a class="btn primary sm" href="#/mittaus">Tee pikatarkastus</a></div>`
+          : cellSvg(r.kennot);
+      });
     }
     // väylätesti
     const vt = S.vaylatesti;
@@ -384,17 +393,22 @@ views.yleiskuva = {
       !vt.viestit.some(r => r.pakollinen && r.nakyy) && vt.viestit.some(r => r.nakyy);
     if (vt) {
       $("#busBox").innerHTML = `
-        ${vt.kunnossa ? `<div class="notice good">Kaikki mittauksessa tarvittavat tiedot vastaanotetaan.${L.platform_name ? ` Viestiarkkitehtuuri: ${esc(L.platform_name)}.` : ""}</div>` :
+        ${vt.kunnossa ? `<div class="notice good"><b>Yhteys toimii.</b> Kaikki mittauksessa tarvittavat tiedot vastaanotetaan.${L.platform_name ? ` Viestiarkkitehtuuri: ${esc(L.platform_name)}.` : ""}</div>` :
           (restricted ? `<div class="notice bad"><b>Tämä liitäntä ei välitä akun tietoja.</b> Autosta tulee viestejä, mutta vain muutama tieto, kuten nopeus ja virtatila. Kytke sovitin Teslan diagnostiikkaliittimeen välikaapelilla. Liitin on keskikonsolin takapäässä takamatkustajien puolella paneelin takana: vuosien 2019–2020 autoissa 20-pinninen ja 2021 alkaen 26-pinninen. <a href="#/ohjeet/yhdistaminen">Ohje</a></div>` :
           `<div class="notice warn"><b>Puuttuu:</b> ${esc(vt.puuttuvat.join(", "))}. Odota hetki. Jos tieto ei ilmesty minuutin kuluessa, auto ei lähetä sitä tähän liitäntään.</div>`)}
+        ${vt.kunnossa && !this.busAuki ? `<div class="row" style="margin-top:10px"><button class="btn sm" id="busAuki" type="button">Näytä vastaanotetut tiedot</button></div>` : `
         <table class="t ${this.tech ? "tech" : ""}"><tr><th>Tieto</th><th class="techcol">Tunniste</th><th class="num techcol">Taajuus</th><th></th></tr>
         ${vt.viestit.map(r => `<tr><td>${esc(r.kuvaus)}${r.pakollinen ? "" : ' <span class="muted small">(lisätieto)</span>'}</td><td class="muted techcol">${r.tunniste}</td>
           <td class="num techcol">${r.taajuus_hz ? n(r.taajuus_hz, 1) + " Hz" : "–"}</td>
           <td class="num">${r.nakyy ? '<span class="pill good">Vastaanotetaan</span>' : (r.pakollinen ? '<span class="pill warn">Ei näy</span>' : '<span class="pill">Ei näy</span>')}</td></tr>`).join("")}
         </table>
         <div class="row" style="margin-top:10px"><button class="btn sm" id="techT" type="button">${this.tech ? "Piilota tekniset tiedot" : "Näytä tekniset tiedot"}</button>
-          ${S.yhteys.simuloitu ? "" : `<button class="btn sm" id="scanB" type="button">Kartoita väylä</button>`}</div>`;
-      $("#techT").onclick = () => { this.tech = !this.tech; this.update(S); };
+          ${S.yhteys.simuloitu ? "" : `<button class="btn sm" id="scanB" type="button">Kartoita väylä</button>`}
+          ${vt.kunnossa ? `<button class="btn sm" id="busKiinni" type="button">Piilota</button>` : ""}</div>`}`;
+      const ba = $("#busAuki"), bk = $("#busKiinni"), tt = $("#techT");
+      if (ba) ba.onclick = () => { this.busAuki = true; this.update(S); };
+      if (bk) bk.onclick = () => { this.busAuki = false; this.update(S); };
+      if (tt) tt.onclick = () => { this.tech = !this.tech; this.update(S); };
       const sb = $("#scanB");
       if (sb) sb.onclick = () => this.scan();
     }

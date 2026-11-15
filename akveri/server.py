@@ -338,7 +338,11 @@ class Api:
                 "viestit": rows, "lajeja": len(rows), "arvio": verdict[0], "teksti": verdict[1]}
 
     def kennot(self, q, body):
-        return {"kennot": self.app.decoder.bricks_list()}
+        kennot = self.app.decoder.bricks_list()
+        if not self.app.live_kunto_sallittu():
+            # Yksittäiset kennojännitteet näkyvät mittauksen aikana ja raportissa; ilman mittausta vain luettujen määrä.
+            return {"kennot": [], "piilotettu": True, "luettu": sum(1 for v in kennot if v)}
+        return {"kennot": kennot}
 
     def portit(self, q, body):
         from . import sources

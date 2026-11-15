@@ -145,3 +145,22 @@ def test_valmistenumeron_merkki_ja_malli():
     assert "Tesla" in Api._merkki_ristiriita("5YJ3E7EB1LF654321", "hy-ioniq-38")
     assert Api._merkki_ristiriita("KMHC851JFLU012345", "hy-ioniq-38") is None
     assert Api._merkki_ristiriita("KNACC81GFL5012345", "hy-kona-64") is None  # Kia ja Hyundai samaa konsernia
+
+
+def test_kennotiedot_piilossa_ilman_mittausta():
+    """Ilman mittausta näkyy vain luettujen kennoryhmien määrä, ei jännitteitä eikä jännite-eroa."""
+    from akveri.app import App
+    from akveri import krediitit as k
+    with tempfile.TemporaryDirectory() as d:
+        a = App(Path(d))
+        api = server.Api(a)
+        for i in range(1, 5):
+            a.decoder.state.bricks[i] = 3.70 + i * 0.001
+        a.decoder.state.brick_count = 4
+        a.live_kunto_sallittu = lambda: False
+        r = api.kennot({}, {})
+        assert r == {"kennot": [], "piilotettu": True, "luettu": 4}
+        assert "brick_delta_mv" not in k.suodata_live(a.decoder.snapshot(), False)
+        a.live_kunto_sallittu = lambda: True
+        assert len(api.kennot({}, {})["kennot"]) == 4
+        assert k.suodata_live(a.decoder.snapshot(), True)["brick_delta_mv"] > 0

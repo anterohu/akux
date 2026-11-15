@@ -25,7 +25,8 @@ OLETUS_PERUMISAIKA_MIN = 60
 
 # Live-tiedot, joista akun kunnon tai kapasiteetin voi päätellä. Näytetään vain, kun mittaukseen on oikeus.
 KUNTOKENTAT = ("bol_kwh", "nfp_kwh", "nominal_remaining_kwh", "expected_remaining_kwh", "ideal_remaining_kwh",
-               "to_charge_complete_kwh", "buffer_kwh", "bms_soh_pct", "viite_kwh", "viite_lahde", "full_charge_complete")
+               "to_charge_complete_kwh", "buffer_kwh", "bms_soh_pct", "viite_kwh", "viite_lahde", "full_charge_complete",
+               "brick_delta_mv")   # kennoryhmien jännite-ero ja yksittäiset jännitteet näkyvät vain mittauksessa
 
 
 class PalveluVirhe(Exception):
