@@ -109,29 +109,32 @@
       <h2>Sähköposti</h2>
       <p class="paivays" id="posti-tila"></p>
       <details class="posti-ohje"><summary>Näin saat sähköpostin toimimaan ilman lisäkuluja</summary>
+        <p><b>Verkkotunnukseen kuuluu vain sähköpostin ohjaus</b> (ei postilaatikkoa):</p>
         <ol>
-          <li><b>Postilaatikko:</b> luo verkkotunnuksen sähköpostiin palveluntarjoajasi hallinnassa (esimerkiksi Hostingpalvelu) tili noreply@akveri.fi. Kun verkkotunnukseen kuuluu sähköposti, erillistä lähetyspalvelua ei tarvita.</li>
-          <li><b>Vastaanotto:</b> info@akveri.fi voi olla oma postilaatikko tai ohjaus omaan sähköpostiisi.</li>
-          <li><b>Tähän lomakkeeseen:</b> valitse ”Verkkotunnuksen oma sähköposti” ja anna lähetyspalvelimen nimi hosting-tilin tiedoista (esimerkiksi mail36.hostingpalvelu.fi). Käyttäjätunnus on koko sähköpostiosoite ja salasana postilaatikon salasana.</li>
-          <li><b>Lähettäjä:</b> käytä ilmoitusten lähettäjänä samaa osoitetta, jolla kirjaudut. Jos annat omien viestien lähettäjäksi toisen osoitteen ja palvelin hylkää sen, käytä samaa osoitetta molemmissa.</li>
-          <li><b>Testi:</b> tallenna ja lähetä testiviesti. Jos viesti päätyy roskapostiin, tarkista palveluntarjoajalta, että verkkotunnuksen SPF-tietue sallii heidän postipalvelimensa.</li>
+          <li><b>Ohjaus:</b> ohjaa info@akveri.fi palveluntarjoajasi hallinnassa omaan sähköpostiisi.</li>
+          <li><b>Gmail-tili:</b> lähetä viestit Gmail-tililtä, esimerkiksi erilliseltä tililtä vain tätä varten. Ota tilillä käyttöön kaksivaiheinen kirjautuminen ja luo sovellussalasana: Google-tili → Turvallisuus → Sovellussalasanat.</li>
+          <li><b>Tähän lomakkeeseen:</b> valitse ”Gmail (Google-tili)”. Käyttäjätunnus on Gmail-osoite ja salasana sovellussalasana. Lähettäjäksi tulee sama Gmail-osoite nimen kanssa, esimerkiksi ”Nimi &lt;osoite@gmail.com&gt;”, ja vastausosoitteeksi info@akveri.fi. Asiakkaiden vastaukset tulevat silloin verkkotunnuksen osoitteeseen.</li>
         </ol>
+        <p><b>Verkkotunnukseen kuuluu postilaatikko</b> (webhotelli): valitse ”Verkkotunnuksen oma sähköposti” ja anna lähetyspalvelimen nimi hosting-tilin tiedoista, esimerkiksi mail36.hostingpalvelu.fi. Käyttäjätunnus on koko sähköpostiosoite ja salasana postilaatikon salasana. Käytä lähettäjänä samaa osoitetta, jolla kirjaudut.</p>
+        <p><b>Lopuksi:</b> tallenna ja lähetä testiviesti. Jos viesti päätyy roskapostiin, merkitse se vastaanottajan postissa tavalliseksi viestiksi. Webhotellissa tarkista palveluntarjoajalta, että verkkotunnuksen SPF-tietue sallii heidän postipalvelimensa.</p>
       </details>
       <label for="po-palvelu">Lähetyspalvelu</label><select id="po-palvelu"><option value="">Valitse…</option><option value="webhotelli">Verkkotunnuksen oma sähköposti</option><option value="gmail">Gmail (Google-tili)</option><option value="muu">Muu SMTP-palvelin</option></select>
       <p class="paivays" id="po-palvelu-ohje"></p>
       <label for="po-host">Lähetyspalvelin (SMTP)</label><input id="po-host" placeholder="mail36.hostingpalvelu.fi" maxlength="200">
-      <p class="paivays">Löytyy hosting-tilin tiedoista, esimerkiksi mail36.hostingpalvelu.fi.</p>
+      <p class="paivays">Gmailissa smtp.gmail.com (täyttyy valinnasta). Webhotellissa palvelimen nimi on hosting-tilin tiedoissa, esimerkiksi mail36.hostingpalvelu.fi.</p>
       <label for="po-port">Portti</label><input id="po-port" type="number" min="1" max="65535" value="465">
       <label class="valinta-rivi"><input type="checkbox" id="po-secure" checked> Salattu yhteys heti alusta (portti 465)</label>
       <p class="paivays">Yleensä 465 ja salattu yhteys valittuna. Portissa 587 jätä salattu yhteys valitsematta.</p>
-      <label for="po-user">Käyttäjätunnus</label><input id="po-user" maxlength="200" autocomplete="off" placeholder="noreply@akveri.fi">
-      <p class="paivays">Koko sähköpostiosoite, esimerkiksi noreply@akveri.fi.</p>
+      <label for="po-user">Käyttäjätunnus</label><input id="po-user" maxlength="200" autocomplete="off" placeholder="osoite@gmail.com">
+      <p class="paivays">Koko sähköpostiosoite: Gmail-osoite tai verkkotunnuksen postilaatikon osoite.</p>
       <label for="po-pass">Salasana</label><input id="po-pass" type="password" maxlength="500" autocomplete="new-password" placeholder="Jätä tyhjäksi, jos haluat säilyttää tallennetun">
-      <p class="paivays">Postilaatikon salasana.</p>
-      <label for="po-lahettaja">Ilmoitusten lähettäjä</label><input id="po-lahettaja" maxlength="200" placeholder="AKVERI &lt;noreply@akveri.fi&gt;">
-      <p class="paivays">Yleensä sama osoite kuin käyttäjätunnus. Automaattiset ilmoitukset (uudet yhteydenotot ja hyvityspyynnöt); vastaukset niihin ohjataan omien viestien osoitteeseen.</p>
-      <label for="po-omat">Omien viestien lähettäjä</label><input id="po-omat" maxlength="200" placeholder="AKVERI &lt;info@akveri.fi&gt;">
-      <p class="paivays">Vastaukset, jotka lähetät itse Viestit-näkymästä. Näkyy sivuston yhteystiedoissa, jos yhteystietoihin ei ole annettu muuta sähköpostia.</p>
+      <p class="paivays">Gmailissa sovellussalasana, webhotellissa postilaatikon salasana.</p>
+      <label for="po-lahettaja">Ilmoitusten lähettäjä</label><input id="po-lahettaja" maxlength="200" placeholder="AKVERI &lt;osoite@gmail.com&gt;">
+      <p class="paivays">Sama osoite kuin käyttäjätunnus, nimen kanssa. Automaattiset ilmoitukset (uudet yhteydenotot ja hyvityspyynnöt); vastaukset niihin ohjataan omien viestien osoitteeseen.</p>
+      <label for="po-omat">Omien viestien lähettäjä</label><input id="po-omat" maxlength="200" placeholder="Jätä tyhjäksi, jos sama kuin yllä">
+      <p class="paivays">Vastaukset, jotka lähetät itse Viestit-näkymästä. Jätä tyhjäksi, niin käytetään ilmoitusten lähettäjää. Webhotellissa tähän voi antaa toisen saman verkkotunnuksen postilaatikon, esimerkiksi AKVERI &lt;info@akveri.fi&gt;.</p>
+      <label for="po-vastaus">Vastausosoite (valinnainen)</label><input id="po-vastaus" type="email" maxlength="200" placeholder="info@akveri.fi">
+      <p class="paivays">Asiakkaan vastaukset tulevat tähän osoitteeseen. Tarpeen, kun lähetät Gmailista.</p>
       <label for="po-vastaanottaja">Ilmoitukset tähän osoitteeseen</label><input id="po-vastaanottaja" type="email" maxlength="200">
       <p class="paivays">Oma sähköpostisi, johon haluat tiedon uusista yhteydenotoista.</p>
       <p><button class="nappi" type="submit">Tallenna sähköposti</button> <button class="nappi toissijainen" type="button" id="po-testi">Lähetä testiviesti</button></p>

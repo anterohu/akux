@@ -43,7 +43,7 @@ function selitaVirhe(vaihe, vastaus, asetus = {}, lahettaja = '') {
   const v = String(vastaus || '').trim().split(/\r?\n/).pop().slice(0, 160);
   const loppu = v ? ` (palvelin: ${v})` : '';
   if (vaihe === 'kirjautuminen') return 'Kirjautuminen epäonnistui. Tarkista käyttäjätunnus (koko sähköpostiosoite) ja salasana.' + loppu;
-  if (vaihe === 'lahettaja') return `Palvelin ei hyväksynyt lähettäjää ${lahettaja}. Käytä lähettäjänä samaa osoitetta kuin käyttäjätunnus.` + loppu;
+  if (vaihe === 'lahettaja') return `Palvelin ei hyväksynyt lähettäjää ${lahettaja}. Käytä lähettäjänä samaa osoitetta kuin käyttäjätunnus (Gmailissa Gmail-osoitetta).` + loppu;
   if (vaihe === 'vastaanottaja') return 'Palvelin ei hyväksynyt vastaanottajan osoitetta. Tarkista osoite.' + loppu;
   if (vaihe === 'yhteys') {
     if (/ENOTFOUND|EAI_AGAIN/.test(v)) return `Lähetyspalvelinta ${asetus.host || ''} ei löydy. Tarkista palvelimen nimi hosting-tilin tiedoista.`;
@@ -123,17 +123,20 @@ function luoPostitus(varasto, { lahetin = laheta } = {}) {
   async function ilmoita(otsikko, teksti) {
     const a = asetus();
     if (!kaytossa() || !a.vastaanottaja) return false;
-    const info = osoiteOsasta(a.lahettajaOmat);
+    const info = osoiteOsasta(a.vastausosoite) || osoiteOsasta(a.lahettajaOmat);
     await lahetin(a, { from: a.lahettaja, to: a.vastaanottaja, ...(info ? { replyTo: info } : {}), subject: otsikko, text: teksti });
     return true;
   }
   async function omaViesti(vastaanottaja, otsikko, teksti) {
     const a = asetus();
     if (!kaytossa()) throw new Error('Sähköpostia ei ole asetettu (Sivusto ja ehdot → Sähköposti).');
-    await lahetin(a, { from: a.lahettajaOmat || a.lahettaja, to: vastaanottaja, subject: otsikko, text: teksti });
+    // Vastausosoite (esim. info@akveri.fi), kun viestit lähtevät Gmail-osoitteesta
+    const vastaus = osoiteOsasta(a.vastausosoite);
+    const from = a.lahettajaOmat || a.lahettaja;
+    await lahetin(a, { from, to: vastaanottaja, ...(vastaus && vastaus !== osoiteOsasta(from) ? { replyTo: vastaus } : {}), subject: otsikko, text: teksti });
   }
   const ilmoitaTaustalla = (otsikko, teksti) => { ilmoita(otsikko, teksti).catch(e => console.error('[posti] ilmoitus epäonnistui:', e.message)); };
-  return { kaytossa, ilmoita, ilmoitaTaustalla, omaViesti, infoOsoite: () => osoiteOsasta((asetus() || {}).lahettajaOmat) };
+  return { kaytossa, ilmoita, ilmoitaTaustalla, omaViesti, infoOsoite: () => osoiteOsasta((asetus() || {}).vastausosoite) || osoiteOsasta((asetus() || {}).lahettajaOmat) };
 }
 
 module.exports = { laheta, rakennaViesti, osoiteOsasta, luoPostitus, selitaVirhe };

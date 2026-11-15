@@ -314,7 +314,7 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
   // Salasanaa ei koskaan palauteta selaimelle.
   function postiNakyma() {
     const p = asetukset().posti;
-    return p ? { host: p.host, port: p.port, secure: !!p.secure, user: p.user || '', salasanaAsetettu: !!p.pass, lahettaja: p.lahettaja || '', lahettajaOmat: p.lahettajaOmat || '', vastaanottaja: p.vastaanottaja || '' } : null;
+    return p ? { host: p.host, port: p.port, secure: !!p.secure, user: p.user || '', salasanaAsetettu: !!p.pass, lahettaja: p.lahettaja || '', lahettajaOmat: p.lahettajaOmat || '', vastausosoite: p.vastausosoite || '', vastaanottaja: p.vastaanottaja || '' } : null;
   }
   function huoltotila() {
     const h = asetukset().huoltotila || {};
@@ -389,6 +389,7 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
           pass: typeof p.pass === 'string' && p.pass !== '' ? p.pass.slice(0, 500) : (vanha.pass || ''),
           lahettaja: osoite(p.lahettaja, 'Ilmoitusten lähettäjä', true),
           lahettajaOmat: osoite(p.lahettajaOmat, 'Omien viestien lähettäjä', false),
+          vastausosoite: osoite(p.vastausosoite, 'Vastausosoite', false),
           vastaanottaja: osoite(p.vastaanottaja, 'Ilmoitusten vastaanottaja', true)
         };
       }

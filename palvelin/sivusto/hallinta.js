@@ -60,7 +60,7 @@
   // Sähköpostin lähetyspalvelut: valinta täyttää palvelimen ja portin (sama ohje akveri.fi:n ja vuoropiste.fi:n hallinnassa)
   var POSTIPALVELUT = {
     webhotelli: { tunniste: /\.hostingpalvelu\.fi$/, port: 465, secure: true, ohje: 'Palvelimen nimi on hosting-tilin tiedoissa, esimerkiksi mail36.hostingpalvelu.fi. Käyttäjätunnus on koko sähköpostiosoite ja salasana postilaatikon salasana. Portti 465 ja salattu yhteys ovat valmiina.' },
-    gmail: { host: 'smtp.gmail.com', port: 587, secure: false, ohje: 'Käyttäjätunnus on Gmail-osoitteesi ja salasana sovellussalasana (Google-tili → Turvallisuus → Sovellussalasanat; vaatii kaksivaiheisen kirjautumisen). Lisää lähettäjäosoitteet Gmailiin: Asetukset → Tilit → Lähetä viestejä osoitteesta. Gmail lähettää enintään noin 500 viestiä vuorokaudessa.' },
+    gmail: { host: 'smtp.gmail.com', port: 587, secure: false, ohje: 'Käyttäjätunnus on Gmail-osoite ja salasana sovellussalasana (Google-tili → Turvallisuus → Sovellussalasanat; vaatii kaksivaiheisen kirjautumisen). Lähettäjänä on sama Gmail-osoite. Anna vastausosoitteeksi verkkotunnuksen osoite, niin asiakkaiden vastaukset tulevat sinne. Gmail lähettää enintään noin 500 viestiä vuorokaudessa.' },
     muu: { ohje: 'Täytä palvelin, portti ja tunnukset sähköpostipalvelusi ohjeen mukaan. Portti on yleensä 587 tai salatulla yhteydellä 465.' }
   };
   function postipalvelu(valinta, host, port, secure, ohje, asetaArvot) {
@@ -138,7 +138,7 @@
     p = p || {};
     $('#po-host').value = p.host || ''; $('#po-port').value = p.port || 465; $('#po-secure').checked = p.host ? !!p.secure : true; $('#po-user').value = p.user || ''; $('#po-pass').value = '';
     if (window.__postiTunnista) window.__postiTunnista();
-    $('#po-lahettaja').value = p.lahettaja || ''; $('#po-omat').value = p.lahettajaOmat || ''; $('#po-vastaanottaja').value = p.vastaanottaja || '';
+    $('#po-lahettaja').value = p.lahettaja || ''; $('#po-omat').value = p.lahettajaOmat || ''; $('#po-vastaus').value = p.vastausosoite || ''; $('#po-vastaanottaja').value = p.vastaanottaja || '';
   }
   var HUOLTO_KUVAUS = { pois: 'Huoltotila on pois päältä.', sivusto: 'Sivusto on huoltotilassa. Sovellus toimii normaalisti.', kaikki: 'Sivusto ja sovelluksen palvelu ovat huoltotilassa.' };
   function naytaHuolto(h) {
@@ -428,7 +428,7 @@
     window.__postiTunnista = postipalvelu($('#po-palvelu'), $('#po-host'), $('#po-port'), $('#po-secure'), $('#po-palvelu-ohje'), true);
     $('#postilomake').addEventListener('submit', function (e) {
       e.preventDefault();
-      api('/asetukset', { method: 'PUT', body: { posti: { host: $('#po-host').value.trim(), port: Number($('#po-port').value), secure: $('#po-secure').checked, user: $('#po-user').value.trim(), pass: $('#po-pass').value, lahettaja: $('#po-lahettaja').value.trim(), lahettajaOmat: $('#po-omat').value.trim(), vastaanottaja: $('#po-vastaanottaja').value.trim() } } })
+      api('/asetukset', { method: 'PUT', body: { posti: { host: $('#po-host').value.trim(), port: Number($('#po-port').value), secure: $('#po-secure').checked, user: $('#po-user').value.trim(), pass: $('#po-pass').value, lahettaja: $('#po-lahettaja').value.trim(), lahettajaOmat: $('#po-omat').value.trim(), vastausosoite: $('#po-vastaus').value.trim(), vastaanottaja: $('#po-vastaanottaja').value.trim() } } })
         .then(function (a) { naytaPosti(a.posti); ilmoita('Sähköpostiasetukset tallennettu.', true); }).catch(virhe());
     });
     $('#po-testi').addEventListener('click', function () { api('/posti/testi', { method: 'POST' }).then(function () { ilmoita('Testiviesti lähetetty ilmoitusten osoitteeseen.', true); }).catch(virhe()); });

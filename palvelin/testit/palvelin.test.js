@@ -656,6 +656,8 @@ test('hallinnan sähköposti: ohje verkkotunnuksen omalle sähköpostille sekä 
   const js = fs.readFileSync(path.join(__dirname, '..', 'sivusto', 'hallinta.js'), 'utf8');
   assert.match(html, /class="posti-ohje"/);
   assert.match(html, /SPF-tietue/);
+  assert.match(html, /vain sähköpostin ohjaus/);
+  assert.match(html, /id="po-vastaus"/);
   assert.match(html, /<select id="po-palvelu">.*webhotelli.*gmail.*muu/s);
   assert.doesNotMatch(html + js, /brevo/i);
   assert.match(js, /hostingpalvelu/);
@@ -712,6 +714,14 @@ test('sähköposti: verkkotunnuksen oma postilaatikko toimii, ja virheistä kerr
   assert.match(ok.d.viesti, /omistaja@example\.com/);
   assert.equal(smtp.viestit.length, 1);
   assert.match(smtp.viestit[0], /^From: AKVERI <noreply@akveri\.fi>$/m);
+  // Gmail-tapa: lähettäjä on Gmail-osoite, vastaukset ohjataan verkkotunnuksen osoitteeseen
+  assert.equal((await put({ posti: { ...asetus, vastausosoite: 'info@akveri.fi' } })).status, 200);
+  assert.equal((await pyynto('/api/hallinta/asetukset', { evaste: s.evaste, otsakkeet: s.otsakkeet })).d.posti.vastausosoite, 'info@akveri.fi');
+  assert.equal((await testi()).status, 200);
+  assert.match(smtp.viestit[1], /^Reply-To: info@akveri\.fi$/m);
+  assert.equal((await put({ posti: { ...asetus, vastausosoite: 'ei osoite' } })).status, 400);
+  assert.equal((await put({ posti: asetus })).status, 200);
+  smtp.viestit.length = 1;
   // Uusi yhteydenotto lähettää ilmoituksen omistajalle
   await pyynto('/api/sivusto/viesti', { method: 'POST', body: { nimi: 'Matti', sahkoposti: 'matti@example.com', viesti: 'Kysymys akusta', suostumus: true } });
   for (let i = 0; i < 50 && smtp.viestit.length < 2; i++) await new Promise((r) => setTimeout(r, 20));
