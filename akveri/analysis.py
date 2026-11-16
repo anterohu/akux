@@ -178,6 +178,11 @@ def cell_stats(volts: list, soc: float | None = None, current: float | None = No
     vals = [(k + 1, v) for k, v in enumerate(volts or []) if v]
     if len(vals) < 2:
         return None
+    # Jännite-ero arvioidaan vain, kun lähes kaikkien kennoryhmien jännitteet on luettu. Muutaman ryhmän perusteella
+    # ero näyttäisi pienemmältä kuin se on (esimerkiksi väärä malli valittuna tai akunhallinta ei vastannut kaikkiin
+    # kennokyselyihin).
+    if len(vals) < max(2, 0.9 * len(volts)):
+        return None
     vs = [v for _, v in vals]
     med = statistics.median(vs)
     mad = statistics.median([abs(v - med) for v in vs]) * 1.4826
@@ -533,6 +538,8 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
         n_bricks = n_bricks[-1]
     if tyyppi == "pikatarkastus":
         _analyze_quick(res, snaps, samples)
+        res["huomiot"].append("Pikatarkastus ei mittaa kapasiteettia. Akun kunto ja kapasiteetti ovat akunhallinnan "
+                              "ilmoittamia arvoja. Mitattu kapasiteetti saadaan ajotestillä tai kapasiteettimittauksella.")
     elif tyyppi in ("kapasiteetti", "taysi"):
         _analyze_capacity(res, snaps, samples, meta, chem_key, ref_kwh, nfp, buffer)
     else:
@@ -955,7 +962,10 @@ def _summarize(res):
                        epavarmuus_kwh=pt.get("epavarmuus_kwh"), epavarmuus_pct=pt.get("soh_epavarmuus_pct"))
     elif bms.get("soh_pct"):
         soh = bms["soh_pct"]
-        summary.update(kunto_pct=soh, kunto_lahde="Akunhallinnan arvio", kapasiteetti_kwh=bms.get("nfp_kwh"))
+        # Väärä malli valittuna: akunhallinnan kuntoprosentti pitää, mutta siitä laskettu kapasiteetti ei.
+        ristiriita = ((res.get("meta") or {}).get("merkinnat") or {}).get("malli_ristiriita")
+        summary.update(kunto_pct=soh, kunto_lahde="Akunhallinnan arvio",
+                       kapasiteetti_kwh=None if ristiriita else bms.get("nfp_kwh"))
     else:
         soh = None
 
@@ -996,6 +1006,10 @@ def _summarize(res):
                                  + bms_lahde(res.get("ajoneuvo", {}).get("alusta"))})
 
     cs = res.get("kennot")
+    if not cs and res.get("tyyppi") in ("pikatarkastus", "kapasiteetti", "taysi", "ajotesti", "kuormitus", "itsepurkaus"):
+        ar.append({"nimi": "Kennoryhmien jännite-ero", "arvo": "Ei luettu", "luokka": None,
+                   "kuvaus": "Akunhallinta ei ilmoittanut kaikkien kennoryhmien jännitteitä, joten jännite-eroa ei "
+                             "arvioitu. Tarkista, että yhdistettäessä on valittu auton oikea malli."})
     if cs:
         if (res.get("ajoneuvo") or {}).get("alusta") == "mg":
             kuv = (f"Suurin {fmt(cs['max_v'], 3)} V (lohko {(cs['max_nro'] + 1) // 2}), "

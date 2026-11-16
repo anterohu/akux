@@ -196,7 +196,7 @@ def test_auto_ei_vastaa():
         time.sleep(0.1)
     st = src.status
     src.stop()
-    assert "onko auto päällä" in st, st
+    assert "Auto ei vastaa" in st, st
     print("OK nukkuva auto:", st)
 
 
@@ -506,3 +506,48 @@ def test_kartoitus_nayttaa_vastaamattomat_kyselyt():
     assert rivit[f"0x{hkmc.P_MAIN:03X}"]["pituus"] == 59
     assert rivit[f"0x{hkmc.P_CELLS[0]:03X}"]["vastaamatta"] and rivit[f"0x{hkmc.P_CELLS[0]:03X}"]["kpl"] == 0
     assert r["viestit"][-1]["vastaamatta"]
+
+
+def test_vaara_malli_kennomaara_korjataan():
+    """Kona-asetukset (98 kennoa) Ioniq Electricissä (88 kennoa): kennomäärä korjataan auton mukaiseksi."""
+    dec = TeslaDecoder()
+    dec.configure("hkmc", cells=98, ref_kwh=64.0, lisakennot=2, malli_id="hy-kona-64")
+    volts = [3.80] * 88 + [0.0] * 8
+    for kierros in range(4):
+        for page in range(3):
+            dec.feed(1.0 + kierros, hkmc.P_CELLS[page], hkmc.encode_cells(volts[page * 32:page * 32 + 32]))
+        dec.feed(1.0 + kierros, hkmc.P_STATUS, hkmc.encode_status(soh=100.0, soc_disp=65.0, extra=(3.9, 3.9)))
+    assert dec.state.brick_count == 88 and max(dec.state.bricks) == 88
+    assert dec.hk["kennomaara_valittu"] == 98
+
+
+def test_oikea_malli_kennomaara_sailyy():
+    dec = TeslaDecoder()
+    dec.configure("hkmc", cells=98, ref_kwh=64.0, lisakennot=2, malli_id="hy-kona-64")
+    for kierros in range(4):
+        for page in range(3):
+            dec.feed(1.0 + kierros, hkmc.P_CELLS[page], hkmc.encode_cells([3.80] * 32))
+        dec.feed(1.0 + kierros, hkmc.P_STATUS, hkmc.encode_status(soh=94.0, soc_disp=65.0, extra=(3.8, 3.8)))
+    assert dec.state.brick_count == 98 and len(dec.state.bricks) == 98
+    assert "kennomaara_valittu" not in dec.hk
+
+
+def test_yhteystesti_vaatii_kennot_kyselymerkeilla():
+    """Kyselyihin perustuvalla merkillä yhteys on kunnossa vasta, kun lähes kaikkien kennoryhmien jännitteet saadaan."""
+    from types import SimpleNamespace
+    from akveri.server import Api
+    dec = TeslaDecoder()
+    dec.configure("hkmc", cells=88, ref_kwh=38.3, lisakennot=0, malli_id="hy-ioniq-38")
+    src = SimpleNamespace(loop=[], now=lambda: 10.0)
+    api = SimpleNamespace(app=SimpleNamespace(decoder=dec, source=src))
+    dec.feed(1.0, hkmc.P_MAIN, hkmc.encode_main(soc=65, v=332.6, i=5.2, t_max=7, t_min=7, c_max=3.78, c_max_no=1,
+                                                c_min=3.76, c_min_no=2, cec=1000, ced=900, charging=False))
+    dec.feed(1.0, hkmc.P_STATUS, hkmc.encode_status(soh=100.0, soc_disp=65.0))
+    dec.feed(1.0, hkmc.P_CELLS[0], hkmc.encode_cells([3.77] * 32))
+    vt = Api._bus_verdict(api)
+    rivi = [r for r in vt["viestit"] if r["kuvaus"] == "Kaikkien kennoryhmien jännitteet"][0]
+    assert vt["kyselyt"] and not vt["kunnossa"] and rivi["maara"] == "32/88"
+    dec.feed(2.0, hkmc.P_CELLS[1], hkmc.encode_cells([3.77] * 32))
+    dec.feed(2.0, hkmc.P_CELLS[2], hkmc.encode_cells([3.77] * 24))
+    vt = Api._bus_verdict(api)
+    assert vt["kunnossa"], vt["puuttuvat"]

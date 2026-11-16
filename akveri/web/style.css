@@ -231,7 +231,8 @@ table.t .techcol { display: none; }
 table.t.tech .techcol { display: table-cell; }
 
 @media (max-width: 760px) {
-  .guide-wrap { grid-template-columns: 1fr; }
+  .guide-wrap { grid-template-columns: minmax(0, 1fr); }
+  .guide-wrap > * { min-width: 0; }
   .toc { position: static; }
   .gloss { grid-template-columns: 1fr; }
   .gloss dd { margin-bottom: 6px; }
@@ -290,3 +291,48 @@ h3.grp:first-of-type { margin-top: 4px; }
 .kysely { background: var(--panel); color: var(--ink); border-radius: var(--radius); box-shadow: 0 12px 40px rgba(0,0,0,.25); max-width: 440px; width: 100%; padding: 20px 22px; }
 .kysely p { margin: 0 0 18px; line-height: 1.55; white-space: pre-line; }
 .kysely .row { gap: 10px; flex-wrap: wrap; }
+
+/* --- puhelin: ei vaakavieritystä --- */
+@media (max-width: 760px) {
+  table.t { font-size: 13px; }
+  table.t th, table.t td { padding: 7px 5px; overflow-wrap: break-word; hyphens: auto; }
+  table.t th:first-child, table.t td:first-child { padding-left: 0; }
+  table.t th:last-child, table.t td:last-child { padding-right: 0; }
+  .pill { white-space: normal; align-items: flex-start; }
+  .pill::before { margin-top: .35em; flex: none; }
+  dd, dt, .stat .sub, .small { overflow-wrap: break-word; }
+  table.arviot td:first-child { width: 52%; }
+  table.arviot .show-m { margin-top: 4px; }
+}
+@media (max-width: 760px) {
+  .side { gap: 8px; }
+  .conn { min-width: 0; flex: 0 1 auto; }
+  .brand { min-width: 0; }
+  .toc { overflow-x: visible; }
+  .toc a { overflow-wrap: anywhere; white-space: normal; }
+}
+@media (max-width: 340px) {
+  .conn .conn-txt { max-width: 22vw; }
+  .brand img + span, .brand .brand-txt { font-size: 18px; }
+}
+
+/* --- poistot ja muut peruuttamattomat toiminnot --- */
+.vaaravyohyke { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px;
+  margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.vaaravyohyke p { margin: 0; max-width: 46ch; }
+.vaaravyohyke .btn { min-width: 220px; justify-content: center; }
+
+/* --- krediitit --- */
+.kvali { margin-top: 18px; }
+.ksaldo { text-align: center; padding: 26px 18px; }
+.ksaldo .lbl { color: var(--muted); font-size: 14px; }
+.ksaldo-arvo { font-size: 44px; font-weight: 700; line-height: 1.15; margin: 6px 0 4px; color: var(--ink); }
+.ktuotteet { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin: 14px 0 10px; }
+.ktuote { flex-direction: column; justify-content: center; padding: 16px 10px; gap: 2px; min-height: 84px; }
+.ktuote-n { font-size: 26px; font-weight: 700; line-height: 1.1; }
+table.khinnat td { padding: 11px 4px; }
+table.khinnat td.num { text-align: right; white-space: nowrap; }
+.ktoiminnot { display: flex; justify-content: center; margin-top: 16px; }
+details summary { cursor: pointer; font-size: 14px; color: var(--accent); padding: 6px 0; }
+@media (max-width: 760px) { .ktuotteet { grid-template-columns: 1fr 1fr; } .vaaravyohyke .btn { width: 100%; min-width: 0; } }
+table.khinnat + p { margin-top: 14px; }

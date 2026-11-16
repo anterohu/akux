@@ -236,6 +236,8 @@ class ObdLinkSource(Source):
                 self._start_monitor()
                 buf = b""
                 last_frame = time.time()
+                yhdistetty = time.time()
+                akku_nahty = False
                 while not self._stop.is_set():
                     if self._scan_req:
                         secs, self._scan_req = self._scan_req, None
@@ -267,7 +269,12 @@ class ObdLinkSource(Source):
                             fr = self._parse(txt)
                             if fr and self._cb:
                                 last_frame = now
-                                self.status = "Kuunnellaan väylää"
+                                if not akku_nahty:
+                                    from .decoder import KAIKKI_PAKOLLISET
+                                    akku_nahty = fr[0] in KAIKKI_PAKOLLISET
+                                # Viestejä tulee, mutta ei akun tietoja: sovitin on liitännässä, joka ei välitä niitä.
+                                self.status = ("Kuunnellaan väylää" if akku_nahty or now - yhdistetty < 15 else
+                                               "Väylällä ei akun tietoja – tarkista sovittimen liitäntä")
                                 self._cb(now, fr[0], fr[1])
                     if now - last_frame > 5:
                         self.status = "Väylä hiljaa – onko auto hereillä?"
@@ -438,8 +445,11 @@ class PolledSource(ObdLinkSource):
                         self.loop, self.vaihtoehto = self.vaihtoehto, self.loop
                         last_bms = time.time()
                     if time.time() - last_ok > 5:
-                        self.status = "Auto ei vastaa – onko auto päällä tai latauksessa?"
+                        self.status = "Auto ei vastaa – onko auto käynnissä (READY) tai latauksessa?"
                         self._stop.wait(2)
+                    elif time.time() - last_bms > 20:
+                        # Muut ohjainlaitteet vastaavat, akunhallinta ei: auto ei ole käynnissä tai malli on väärä.
+                        self.status = "Akunhallinta ei vastaa – käynnistä auto (READY) ja tarkista malli"
             except UnsupportedAdapter as e:
                 self.error = str(e)
                 self.status = "Sovitinta ei tueta"

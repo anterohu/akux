@@ -292,9 +292,21 @@ class Api:
         if not d.total_frames:
             return None
         rep = d.bus_report(self.app.source.now() if self.app.source else None)
+        kyselyt = getattr(self.app.source, "loop", None) is not None
+        if kyselyt:
+            # Kyselyihin perustuvilla merkeillä tarkistetaan lisäksi, että kaikkien kennoryhmien jännitteet saadaan.
+            # Pelkkä ensimmäinen kennosivu ei riitä: väärä malli tai lyhyt vastaus näkyy vasta luettujen määrästä.
+            st = d.state
+            n = st.brick_count or 0
+            luettu = sum(1 for v in st.bricks.values() if v)
+            rep.append({"tunniste": "–", "kuvaus": "Kaikkien kennoryhmien jännitteet", "pakollinen": True,
+                        "nakyy": bool(n) and luettu >= 0.9 * n, "kpl": luettu, "taajuus_hz": None,
+                        "maara": f"{luettu}/{n}" if n else None})
         missing = [r for r in rep if r["pakollinen"] and not r["nakyy"]]
         return {"viestit": rep, "puuttuvat": [r["kuvaus"] for r in missing], "kunnossa": not missing,
-                "kehyksia": d.total_frames}
+                "kehyksia": d.total_frames, "kyselyt": kyselyt,
+                "saatu": sum(1 for r in rep if r["pakollinen"] and r["nakyy"]),
+                "tarvitaan": sum(1 for r in rep if r["pakollinen"])}
 
     # -- väylän kartoitus ------------------------------------------------
     def aloita_kartoitus(self, q, body):

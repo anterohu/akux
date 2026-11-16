@@ -57,7 +57,7 @@ RYHMAT = {
 TUNNISTEET = [M_V, M_I, M_SOC_RAW, M_SOC_UI, M_TEMP, M_CMAX, M_CMIN, M_BLK0, M_SOH, M_ODO, M_VIN]
 PAKOLLISET = [M_V, M_I, M_BLK0, M_SOH]
 KUVAUS = {
-    M_V: "Akun jännite", M_I: "Akun virta", M_SOC_RAW: "Varaustila", M_SOC_UI: "Varaustila",
+    M_V: "Akun jännite", M_I: "Akun virta", M_SOC_RAW: "Varaustila (akunhallinta)", M_SOC_UI: "Varaustila (mittaristo)",
     M_TEMP: "Akun lämpötila", M_CMAX: "Korkein kennojännite", M_CMIN: "Matalin kennojännite",
     M_BLK0: "Kennojännitteet lohkoittain", M_SOH: "Akunhallinnan kuntoarvio", M_ODO: "Mittarilukema",
     M_VIN: "Valmistenumero",

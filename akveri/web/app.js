@@ -355,7 +355,7 @@ views.yleiskuva = {
         stat("Akun kunto", soh != null ? n(soh) : "–", "%", L.viite_kwh ? `Uutena ${n(L.viite_kwh)} kWh, ${esc(L.viite_lahde || "")}` : "Alkuperäistä kapasiteettia ei tiedetä")]),
       L.kunto_piilotettu
         ? stat("Kennoryhmät", L.bricks_seen ? `${L.bricks_seen}/${L.brick_count || "–"}` : "–", "", "Jännite-ero näkyy mittauksen aikana ja raportissa")
-        : stat("Kennoryhmien ero", L.brick_delta_mv != null ? n(L.brick_delta_mv, 0) : "–", "mV", L.bricks_seen ? `${L.bricks_seen}/${L.brick_count || "–"} ryhmää luettu` : ""),
+        : stat("Kennoryhmien ero", L.brick_delta_mv != null ? n(L.brick_delta_mv, 0) : (L.bricks_seen ? "Tuloksessa" : "–"), L.brick_delta_mv != null || !L.bricks_seen ? "mV" : "", L.bricks_seen ? `${L.bricks_seen}/${L.brick_count || "–"} ryhmää luettu` : ""),
       stat("Mittarilukema", L.odometer_km != null ? n(L.odometer_km, 0) : "–", "km", L.vin || ""),
     ].join("");
     // tunnistettu auto
@@ -389,18 +389,21 @@ views.yleiskuva = {
     }
     // väylätesti
     const vt = S.vaylatesti;
-    const restricted = vt && !vt.kunnossa && vt.kehyksia > 300 &&
+    const restricted = vt && !vt.kyselyt && !vt.kunnossa && vt.kehyksia > 300 &&
       !vt.viestit.some(r => r.pakollinen && r.nakyy) && vt.viestit.some(r => r.nakyy);
+    // Kyselyihin perustuva merkki: muut ohjainlaitteet vastaavat, mutta akunhallinta ei.
+    const bmsHiljaa = vt && vt.kyselyt && !vt.kunnossa && !vt.viestit.some(r => r.pakollinen && r.nakyy && r.tunniste !== "–");
     if (vt) {
       $("#busBox").innerHTML = `
         ${vt.kunnossa ? `<div class="notice good"><b>Yhteys toimii.</b> Kaikki mittauksessa tarvittavat tiedot vastaanotetaan.${L.platform_name ? ` Viestiarkkitehtuuri: ${esc(L.platform_name)}.` : ""}</div>` :
           (restricted ? `<div class="notice bad"><b>Tämä liitäntä ei välitä akun tietoja.</b> Autosta tulee viestejä, mutta vain muutama tieto, kuten nopeus ja virtatila. Kytke sovitin Teslan diagnostiikkaliittimeen välikaapelilla. Liitin on keskikonsolin takapäässä takamatkustajien puolella paneelin takana: vuosien 2019–2020 autoissa 20-pinninen ja 2021 alkaen 26-pinninen. <a href="#/ohjeet/yhdistaminen">Ohje</a></div>` :
-          `<div class="notice warn"><b>Puuttuu:</b> ${esc(vt.puuttuvat.join(", "))}. Odota hetki. Jos tieto ei ilmesty minuutin kuluessa, auto ei lähetä sitä tähän liitäntään.</div>`)}
+          bmsHiljaa ? `<div class="notice warn"><b>Akunhallinta ei vielä vastaa.</b> Käynnistä auto (READY tai virta päällä) ja varmista, että yhdistettäessä on valittu auton oikea malli.</div>` :
+          `<div class="notice warn"><b>Tietoja saatu ${vt.saatu}/${vt.tarvitaan}.</b> Odota hetki. Puuttuvat tiedot on merkitty alla. ${vt.kyselyt ? "Jos ne eivät ilmesty minuutin kuluessa, tarkista, että auto on käynnissä (READY) ja malli on oikea." : "Jos ne eivät ilmesty minuutin kuluessa, auto ei lähetä niitä tähän liitäntään."}</div>`)}
         ${vt.kunnossa && !this.busAuki ? `<div class="row" style="margin-top:10px"><button class="btn sm" id="busAuki" type="button">Näytä vastaanotetut tiedot</button></div>` : `
         <table class="t ${this.tech ? "tech" : ""}"><tr><th>Tieto</th><th class="techcol">Tunniste</th><th class="num techcol">Taajuus</th><th></th></tr>
         ${vt.viestit.map(r => `<tr><td>${esc(r.kuvaus)}${r.pakollinen ? "" : ' <span class="muted small">(lisätieto)</span>'}</td><td class="muted techcol">${r.tunniste}</td>
           <td class="num techcol">${r.taajuus_hz ? n(r.taajuus_hz, 1) + " Hz" : "–"}</td>
-          <td class="num">${r.nakyy ? '<span class="pill good">Vastaanotetaan</span>' : (r.pakollinen ? '<span class="pill warn">Ei näy</span>' : '<span class="pill">Ei näy</span>')}</td></tr>`).join("")}
+          <td class="num">${r.maara && !r.nakyy ? `<span class="pill warn">${esc(r.maara)}</span>` : r.nakyy ? `<span class="pill good">${r.maara ? esc(r.maara) : (vt.kyselyt ? "Vastaa" : "Vastaanotetaan")}</span>` : (r.pakollinen ? `<span class="pill warn">${vt.kyselyt ? "Ei vastaa" : "Ei näy"}</span>` : `<span class="pill">${vt.kyselyt ? "Ei vastaa" : "Ei näy"}</span>`)}</td></tr>`).join("")}
         </table>
         <div class="row" style="margin-top:10px"><button class="btn sm" id="techT" type="button">${this.tech ? "Piilota tekniset tiedot" : "Näytä tekniset tiedot"}</button>
           ${S.yhteys.simuloitu ? "" : `<button class="btn sm" id="scanB" type="button">Kartoita väylä</button>`}
@@ -718,7 +721,7 @@ views.mittaus = {
       <div style="flex:1"><div class="row"><span>${esc(c.nimi)}</span><span class="spacer"></span><b>${esc(c.arvo)}</b></div>${c.ohje ? `<div class="small muted">${esc(c.ohje)}</div>` : ""}</div></li>`).join("");
     $("#aKv").innerHTML = `<dt>Varaus</dt><dd>${n(L.soc_ui)} %</dd><dt>Jännite</dt><dd>${n(L.pack_v)} V</dd><dt>Virta</dt><dd>${n(L.pack_i)} A</dd>
       <dt>Energia akkuun</dt><dd>${n(m.e_in_kwh, 2)} kWh</dd><dt>Energia akusta</dt><dd>${n(m.e_out_kwh, 2)} kWh</dd>
-      <dt>Kennoryhmien ero</dt><dd>${n(L.brick_delta_mv, 0)} mV</dd>`;
+      <dt>Kennoryhmien ero</dt><dd>${L.brick_delta_mv != null ? `${n(L.brick_delta_mv, 0)} mV` : (L.bricks_seen ? "Näkyy tuloksessa" : "–")}</dd>`;
     $("#aNotes").innerHTML = m.huomiot.length ? m.huomiot.map(esc).join("<br>") : "Ei huomioita.";
     if (S.yhteys.simuloitu) updateDemo();
   },
@@ -845,7 +848,7 @@ views.autot = {
       </div>
       ${v.liitanta ? `<div class="card">${guideHtml(v.liitanta, true)}</div>` : ""}
       <div class="card"><h2>Mittaukset</h2>${testTable(v.mittaukset)}</div>
-      <div class="row" style="margin-top:16px"><span class="spacer"></span><button class="btn danger sm" id="vDel">Poista auto ja sen mittaukset</button></div>`;
+      <div class="vaaravyohyke"><button class="btn danger" id="vDel">Poista auto ja sen mittaukset</button></div>`;
     $("#vEdit").onclick = () => (location.hash = `#/autot/${v.id}/muokkaa`);
     bindTestRows();
     $("#vDel").onclick = async () => {
@@ -915,13 +918,13 @@ views.mittaukset = {
       ${done ? `
       <div class="grid g3">
         ${stat("Akun kunto", n(y.kunto_pct), "%", `${y.kunto_luokka || ""} · ${(y.kunto_lahde || "").toLowerCase()}`)}
-        ${stat("Kapasiteetti", n(y.kapasiteetti_kwh), "kWh", y.epavarmuus_kwh ? `±${n(y.epavarmuus_kwh)} kWh · uutena ${n(r.viite.kwh)} kWh` : `Uutena ${n(r.viite.kwh)} kWh`)}
-        ${stat("Kennoryhmien ero", r.kennot ? n(r.kennot.ero_mv, 0) : "–", "mV", r.kennot ? r.kennot.luokka : "")}
+        ${stat("Kapasiteetti", n(y.kapasiteetti_kwh), "kWh", y.epavarmuus_kwh ? `±${n(y.epavarmuus_kwh)} kWh · uutena ${n(r.viite.kwh)} kWh` : (y.kunto_lahde === "Akunhallinnan arvio" ? `Akunhallinnan arvio, ei mitattu · uutena ${n(r.viite.kwh)} kWh` : `Uutena ${n(r.viite.kwh)} kWh`))}
+        ${stat("Kennoryhmien ero", r.kennot ? n(r.kennot.ero_mv, 0) : "–", r.kennot ? "mV" : "", r.kennot ? r.kennot.luokka : "Ei luettu")}
       </div>
       <div class="card" style="margin-top:16px"><h2>Yhteenveto</h2><p>${esc(y.teksti)}</p>
         ${y.tulkinta ? `<div class="notice"><b>Mitä tulos tarkoittaa:</b> ${esc(y.tulkinta)}</div>` : ""}
-        <table class="t"><tr><th>Arvio</th><th>Tulos</th><th>Luokka</th><th class="hide-m">Selite</th></tr>
-        ${(r.arviot || []).map(a => `<tr><td>${esc(a.nimi)}</td><td><b>${esc(a.arvo)}</b></td><td>${a.luokka ? `<span class="pill ${pillClass(a.luokka)}">${esc(a.luokka)}</span>` : ""}</td><td class="small muted hide-m">${esc(a.kuvaus)}</td></tr>`).join("")}</table>
+        <table class="t arviot"><tr><th>Arvio</th><th>Tulos</th><th class="hide-m">Luokka</th><th class="hide-m">Selite</th></tr>
+        ${(r.arviot || []).map(a => `<tr><td>${esc(a.nimi)}</td><td><b>${esc(a.arvo)}</b>${a.luokka ? `<div class="show-m"><span class="pill ${pillClass(a.luokka)}">${esc(a.luokka)}</span></div>` : ""}</td><td class="hide-m">${a.luokka ? `<span class="pill ${pillClass(a.luokka)}">${esc(a.luokka)}</span>` : ""}</td><td class="small muted hide-m">${esc(a.kuvaus)}</td></tr>`).join("")}</table>
         ${(r.huomiot || []).length ? `<h3>Huomiot</h3><ul class="small">${r.huomiot.map(h => `<li>${esc(h)}</li>`).join("")}</ul>` : ""}
       </div>
       ${r.kennot ? `<div class="card"><h2>${esc(r.kennot_otsikko || "Kennoryhmät")}</h2>${cellSvg(r.kennot.jannitteet, r.kennot.poikkeama_raja_mv || 15)}${r.kennot.selite ? `<p class="muted small">${esc(r.kennot.selite)}</p>` : ""}</div>` : ""}` : ""}
@@ -938,7 +941,7 @@ views.mittaukset = {
         <div class="row"><button class="btn sm" id="tRecalc">Laske uudelleen nykyisellä versiolla</button>
         ${t.tyyppi === "taysi" ? `<button class="btn sm" id="tSplit">Jaa kapasiteettimittaukseksi ja ajotestiksi</button>` : ""}
         <span id="tCalcRes" class="small"></span></div></div>` : ""}
-      <div class="row" style="margin-top:16px"><span class="spacer"></span><button class="btn danger sm" id="tDel">Poista mittaus</button></div>`;
+      <div class="vaaravyohyke"><button class="btn danger" id="tDel">Poista mittaus</button></div>`;
     if ($("#tPoistaPalvelusta")) $("#tPoistaPalvelusta").onclick = async () => {
       if (!(await kysy("Poistetaanko raportin tiedot akveri.fi-palvelusta? Raporttia ei voi sen jälkeen tarkistaa QR-koodilla eikä tunnuksella. Poistoa ei voi perua.", { ok: "Poista tiedot", vaara: true }))) return;
       act(() => api(`/api/mittaukset/${id}/poista-palvelusta`, { method: "POST" }), "Raportin tiedot poistettu palvelusta.").then(() => this.renderOne(id));
@@ -1021,7 +1024,7 @@ function lupaKortti(t) {
       <textarea id="tRefundTxt" rows="3" style="width:100%" maxlength="1500" placeholder="Mitä tapahtui?"></textarea>
       <div class="row" style="margin-top:8px"><button class="btn sm primary" id="tRefund">Lähetä hyvityspyyntö</button></div>` : ""}
     ${l.tila === "rekisteroity" ? `<h3>Tietosuoja</h3><p class="small muted">Voit poistaa raportin tiedot akveri.fi-palvelusta. Tarkistussivu näyttää sen jälkeen, että tiedot on poistettu, eikä raporttia voi enää tarkistaa. Mittaus ja raportti säilyvät tällä laitteella. Poistoa ei voi perua.</p>
-      <div class="row"><button class="btn sm danger" id="tPoistaPalvelusta">Poista raportti palvelusta</button></div>` : ""}</div>`;
+      <div class="vaaravyohyke"><button class="btn danger" id="tPoistaPalvelusta">Poista raportti palvelusta</button></div>` : ""}</div>`;
 }
 
 views.krediitit = {
@@ -1031,34 +1034,40 @@ views.krediitit = {
     try { d = await api("/api/krediitit"); }
     catch (e) { $("#kBody").innerHTML = `<div class="notice warn"><b>Krediittitilannetta ei saatu.</b> ${esc(e.message)}</div>`; return; }
     const ostot = ANDROID && window.AkveriAndroid.osta;
+    const kpl = x => `${x} ${x === 1 ? "krediitti" : "krediittiä"}`;
+    const hyvitys = d.hyvitysaikaMin || 60;
     $("#kBody").innerHTML = `
-      <div class="grid g3">
-        ${stat("Krediittejä", d.saldo, "", d.avoimetLuvat ? `${d.avoimetLuvat} mittausta kesken` : "")}
+      <div class="card ksaldo">
+        <div class="lbl">Krediittejä käytettävissä</div>
+        <div class="ksaldo-arvo">${esc(d.saldo)}</div>
+        ${d.avoimetLuvat ? `<div class="small muted">${d.avoimetLuvat} mittausta kesken</div>` : ""}
       </div>
-      ${d.versiot && d.versiot.paivitys_pakollinen ? `<div class="notice bad" style="margin-top:16px"><b>Päivitä AKVERI.</b> Versio ${esc(d.versiot.nykyinen)} on liian vanha. Mittauksia voi aloittaa vasta, kun AKVERI on päivitetty vähintään versioon ${esc(d.versiot.vahimmaisversio)}.${ANDROID ? ` <a href="https://play.google.com/store/apps/details?id=fi.akveri.app" target="_blank" rel="noopener">Avaa Google Play</a>` : ""}</div>`
-        : d.versiot && d.versiot.paivitys_saatavilla ? `<div class="notice" style="margin-top:16px">Uusi versio ${esc(d.versiot.uusin)} on saatavilla.${ANDROID ? ` <a href="https://play.google.com/store/apps/details?id=fi.akveri.app" target="_blank" rel="noopener">Avaa Google Play</a>` : ""}</div>` : ""}
-      ${d.testitili ? `<div class="notice warn" style="margin-top:16px"><b>Testitili.</b> Mittaukset eivät kuluta krediittejä. Raportteihin tulee TESTIMITTAUS-leima, ja tarkistussivu näyttää ne testimittauksina.</div>` : ""}
-      ${d.hinnat ? `<div class="card" style="margin-top:16px"><h2>Mittausten hinnat</h2>
-        <table class="small">${["pikatarkastus", "kapasiteetti", "taysi", "ajotesti", "pika_ajo", "kuormitus", "pikalataus", "itsepurkaus"].filter(k => d.hinnat[k]).map(k => `<tr><td>${esc(tyyppi(k))}</td><td style="text-align:right"><b>${d.hinnat[k]}</b> ${d.hinnat[k] === 1 ? "krediitti" : "krediittiä"}</td></tr>`).join("")}</table>
-        <p class="small muted">Krediitit veloitetaan, kun mittaus aloitetaan. Jos mittaus keskeytyy ${d.hyvitysaikaMin || 60} minuutin kuluessa alusta, krediitit palautuvat automaattisesti.</p></div>` : ""}
-      <div class="card" style="margin-top:16px"><h2>Osta krediittejä</h2>
-        ${ostot ? `<p class="small muted">Maksu tehdään Google Playssa. Krediitit tulevat tilillesi heti, kun Google on vahvistanut maksun.</p>
-          <div class="row" id="kTuotteet">${(d.tuotteet || []).map(p => `<button class="btn primary" data-tuote="${esc(p.tuote)}">${p.krediitit} ${p.krediitit === 1 ? "krediitti" : "krediittiä"}</button>`).join("")}</div>
+      ${d.versiot && d.versiot.paivitys_pakollinen ? `<div class="notice bad kvali"><b>Päivitä AKVERI.</b> Versio ${esc(d.versiot.nykyinen)} on liian vanha. Mittauksia voi aloittaa vasta, kun AKVERI on päivitetty vähintään versioon ${esc(d.versiot.vahimmaisversio)}.${ANDROID ? ` <a href="https://play.google.com/store/apps/details?id=fi.akveri.app" target="_blank" rel="noopener">Avaa Google Play</a>` : ""}</div>`
+        : d.versiot && d.versiot.paivitys_saatavilla ? `<div class="notice kvali">Uusi versio ${esc(d.versiot.uusin)} on saatavilla.${ANDROID ? ` <a href="https://play.google.com/store/apps/details?id=fi.akveri.app" target="_blank" rel="noopener">Avaa Google Play</a>` : ""}</div>` : ""}
+      ${d.testitili ? `<div class="notice warn kvali"><b>Testitili.</b> Mittaukset eivät kuluta krediittejä. Raportteihin tulee TESTIMITTAUS-leima, ja tarkistussivu näyttää ne testimittauksina.</div>` : ""}
+      <div class="card kvali"><h2>Osta krediittejä</h2>
+        ${ostot ? `<p class="muted">Maksu tehdään Google Playssa. Krediitit tulevat tilillesi heti, kun Google on vahvistanut maksun.</p>
+          <div class="ktuotteet" id="kTuotteet">${(d.tuotteet || []).map(p => `<button class="btn ktuote" data-tuote="${esc(p.tuote)}"><span class="ktuote-n">${p.krediitit}</span><span>${p.krediitit === 1 ? "krediitti" : "krediittiä"}</span></button>`).join("")}</div>
           <p class="small muted" id="kHinnat">Hinnat näkyvät Google Playn ostoikkunassa.</p>`
-        : `<p class="small">Krediitit ostetaan AKVERIn Android-sovelluksessa Google Playn kautta. Tällä laitteella käytetään tilin krediittejä.</p>`}
+        : `<p>Krediitit ostetaan AKVERIn Android-sovelluksessa Google Playn kautta. Tällä laitteella käytetään tilin krediittejä.</p>`}
         <div id="kViesti"></div>
       </div>
-      <div class="card tietosuoja"><h2>Tili</h2>
+      ${d.hinnat ? `<div class="card kvali"><h2>Mittausten hinnat</h2>
+        <table class="t khinnat">${["pikatarkastus", "kapasiteetti", "taysi", "ajotesti", "pika_ajo", "kuormitus", "pikalataus", "itsepurkaus"].filter(k => d.hinnat[k]).map(k => `<tr><td>${esc(tyyppi(k))}</td><td class="num"><b>${kpl(d.hinnat[k])}</b></td></tr>`).join("")}</table>
+        <p class="small muted">Krediitit veloitetaan, kun mittaus aloitetaan. Jos mittaus keskeytyy ${hyvitys} minuutin kuluessa alusta, krediitit palautuvat automaattisesti. Myöhemmin keskeytyneestä mittauksesta voit lähettää hyvityspyynnön mittauksen sivulta.</p></div>` : ""}
+      <div class="card kvali tietosuoja"><h2>Tili ja tietosuoja</h2>
         <dl class="kv"><dt>Tilitunnus</dt><dd><code>${esc(d.tili)}</code></dd></dl>
         <p class="small muted">Tilitunnus yksilöi tämän laitteen krediitit. Kerro se asiakaspalvelulle, jos kysyt ostosta tai hyvityksestä. Tilin salaista avainta ei näytetä.</p>
-        <p class="small muted">Jos mittaus keskeytyy ${d.hyvitysaikaMin || 60} minuutin kuluessa alusta, sen krediitit palautuvat automaattisesti. Myöhemmin keskeytyneestä mittauksesta voit lähettää hyvityspyynnön mittauksen sivulta.</p></div>
-      <div class="card tietosuoja"><h2>Tietosuoja</h2>
-        <p class="small muted">akveri.fi-palvelussa on tästä tilistä vain satunnainen tilitunnus, krediittien kirjanpito, ostot ja rekisteröityjen raporttien tiedot. Mittaukset ja autot ovat vain tällä laitteella.</p>
-        <div class="row"><a class="btn sm" href="/api/tietosuoja/akveri-tietoni.zip">Lataa tietoni</a>
-          <button class="btn sm danger" id="kPoistaTili">Poista tili</button></div>
-        <p class="small muted"><b>Tilin poisto:</b> tili ja sen jäljellä olevat krediitit poistuvat, eikä niitä voi palauttaa. Voit poistaa samalla rekisteröityjen raporttien tiedot.</p>
-        <p class="small muted">Krediittien kirjanpito ja ostot säilytetään kirjanpitolain edellyttämän ajan ilman muita tunnisteita. Anonyymi mittausaineisto ei sisällä tunnisteita, joten se ei muutu.</p>
-        <p class="small"><a href="https://akveri.fi${({ en: "/en/privacy", sv: "/sv/dataskydd" })[typeof KIELI === "string" ? KIELI : "fi"] || "/tietosuoja"}" target="_blank" rel="noopener">Tietosuojaseloste</a></p></div>`;
+        <details class="kvali"><summary>Mitä tietoja tilistä tallennetaan</summary>
+          <p class="small muted">akveri.fi-palvelussa on tästä tilistä vain satunnainen tilitunnus, krediittien kirjanpito, ostot ja rekisteröityjen raporttien tiedot. Mittaukset ja autot ovat vain tällä laitteella.</p>
+          <p class="small muted">Krediittien kirjanpito ja ostot säilytetään kirjanpitolain edellyttämän ajan ilman muita tunnisteita. Anonyymi mittausaineisto ei sisällä tunnisteita, joten se ei muutu.</p>
+          <p class="small"><a href="https://akveri.fi${({ en: "/en/privacy", sv: "/sv/dataskydd" })[typeof KIELI === "string" ? KIELI : "fi"] || "/tietosuoja"}" target="_blank" rel="noopener">Tietosuojaseloste</a></p>
+        </details>
+        <div class="ktoiminnot"><a class="btn" href="/api/tietosuoja/akveri-tietoni.zip">Lataa tietoni</a></div>
+        <div class="vaaravyohyke">
+          <p class="small muted"><b>Tilin poisto:</b> tili ja sen jäljellä olevat krediitit poistuvat, eikä niitä voi palauttaa. Voit poistaa samalla rekisteröityjen raporttien tiedot.</p>
+          <button class="btn danger" id="kPoistaTili">Poista tili</button>
+        </div></div>`;
     $("#kPoistaTili").onclick = async () => {
       if (!(await kysy(`Poistetaanko tili? Tilillä on ${d.saldo} krediittiä, jotka poistuvat tilin mukana eikä niitä voi palauttaa. Poistoa ei voi perua.`, { ok: "Poista tili", vaara: true }))) return;
       const raportit = await kysy("Poistetaanko myös rekisteröityjen raporttien tiedot tarkistuspalvelusta? Valitse Jätä raportit, jos ne jäävät tarkistettaviksi esimerkiksi auton ostajalle.", { ok: "Poista myös raportit", peru: "Jätä raportit", vaara: true });

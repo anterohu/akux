@@ -422,10 +422,11 @@ class BatterySimulator(Source):
 class HkmcSimulator(BatterySimulator):
     """Hyundai ja Kia: akunhallinta vastaa kyselyihin (simuloitu vastaus samassa muodossa kuin oikea auto)."""
 
-    def __init__(self, *, ryhma: str, **kw):
+    def __init__(self, *, ryhma: str, lyhyt_sivu: int = 0, **kw):
         kw.setdefault("platform", "hkmc")
         super().__init__(**kw)
         self.ryhma = ryhma
+        self.lyhyt_sivu = lyhyt_sivu        # testit: akunhallinta jättää kennosivun lopusta näin monta tavua pois
         self.r_pack = 0.072 * self.n / 96
         self.r_cell = [self.r_pack / self.n * (1 + self.rng.gauss(0, 0.05)) for _ in range(self.n)]
         self._page = 0
@@ -453,7 +454,8 @@ class HkmcSimulator(BatterySimulator):
         for k in range(pages):
             chunk = vs[k * 32:(k + 1) * 32]
             if chunk:
-                out.append((hkmc.P_CELLS[k], hkmc.encode_cells(chunk)))
+                sivu = hkmc.encode_cells(chunk)
+                out.append((hkmc.P_CELLS[k], sivu[:len(sivu) - self.lyhyt_sivu] if self.lyhyt_sivu else sivu))
         soc = sum(self._cell_socs()) / self.n * 100
         extra = vs[96:98] if g["lisakennot"] else ()
         out.append((hkmc.P_STATUS, hkmc.encode_status(soh=self.nfp / self.bol * 100, soc_disp=min(100.0, soc),

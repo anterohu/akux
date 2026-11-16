@@ -159,10 +159,11 @@ def _main(dec, t, d):
 
 
 def _cells(dec, t, d):
-    if len(d) < 192:
+    # Osa akunhallinnoista jättää vastauksen lopusta täytetavuja pois, joten luetaan vastauksessa olevat kennot.
+    if len(d) < 4:
         return
     vals = []
-    for k in range(96):
+    for k in range(min(96, len(d) // 2)):
         mv = _u(d, 2 * k, 2)
         if 2000 <= mv <= 4500:
             dec._brick_value(t, k + 1, mv / 1000)

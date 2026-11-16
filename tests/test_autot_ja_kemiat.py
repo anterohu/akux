@@ -350,12 +350,50 @@ def run_types(car, tmp):
     app.disconnect()
 
 
+def check_todellisen_auton_poikkeamat(tmp):
+    """Oikean auton poikkeamat, joita simuloitu auto ei muuten tee (havaittu Ioniq Electric 38,3 kWh:lla):
+
+    1. akunhallinta jättää kennosivun lopusta täytetavun pois,
+    2. yhdistettäessä on valittu malli, jossa on enemmän kennoja kuin autossa (Kona-asetukset Ioniqissa).
+    Pikatarkastuksen pitää silti lukea kaikki kennot, laskea jännite-ero ja kertoa väärästä mallista.
+    """
+    from akveri import profiles
+    from akveri.simulator import HkmcSimulator
+    app = _app(tmp)
+    ioniq = profiles.get("hy-ioniq-38")
+    for valittu, huomio in (("hy-ioniq-38", False), ("hy-kona-64", True)):
+        src = HkmcSimulator(ryhma="ioniq38", cells=88, nfp_kwh=36.0, bol_kwh=38.3, soc=0.65, accel=20,
+                            lyhyt_sivu=1, vin="KMHC851HFLU123456", weak_cell=30)
+        src.malli_id = valittu
+        app.connect("demo", sim=src)
+        assert wait_until(lambda: app.decoder.state.vin and app.decoder.state.brick_count == 88
+                          and len(app.decoder.state.bricks) >= 85, 60), \
+            (valittu, app.decoder.state.brick_count, len(app.decoder.state.bricks))
+        tid = app.start_test(vehicle_id=_vid(app), tyyppi="pikatarkastus", mittarilukema=None, mittaaja="Testi")
+        r = _done(app, tid, 180)["tulos"]
+        assert r["kennot"] and r["kennot"]["lkm"] >= 85, (valittu, r.get("kennot"))
+        assert r["kennot"]["ero_mv"] >= 0 and r["kennot"]["luokka"]
+        assert any("valitussa mallissa" in h for h in r["huomiot"]) == huomio, (valittu, r["huomiot"])
+        assert any("Pikatarkastus ei mittaa kapasiteettia" in h for h in r["huomiot"])
+        # väärän mallin viitekapasiteetista laskettua kapasiteettia ei näytetä
+        assert (r["yhteenveto"]["kapasiteetti_kwh"] is None) == huomio, r["yhteenveto"]
+        _pdf_check(app, tid, ["Pikatarkastus"])
+        app.disconnect()
+        print(f"OK oikean auton poikkeamat, malli {valittu}: kennoja {r['kennot']['lkm']}, ero {r['kennot']['ero_mv']:.0f} mV")
+    assert ioniq
+
+
 # Jatkuvassa integraatiossa koko testisarja ajetaan näillä autoilla (yksi kustakin alustasta ja kemiasta);
 # muilla autoilla tarkistetaan datan luku. Kaikki autot: python tests/test_autot_ja_kemiat.py --kaikki
 CI_AUTOT = ["m3-lr", "m3-lfp", "my-lr", "ms-85", "kona-64", "leaf-40", "id3-58"]
 
 if __name__ == "__main__":
     args = sys.argv[1:]
+    if args == ["--poikkeamat"] or args == ["--ci"]:
+        with _tf.TemporaryDirectory() as _tmp:
+            check_todellisen_auton_poikkeamat(_tmp)
+        if args == ["--poikkeamat"]:
+            sys.exit(0)
     if args == ["--ci"]:
         for car in ESITTELYAUTOT:
             if car not in CI_AUTOT and _hk(car):

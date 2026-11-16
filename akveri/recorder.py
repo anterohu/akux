@@ -947,6 +947,11 @@ class Recorder:
     def _finish(self, t):
         self.finishing = True
         self._flush_reg()
+        hk = getattr(self.app.decoder, "hk", None) or {}
+        if hk.get("kennomaara_valittu"):
+            self.marks["malli_ristiriita"] = {"valittu": hk["kennomaara_valittu"], "auto": hk["cells"]}
+            self.notes.append(f"Auto ilmoitti {hk['cells']} kennoryhmän jännitteet, mutta valitussa mallissa kennoryhmiä "
+                              f"on {hk['kennomaara_valittu']}. Tarkista, että auton tiedoissa on valittu oikea malli.")
         snap_name = {KAPASITEETTI: "lepo_loppu", TAYSI: "lepo_loppu", PIKA: "pikatarkastus"}.get(self.tyyppi, "loppu")
         snap = self._snapshot(t, snap_name)
         if self.tyyppi in (AJO, PIKA_AJO):

@@ -174,8 +174,34 @@ def _cells(page):
             raw = d[4 + j]
             if 100 <= raw <= 225:           # 2,0–4,5 V; muu arvo tarkoittaa puuttuvaa kennoa
                 dec._brick_value(t, k, raw / 50)
+                dec.hk["_max_sivuilta"] = max(dec.hk.get("_max_sivuilta", 0), k)
+        dec.hk.setdefault("_sivut", set()).add(page)
+        _tunnista_kennomaara(dec)
         _count(dec)
     return h
+
+
+def _tunnista_kennomaara(dec):
+    """Korjaa kennomäärän auton ilmoittaman mukaiseksi.
+
+    Jos yhdistettäessä on valittu malli, jossa on enemmän kennoja kuin autossa (esimerkiksi Kona-asetukset
+    Ioniq Electricissä), kennosivujen lopussa ei ole jännitteitä. Kun kaikki sivut on luettu kahdesti, kennomäärä
+    asetetaan sivuilta luettujen kennojen mukaan, jotta mittaus ei jää odottamaan kennoja, joita autossa ei ole.
+    """
+    n = dec.hk.get("cells")
+    lisa = dec.hk.get("lisakennot") or 0
+    sivuja = -(-(n - lisa) // 32) if n else 0
+    dec.hk["_kierroksia"] = dec.hk.get("_kierroksia", 0) + (1 if len(dec.hk.get("_sivut", ())) >= sivuja else 0)
+    if not n or dec.hk.get("kennomaara_korjattu") or len(dec.hk["_sivut"]) < sivuja or dec.hk["_kierroksia"] < 2 * sivuja:
+        return
+    havaittu = dec.hk.get("_max_sivuilta", 0)
+    if 0 < havaittu < n - lisa:
+        dec.hk["kennomaara_valittu"] = n
+        dec.hk["cells"] = havaittu
+        dec.hk["lisakennot"] = 0
+        for k in [k for k in dec.state.bricks if k > havaittu]:
+            del dec.state.bricks[k]
+    dec.hk["kennomaara_korjattu"] = True
 
 
 def _count(dec):
