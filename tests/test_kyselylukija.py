@@ -156,6 +156,33 @@ class Asleep(FakeHk):
         super().write(data)
 
 
+def test_kyselytavan_vaihto():
+    """Uudistettu Ioniq Electric vastaa palveluun 22 eikä 21: lukija vaihtaa kyselytavan itse ja lukitsee toimivan."""
+    fake = types.ModuleType("serial")
+    fake.Serial = FakeHk          # vastaa vain palveluun 22
+    sys.modules["serial"] = fake
+    from akveri.sources import PolledSource
+    from akveri import profiles
+    malli = dict(profiles.get("hy-ioniq-38"), kyselyryhma="ioniq28")   # väärä oletus: palvelu 21
+    loop, rare = hkmc.requests_for(malli)
+    assert loop[0][1] == "2101"
+    dec = TeslaDecoder()
+    dec.configure("hkmc", cells=96, ref_kwh=38.3, lisakennot=0, malli_id="hy-ioniq-38")
+    src = PolledSource("COM5", loop=loop, rare=rare, vaihtoehto=hkmc.vaihtoehto_for(malli))
+    src.vaihto_s = 1.0
+    FakeHk.commands = []
+    src.start(dec.feed)
+    end = time.time() + 20
+    while time.time() < end and not (dec.state.pack_v and src.loop_lukittu):
+        time.sleep(0.1)
+    src.stop()
+    assert "2101" in FakeHk.commands and "220101" in FakeHk.commands, FakeHk.commands[:60]
+    assert src.loop_lukittu and src.loop[0][1] == "220101"
+    assert dec.state.pack_v and abs(dec.state.soc_avg - 55.0) < 0.01
+    assert profiles.get("hy-ioniq-38")["kyselyryhma"] == "ioniq38" and hkmc.requests_for(profiles.get("hy-ioniq-38"))[0][0][1] == "220101"
+    print("OK kyselytavan vaihto: palvelu 21 -> 22")
+
+
 def test_auto_ei_vastaa():
     fake = types.ModuleType("serial")
     fake.Serial = Asleep
@@ -450,4 +477,5 @@ if __name__ == "__main__":
     test_leaf_kyselyt()
     test_isotp_jasennys()
     test_kona_kyselyt()
+    test_kyselytavan_vaihto()
     test_auto_ei_vastaa()

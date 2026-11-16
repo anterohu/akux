@@ -204,7 +204,7 @@ def test_perutun_mittauksen_kuntoa_ei_nayteta_missaan():
         m = api.mittaus({}, {}, tid)
         assert m["tulos"] is None
         assert all(n["nfp"] is None and n["c_max"] is None for n in m["naytteet"])
-        assert "91" not in json.dumps({k: v for k, v in m.items() if k != "tapahtumat"})
+        assert "91.2" not in json.dumps(m) and "58.4" not in json.dumps(m)
         for kutsu in (api.tallenna_kansioon, api.laske_uudelleen, api.jaa_osiin):
             try:
                 kutsu({}, {}, tid)

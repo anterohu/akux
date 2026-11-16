@@ -330,6 +330,10 @@ class Api:
             verdict = ("ok", "Liitäntä välittää akun tiedot. Mittaukset voidaan tehdä tämän liitännän kautta.")
         elif not rows:
             verdict = ("ei", "Väylällä ei liikkunut viestejä. Herätä auto avaamalla ovi tai käynnistämällä ilmastointi ja kartoita uudelleen.")
+        elif getattr(src, "loop", None) is not None:
+            # Kyselyihin perustuva merkki (Hyundai, Kia, Nissan, Volkswagen-konserni, MG): auto vastaa, mutta akunhallinta ei.
+            verdict = ("rajattu", "Auto vastaa, mutta akunhallinta ei vastannut kyselyihin. Käynnistä auto (READY tai virta "
+                       "päällä) ja varmista, että yhdistettäessä on valittu oikea malli. " + self._guide_text())
         else:
             verdict = ("rajattu", "Liitäntä välittää vain muutaman tiedon, kuten nopeuden ja virtatilan, mutta ei akun tietoja. "
                        "Kytke sovitin auton diagnostiikkaliittimeen mallille sopivalla välikaapelilla. "
@@ -509,7 +513,11 @@ class Api:
             vs = self.app.storage.vehicles()
             v = vs[0] if len(vs) == 1 else None
         info = vinmod.decode(v["vin"]) if v and v.get("vin") else {}
-        m = profiles.get((v or {}).get("malli_id"))
+        m = profiles.get((v or {}).get("malli_id") or getattr(self.app.source, "malli_id", None))
+        from . import polled
+        pm = polled.for_model(m) if m else None
+        if pm is not None and getattr(pm, "OHJE", None):
+            return pm.OHJE["ohje"]
         g = profiles.connection_guide(info.get("malli_koodi") or "3", info.get("vuosimalli") or (v or {}).get("vuosimalli"),
                                       (m or {}).get("alusta"))
         return g["ohje"]

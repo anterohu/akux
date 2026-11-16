@@ -346,9 +346,14 @@ class PolledSource(ObdLinkSource):
     scan_supported = False
 
     def __init__(self, port: str, baud: int | None = None, *, loop: list, rare: list, rare_every: float = 60.0,
-                 rx: dict | None = None, protocol: str = "6", fc: dict | None = None):
+                 rx: dict | None = None, protocol: str = "6", fc: dict | None = None,
+                 vaihtoehto: list | None = None):
         super().__init__(port, baud)
         self.loop, self.rare, self.rare_every = loop, rare, rare_every
+        # Toinen kyselytapa: jos akunhallinta ei vastaa, vuorotellaan tapoja, kunnes jompikumpi vastaa.
+        self.vaihtoehto = vaihtoehto or None
+        self.loop_lukittu = False
+        self.vaihto_s = 15.0                # kauanko odotetaan akunhallinnan vastausta ennen kyselytavan vaihtoa
         self.rx = rx or {}                  # kyselyosoite -> vastausosoite (oletus: osoite + 8, None: mikä tahansa)
         self.protocol = protocol            # 6 = 11-bittiset tunnisteet, 7 = 29-bittiset (MEB)
         self.fc = fc or {}                  # yleiskysely, jonka vastauksen vuonohjaus menee tietylle laitteelle (MG4)
@@ -402,6 +407,7 @@ class PolledSource(ObdLinkSource):
                 self._init_adapter()
                 self.error = None
                 last_ok = time.time()
+                last_bms = time.time()
                 next_rare = 0.0
                 while not self._stop.is_set():
                     jobs = list(self.loop)
@@ -415,8 +421,15 @@ class PolledSource(ObdLinkSource):
                         now = time.time()
                         if data is not None and self._cb:
                             last_ok = now
-                            self.status = "Luetaan akunhallintaa"
+                            if (header, cmd, cid) in self.loop:
+                                last_bms = now
+                                self.loop_lukittu = True
+                                self.status = "Luetaan akunhallintaa"
                             self._cb(now, cid, data)
+                    if self.vaihtoehto and not self.loop_lukittu and time.time() - last_bms > self.vaihto_s:
+                        # Akunhallinta ei vastannut tällä kyselytavalla: kokeillaan toista.
+                        self.loop, self.vaihtoehto = self.vaihtoehto, self.loop
+                        last_bms = time.time()
                     if time.time() - last_ok > 5:
                         self.status = "Auto ei vastaa – onko auto päällä tai latauksessa?"
                         self._stop.wait(2)

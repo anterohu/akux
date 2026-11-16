@@ -813,11 +813,11 @@
       "veto": [],
       "kemia": "NMC",
       "kennovalmistaja": null,
-      "sarjakennot": null,
+      "sarjakennot": 88,
       "viite_kwh": 38.3,
       "takuu": "hyundai",
       "alusta": "hkmc",
-      "kyselyryhma": "ioniq28",
+      "kyselyryhma": "ioniq38",
       "kennotyyppi": "NMC-pussikenno",
       "kyselyt_varmistettu": false,
       "akku_lyhyt": "38,3 kWh"

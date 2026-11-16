@@ -42,6 +42,7 @@ KUVAUS = {
 # Mallikohtainen kyselyryhmä: palvelu (21 tai 22), kennosivujen määrä ja lisäkennot tilakyselyssä.
 RYHMAT = {
     "ioniq28": {"palvelu": "21", "sivut": 3, "lisakennot": 0},
+    "ioniq38": {"palvelu": "22", "sivut": 3, "lisakennot": 0},  # uudistettu Ioniq Electric (2019–2022), 88 kennoa
     "kona": {"palvelu": "22", "sivut": 3, "lisakennot": 2},     # Kona, e-Niro, Soul 64 kWh: 98 kennoa
     "egmp": {"palvelu": "22", "sivut": 6, "lisakennot": 0},     # Ioniq 5, Ioniq 6, EV6
 }
@@ -89,6 +90,22 @@ SOH_HUOM = ("{gen} akunhallinta ilmoittaa akun kunnon prosentteina. Akunhallinna
 
 def requests_for(model: dict) -> tuple[list, list]:
     return requests(model["kyselyryhma"], model.get("sarjakennot"))
+
+
+def vaihtoehto_for(model: dict) -> list:
+    """Toinen kyselytapa (palvelu 21 tai 22), jos akunhallinta ei vastaa mallin oletuskyselyyn.
+
+    Saman mallin eri vuosien akunhallinnat voivat käyttää eri palvelua. Vastausten sisältö on sama, joten
+    tulkinta ei muutu.
+    """
+    g = dict(RYHMAT[model["kyselyryhma"]])
+    toinen = "22" if g["palvelu"] == "21" else "21"
+    RYHMAT["_vaihto"] = {**g, "palvelu": toinen}
+    try:
+        loop, _ = requests("_vaihto", model.get("sarjakennot"))
+    finally:
+        RYHMAT.pop("_vaihto", None)
+    return loop
 
 
 def decoder_opts(model: dict) -> dict:
