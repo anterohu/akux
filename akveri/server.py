@@ -325,7 +325,18 @@ class Api:
             if d > 0:
                 rows.append({"tunniste": f"0x{cid:03X}", "kpl": d, "taajuus_hz": round(d / dur, 1),
                              "kuvaus": kuvaus(cid, self.app.decoder.platform), "akku": cid in KAIKKI_PAKOLLISET})
-        ids = {int(r["tunniste"], 16) for r in rows}
+        # Kyselyihin perustuvissa merkeissä näytetään myös kyselyt, joihin auto ei vastannut, ja vastausten pituus.
+        tilasto = dict(getattr(src, "kyselytilasto", None) or {})
+        for r in rows:
+            ks = tilasto.get(int(r["tunniste"], 16))
+            if ks and ks[2]:
+                r["pituus"] = ks[2]
+        for cid, ks in sorted(tilasto.items()):
+            if ks[0] == 0 and ks[1] > 0:
+                rows.append({"tunniste": f"0x{cid:03X}", "kpl": 0, "taajuus_hz": 0.0,
+                             "kuvaus": kuvaus(cid, self.app.decoder.platform), "akku": False, "vastaamatta": True})
+        ids = {int(r["tunniste"], 16) for r in rows if r["kpl"] > 0}
+        rows = [r for r in rows if r["kpl"] > 0] + [r for r in rows if r["kpl"] == 0]
         if any(cid in ids for cid in KAIKKI_PAKOLLISET):
             verdict = ("ok", "Liitäntä välittää akun tiedot. Mittaukset voidaan tehdä tämän liitännän kautta.")
         elif not rows:

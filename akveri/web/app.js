@@ -317,7 +317,7 @@ views.yleiskuva = {
     box.innerHTML = `<h3>Väylän kartoitus</h3><div class="notice ${cls}">${esc(r.teksti)}</div>
       <p class="small muted">Liitännässä liikkui ${r.lajeja} erilaista viestiä.</p>
       ${r.viestit.length ? `<table class="t"><tr><th>Tunniste</th><th class="num">Taajuus</th><th>Tieto</th></tr>
-      ${r.viestit.map(v => `<tr><td>${esc(v.tunniste)}</td><td class="num">${n(v.taajuus_hz, 1)} Hz</td><td class="small ${v.kuvaus ? "" : "muted"}">${esc(v.kuvaus || "Ei käytössä AKVERIssa")}</td></tr>`).join("")}</table>` : ""}`;
+      ${r.viestit.map(v => `<tr><td>${esc(v.tunniste)}</td><td class="num">${n(v.taajuus_hz, 1)} Hz</td><td class="small ${v.kuvaus ? "" : "muted"}">${esc(v.kuvaus || "Ei käytössä AKVERIssa")}${v.pituus ? ` <span class="muted">· <span>${v.pituus} tavua</span></span>` : ""}${v.vastaamatta ? ` <span class="pill warn">Ei vastausta</span>` : ""}</td></tr>`).join("")}</table>` : ""}`;
   },
   updateConn() {
     const y = S.yhteys, el = $("#connInfo");

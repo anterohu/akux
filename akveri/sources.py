@@ -359,6 +359,7 @@ class PolledSource(ObdLinkSource):
         self.fc = fc or {}                  # yleiskysely, jonka vastauksen vuonohjaus menee tietylle laitteelle (MG4)
         self.max_gap = 8.0
         self._hdr = None
+        self.kyselytilasto = {}             # virtuaalitunniste -> [vastauksia, ei vastausta, viimeisin pituus]
 
     def _init_adapter(self):
         self._cmd("ATZ", 3.0)
@@ -419,6 +420,12 @@ class PolledSource(ObdLinkSource):
                             break
                         data = self.request(header, cmd)
                         now = time.time()
+                        ks = self.kyselytilasto.setdefault(cid, [0, 0, 0])
+                        if data is None:
+                            ks[1] += 1
+                        else:
+                            ks[0] += 1
+                            ks[2] = len(data)
                         if data is not None and self._cb:
                             last_ok = now
                             if (header, cmd, cid) in self.loop:

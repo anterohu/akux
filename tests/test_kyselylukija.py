@@ -479,3 +479,30 @@ if __name__ == "__main__":
     test_kona_kyselyt()
     test_kyselytavan_vaihto()
     test_auto_ei_vastaa()
+
+
+def test_lyhyt_kennosivu_luetaan():
+    """Osa akunhallinnoista jättää kennosivun lopusta täytetavut pois: vastauksessa olevat kennot luetaan silti."""
+    dec = TeslaDecoder()
+    dec.configure("hkmc", cells=88, ref_kwh=38.3, lisakennot=0, malli_id="hy-ioniq-38")
+    sivu = hkmc.encode_cells([3.80] * 32)[:35]        # 31 kennoa, viimeinen puuttuu
+    dec.feed(1.0, hkmc.P_CELLS[0], sivu)
+    assert len(dec.state.bricks) == 31 and dec.state.bricks[1] == 3.80
+    dec.feed(1.0, hkmc.P_CELLS[1], b"\x00" * 4)        # liian lyhyt vastaus ohitetaan
+    assert len(dec.state.bricks) == 31
+
+
+def test_kartoitus_nayttaa_vastaamattomat_kyselyt():
+    """Väylän kartoitus kertoo kyselyihin perustuvalla merkillä, mihin kyselyihin auto ei vastannut."""
+    from types import SimpleNamespace
+    from akveri.server import Api
+    src = SimpleNamespace(scanning=False, simulated=False, accel=1, now=lambda: 110.0, loop=[],
+                          kyselytilasto={hkmc.P_MAIN: [20, 0, 59], hkmc.P_CELLS[0]: [0, 20, 0]})
+    dec = SimpleNamespace(counts=lambda: {hkmc.P_MAIN: 20}, platform="hkmc")
+    api = SimpleNamespace(scan={"alku": 100.0, "kesto": 10, "perus": {}, "seinakello": 0},
+                          app=SimpleNamespace(source=src, decoder=dec), _guide_text=lambda: "")
+    r = Api.kartoitus(api, {}, {})
+    rivit = {x["tunniste"]: x for x in r["viestit"]}
+    assert rivit[f"0x{hkmc.P_MAIN:03X}"]["pituus"] == 59
+    assert rivit[f"0x{hkmc.P_CELLS[0]:03X}"]["vastaamatta"] and rivit[f"0x{hkmc.P_CELLS[0]:03X}"]["kpl"] == 0
+    assert r["viestit"][-1]["vastaamatta"]

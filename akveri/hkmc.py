@@ -163,10 +163,11 @@ def _main(dec, t, d):
 
 def _cells(page):
     def h(dec, t, d):
-        if len(d) < 36:
+        # Osa akunhallinnoista jättää sivun lopusta täytetavuja pois, joten luetaan ne kennot, jotka vastauksessa on.
+        if len(d) < 5:
             return
         n = dec.hk.get("cells")
-        for j in range(32):
+        for j in range(min(32, len(d) - 4)):
             k = page * 32 + j + 1
             if n and k > n:
                 break
