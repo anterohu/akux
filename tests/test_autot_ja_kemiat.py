@@ -232,16 +232,25 @@ def run_types(car, tmp):
     print(f"== {name}")
     true_soh = None
 
-    # Pikatarkastus
+    # Pikatarkastus (ei tehdä alustoille, joiden akunhallinnan kuntoarvio ei ole todellinen)
     src = _sim(car, soc=0.6, accel=20)
-    tid = _start(app, src, "pikatarkastus")
-    t = _done(app, tid, 120)
-    r = t["tulos"]
     true_soh = src.nfp / src.bol * 100
-    assert abs(r["yhteenveto"]["kunto_pct"] - true_soh) < 0.2, (r["yhteenveto"]["kunto_pct"], true_soh)
-    assert r["kennot"]["lkm"] == _n_arvot(src), (r["kennot"]["lkm"], _n_arvot(src))
-    _pdf_check(app, tid, ["Pikatarkastus", src.vin, "ABC-123"])
-    print(f"   pikatarkastus: kunto {r['yhteenveto']['kunto_pct']:.1f} %, todellinen {true_soh:.1f} %")
+    from akveri import polled as _pl
+    _pm = _pl.module(src.platform)
+    if _pm and "pikatarkastus" in (getattr(_pm, "EI_TESTIT", {}) or {}):
+        try:
+            _start(app, src, "pikatarkastus")
+            raise AssertionError("pikatarkastus pitäisi olla estetty")
+        except RuntimeError as e:
+            print(f"   pikatarkastus estetty: {e}")
+    else:
+        tid = _start(app, src, "pikatarkastus")
+        t = _done(app, tid, 120)
+        r = t["tulos"]
+        assert abs(r["yhteenveto"]["kunto_pct"] - true_soh) < 0.2, (r["yhteenveto"]["kunto_pct"], true_soh)
+        assert r["kennot"]["lkm"] == _n_arvot(src), (r["kennot"]["lkm"], _n_arvot(src))
+        _pdf_check(app, tid, ["Pikatarkastus", src.vin, "ABC-123"])
+        print(f"   pikatarkastus: kunto {r['yhteenveto']['kunto_pct']:.1f} %, todellinen {true_soh:.1f} %")
     app.disconnect()
 
     # Kapasiteettimittaus
@@ -369,7 +378,14 @@ def check_todellisen_auton_poikkeamat(tmp):
         assert wait_until(lambda: app.decoder.state.vin and app.decoder.state.brick_count == 88
                           and len(app.decoder.state.bricks) >= 85, 60), \
             (valittu, app.decoder.state.brick_count, len(app.decoder.state.bricks))
-        tid = app.start_test(vehicle_id=_vid(app), tyyppi="pikatarkastus", mittarilukema=None, mittaaja="Testi")
+        # Pikatarkastus on Hyundailta ja Kialta estetty; kennojen tulkinta tarkistetaan sen analyysillä ohittamalla esto.
+        from akveri import hkmc as _hk
+        _ei = _hk.EI_TESTIT
+        _hk.EI_TESTIT = {}
+        try:
+            tid = app.start_test(vehicle_id=_vid(app), tyyppi="pikatarkastus", mittarilukema=None, mittaaja="Testi")
+        finally:
+            _hk.EI_TESTIT = _ei
         r = _done(app, tid, 180)["tulos"]
         assert r["kennot"] and r["kennot"]["lkm"] >= 85, (valittu, r.get("kennot"))
         assert r["kennot"]["ero_mv"] >= 0 and r["kennot"]["luokka"]

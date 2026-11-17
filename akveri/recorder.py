@@ -162,10 +162,9 @@ class Recorder:
             st = self.app.storage
             from . import polled
             _pm = polled.module(self.app.decoder.platform)
-            if tyyppi == ITSEPURKAUS and _pm and not _pm.ITSEPURKAUS_OK:
-                raise RuntimeError("Itsepurkaustestiä ei voi tehdä tälle autolle: akunhallinta ilmoittaa "
-                                   f"kennojännitteet {_pm.RESOLUUTIO_MV:.0f} mV:n tarkkuudella, mutta "
-                                   "itsepurkautumisen havaitseminen vaatii alle 1 mV:n tarkkuuden.")
+            syy = (getattr(_pm, "EI_TESTIT", {}) or {}).get(tyyppi) if _pm else None
+            if syy:
+                raise RuntimeError(syy)
             if tyyppi == KUORMITUS:
                 virheet = self.kuormitus_ehdot()
                 if virheet:

@@ -79,6 +79,13 @@ ELINKAARILASKURIT = True
 # Hyundain ja Kian akunhallinta pitää kuntoarvion (SOH) 100 %:ssa usein vuosia, vaikka kapasiteetti on jo alentunut.
 # Tätä suurempaa lukemaa ei käytetä akun kuntona; kunto saadaan kapasiteettimittauksesta.
 SOH_JUMISSA_YLI = 99.5
+# Testit, joita ei tehdä tälle alustalle, ja syy, joka näytetään käyttäjälle.
+EI_TESTIT = {
+    "pikatarkastus": "Pikatarkastusta ei tehdä Hyundaille eikä Kialle: akunhallinnan kuntoarvio pysyy usein 100 "
+                     "%:ssa, vaikka akku on jo kulunut. Akun kunto mitataan kapasiteettimittauksella.",
+    "itsepurkaus": "Itsepurkaustestiä ei tehdä Hyundaille eikä Kialle: akunhallinta ilmoittaa kennojännitteet 20 "
+                   "mV:n tarkkuudella, mutta itsepurkauksen havaitseminen vaatii alle 1 mV:n tarkkuuden.",
+}
 RX = {BMS: "7EC", CLUSTER: "7CE"}
 LAHDE = ("avoimiin, laajasti käytettyihin Hyundai- ja Kia-sähköautojen tietolähteisiin (OBD-PIDs-for-HKMC-EVs "
          "ja evDash)")

@@ -44,9 +44,12 @@ def test_asiakas_muuttaa_vain_omat_tietonsa():
                   "logo_koko", "raportin_ulkoasu", "mittaus_kansio", "tili", "esittely"):
             assert s[k] == OLETUSASETUKSET[k], k
         assert api.tallenna_asetukset({}, {"kaytto": "jotain"})["kaytto"] == "henkilo"
-        # Kehittäjä (testitili) voi muuttaa raja-arvot ja ulkoasun
+        # Raja-arvot ja ulkoasu ovat kiinteät myös testitilillä, eivätkä aiemmin tallennetut arvot jää voimaan
         k = _api(st, kehittaja=True).tallenna_asetukset({}, {"vesileima": "ei", "lepo_alku_min": 45})
-        assert k["vesileima"] == "ei" and k["lepo_alku_min"] == 45
+        assert k["vesileima"] == OLETUSASETUKSET["vesileima"] and k["lepo_alku_min"] == OLETUSASETUKSET["lepo_alku_min"]
+        import json as _j
+        st.settings_path.write_text(_j.dumps({"lepo_alku_min": 3, "vesileima": "ei"}), encoding="utf-8")
+        assert Storage(Path(d)).settings()["lepo_alku_min"] == OLETUSASETUKSET["lepo_alku_min"]
         # Testi-ilmoitus ei ole asiakkaan käytössä
         try:
             api.testi_ilmoitus({}, {"osoite": "https://ntfy.sh/x"})

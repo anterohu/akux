@@ -52,27 +52,20 @@ def test_hkmc_valmistenumero_luetaan():
     assert dec.state.vin == "KMHC851HFLU012345"
 
 
-def _res(alusta, soh):
-    return {"ajoneuvo": {"alusta": alusta, "kemia": "NMC", "merkki": "Hyundai"}, "arviot": [], "huomiot": [],
-            "viite": {"kwh": 38.3}, "bms": {"soh_pct": soh, "nfp_kwh": 38.3 * soh / 100}}
+def test_jumissa_oleva_kuntoarvio_tunnistetaan_vain_hkmc_alustalla():
+    assert analysis._soh_jumissa_alusta("hkmc", 100.0)
+    assert analysis._soh_jumissa_alusta("hkmc", 99.6)
+    assert not analysis._soh_jumissa_alusta("hkmc", 91.0)
+    for alusta in ("leaf", "meb", "mg", None, "m3", "sx"):
+        assert not analysis._soh_jumissa_alusta(alusta, 100.0), alusta
 
 
-def test_hkmc_akunhallinnan_100_prosenttia_ei_ole_kunto():
-    res = _res("hkmc", 100.0)
-    analysis._summarize(res)
-    assert res["yhteenveto"].get("kunto_pct") is None if "yhteenveto" in res else True
-    assert not any(a["nimi"] == "Akun kunto (SOH)" for a in res["arviot"])
-    assert any("kapasiteettimittauksella" in h for h in res["huomiot"])
-
-
-def test_hkmc_alentunut_kunto_naytetaan():
-    res = _res("hkmc", 91.0)
-    analysis._summarize(res)
-    assert any(a["nimi"] == "Akun kunto (SOH)" for a in res["arviot"])
-
-
-def test_muut_alustat_eivat_muutu():
-    for alusta in ("leaf", "meb", "mg"):
-        res = _res(alusta, 100.0)
-        analysis._summarize(res)
-        assert any(a["nimi"] == "Akun kunto (SOH)" for a in res["arviot"]), alusta
+def test_epatodelliset_testit_rajattu_malleittain():
+    assert set(hkmc.EI_TESTIT) == {"pikatarkastus", "itsepurkaus"}
+    from akveri import leaf, meb, mg
+    assert set(mg.EI_TESTIT) == {"itsepurkaus"}
+    assert not getattr(leaf, "EI_TESTIT", None) and not getattr(meb, "EI_TESTIT", None)
+    # Tilannekuva kertoo käyttöliittymälle, mitkä testit piilotetaan
+    dec = Decoder()
+    dec.configure("hkmc", **hkmc.decoder_opts(profiles.get("hy-ioniq-38")))
+    assert dec.snapshot()["ei_testit"] == ["itsepurkaus", "pikatarkastus"]

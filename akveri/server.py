@@ -866,11 +866,12 @@ class Api:
             body.pop(k, None)
         if "kaytto" in body and body["kaytto"] not in ("henkilo", "yritys"):
             body.pop("kaytto")
-        # Mittaustavan raja-arvot ja raportin ulkoasu ovat kehittäjän päätettäviä: asiakas ei voi muuttaa niitä.
-        # Testitileillä (akveri.fi:n hallinta) ja kehitysversiossa ne näkyvät Asetuksissa kohdassa Kehittäjän asetukset.
-        if not self.app.krediitit.esittely_sallittu():
-            for k in [k for k in body if k not in ASIAKKAAN_ASETUKSET]:
-                body.pop(k, None)
+        # Mittaustavan raja-arvot ja raportin ulkoasu ovat kehittäjän päätöksiä ja samat kaikille. Niitä ei muuteta
+        # ohjelmasta, vaan oletusarvoja (storage.OLETUSASETUKSET) muutetaan uudessa versiossa.
+        from .storage import KIINTEAT_ASETUKSET  # noqa: PLC0415
+        kehittaja = self.app.krediitit.esittely_sallittu()
+        for k in [k for k in body if k in KIINTEAT_ASETUKSET or (not kehittaja and k not in ASIAKKAAN_ASETUKSET)]:
+            body.pop(k, None)
         for k in ("mittaaja", "yritys_nimi", "yritys_ytunnus", "yritys_osoite", "yritys_puhelin", "yritys_sahkoposti", "yritys_www"):
             if k in body:
                 body[k] = str(body[k] or "").strip()[:120]

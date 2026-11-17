@@ -329,7 +329,7 @@ def _platform_notes(model, platform, ref_src, last) -> list[str]:
     pm = polled.module(platform)
     if pm:
         gen = MERKKI_GEN.get((model or {}).get("merkki"), "Auton")
-        if getattr(pm, "SOH_HUOM", None):
+        if getattr(pm, "SOH_HUOM", None) and not _soh_jumissa_alusta(platform, (last or {}).get("bms_soh_pct")):
             out.append(pm.SOH_HUOM.format(gen=gen))
         if getattr(pm, "KENNO_HUOM", None):
             out.append(pm.KENNO_HUOM.format(gen=gen))
@@ -497,6 +497,11 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
     # -- akunhallinnan tiedot -------------------------------------------
     nfp = last.get("nfp_kwh")
     buffer = last.get("buffer_kwh")
+    soh_jumissa = _soh_jumissa_alusta(platform, last.get("bms_soh_pct"))
+    if soh_jumissa:
+        # Akunhallinnan kuntoarvio ei kerro todellista kuntoa, joten siitä laskettuja arvoja ei käytetä missään.
+        nfp = None
+        last = {**last, "nominal_remaining_kwh": None}
     bms = {
         "nfp_kwh": nfp, "ner_kwh": last.get("nominal_remaining_kwh"), "puskuri_kwh": buffer,
         "soc_ui": last.get("soc_ui"), "soc_avg": last.get("soc_avg"),
@@ -509,6 +514,11 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
     if nfp and ref_kwh:
         bms["soh_pct"] = nfp / ref_kwh * 100
     res["bms"] = bms
+    if soh_jumissa:
+        res["huomiot"].append(
+            "Tämän merkin akunhallinta ilmoittaa akun kunnoksi 100 % pitkään, vaikka akun kapasiteetti olisi jo "
+            "alentunut. Lukemaa ei siksi käytetä tässä raportissa. Akun todellinen kunto saadaan "
+            "kapasiteettimittauksella, jossa akkuun ladattu energia mitataan auton omista energialaskureista.")
 
     # -- elinkaari ------------------------------------------------------
     dis = last.get("total_discharge_kwh")
@@ -943,10 +953,10 @@ def _analyze_capacity(res, snaps, samples, meta, chem_key, ref_kwh, nfp, buffer)
 
 
 # ----------------------------------------------------------------------
-def _bms_soh_jumissa(res, soh) -> bool:
-    """Akunhallinnan kuntoarvio, joka ei kerro todellista kuntoa (alusta ilmoittaa SOH_JUMISSA_YLI)."""
+def _soh_jumissa_alusta(platform, soh) -> bool:
+    """Akunhallinnan kuntoarvio, joka ei kerro todellista kuntoa (alustamoduulin SOH_JUMISSA_YLI)."""
     from . import polled
-    pm = polled.module(res["ajoneuvo"].get("alusta"))
+    pm = polled.module(platform)
     raja = getattr(pm, "SOH_JUMISSA_YLI", None) if pm else None
     return raja is not None and soh is not None and soh >= raja
 
@@ -968,16 +978,6 @@ def _summarize(res):
         soh = pt["soh_pct"]
         summary.update(kunto_pct=soh, kunto_lahde=pt["lahde"], kapasiteetti_kwh=pt["taysi_kwh"],
                        epavarmuus_kwh=pt.get("epavarmuus_kwh"), epavarmuus_pct=pt.get("soh_epavarmuus_pct"))
-    elif bms.get("soh_pct") and _bms_soh_jumissa(res, bms["soh_pct"]):
-        # Akunhallinta pitää kuntoarvion 100 %:ssa pitkään (esimerkiksi Hyundai ja Kia), joten lukema ei kerro
-        # akun todellista kuntoa. Arvo näytetään akunhallinnan ilmoituksena ilman kuntoluokkaa.
-        soh = None
-        ar.append({"nimi": "Akunhallinnan ilmoittama kunto", "arvo": f"{fmt(bms['soh_pct'])} %", "luokka": None,
-                   "kuvaus": "Akunhallinnan oma lukema. Todellinen kunto saadaan kapasiteettimittauksella."})
-        res["huomiot"].append(
-            "Tämän merkin akunhallinta ilmoittaa akun kunnoksi 100 % pitkään, vaikka akun kapasiteetti olisi jo "
-            "alentunut. Lukemaa ei siksi käytetä akun kunnon arviona. Akun todellinen kunto saadaan "
-            "kapasiteettimittauksella, jossa akkuun ladattu energia mitataan auton omista energialaskureista.")
     elif bms.get("soh_pct"):
         soh = bms["soh_pct"]
         # Väärä malli valittuna: akunhallinnan kuntoprosentti pitää, mutta siitä laskettu kapasiteetti ei.

@@ -73,6 +73,12 @@ OLETUSASETUKSET = {
     "kennokuvaaja": "numerot",
 }
 
+# Mittaustapa ja raportin ulkoasu: kehittäjän päättämät, kaikille samat. Muutetaan vain tähän tiedostoon uudessa
+# versiossa (ks. dokumentti "AKVERI – mittausasetukset ja testit malleittain").
+KIINTEAT_ASETUKSET = ("lepo_alku_min", "lepo_loppu_min", "kapasiteetti_lahto_soc_max", "lampotila_min", "lampotila_max",
+                      "ajo_lepo_min", "ajo_loppu_soc", "pika_ajo_soc", "kuormitus_tapahtumat", "itsepurkaus_lepo_min",
+                      "itsepurkaus_tunnit", "raportin_ulkoasu", "vesileima", "kennokuvaaja", "tekninen_liite")
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS vehicles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -122,6 +128,7 @@ CREATE TABLE IF NOT EXISTS events (
 
 class Storage:
     def __init__(self, data_dir: Path | None = None):
+        self.kiinteat_ohitus = False     # vain ohjelman sisäiset testit: ks. save_settings
         self.dir = Path(data_dir or default_data_dir())
         self.dir.mkdir(parents=True, exist_ok=True)
         (self.dir / "raakadata").mkdir(exist_ok=True)
@@ -189,9 +196,18 @@ class Storage:
                 s.update(json.loads(self.settings_path.read_text(encoding="utf-8")))
             except (json.JSONDecodeError, OSError):
                 pass
+        # Aiemmin testitilillä tallennetut kehittäjän arvot eivät jää voimaan: käytössä ovat version oletukset.
+        # Mittausten testit voivat lyhentää aikoja suoraan tallennusfunktiolla (KIINTEAT_OHITUS).
+        if not self.kiinteat_ohitus:
+            for k in KIINTEAT_ASETUKSET:
+                s[k] = OLETUSASETUKSET[k]
         return s
 
     def save_settings(self, values: dict) -> dict:
+        if any(k in KIINTEAT_ASETUKSET for k in values):
+            # Käyttöliittymä ei koskaan lähetä näitä (server.py rajaa asiakkaan asetuksiin); ohjelman testit lyhentävät
+            # niillä mittausten odotusaikoja.
+            self.kiinteat_ohitus = True
         s = self.settings()
         for k, v in values.items():
             if k in OLETUSASETUKSET:

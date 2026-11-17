@@ -563,7 +563,7 @@ views.mittaus = {
       </div>
       <div class="card">
         <h2>2. Valitse mittaus</h2>
-        ${TESTIRYHMAT(s).map(([g, items]) => [g, items.filter(([k]) => !(k === "itsepurkaus" && S.live && S.live.itsepurkaus_ok === false))]).map(([g, items]) => `<h3 class="grp">${g}</h3><div class="choice">${items.map(([k, txt, d]) =>
+        ${TESTIRYHMAT(s).map(([g, items]) => [g, items.filter(([k]) => !(S.live && (S.live.ei_testit || []).includes(k)))]).filter(([, items]) => items.length).map(([g, items]) => `<h3 class="grp">${g}</h3><div class="choice">${items.map(([k, txt, d]) =>
           `<button data-t="${k}"><div class="ttl">${tyyppi(k)}</div><div class="small muted">${esc(txt)}</div><div class="dur">${esc(d)}<span data-hinta="${k}"></span></div></button>`).join("")}</div>`).join("")}
       </div>
       <div class="card">
@@ -1150,31 +1150,7 @@ views.asetukset = {
         <p>Viestimäärittelyt perustuvat Tesla-omistajien yhteisön ylläpitämään avoimeen aineistoon. Muiden merkkien kyselyt perustuvat avoimiin aineistoihin (OBD-PIDs-for-HKMC-EVs, evDash, Open Vehicle Monitoring System, Battery-Emulator ja py-nissan-leaf-obd-ble). Tesla, Model 3, Model Y, Model S, Model X ja Cybertruck ovat Tesla, Inc:n tavaramerkkejä; Hyundai, Ioniq ja Kona Hyundai Motor Companyn; Kia, EV6, e-Niro ja e-Soul Kia Corporationin; Nissan ja Leaf Nissan Motor Co:n; Volkswagen, ID.3, ID.4 ja ID.5 Volkswagen AG:n; Škoda ja Enyaq Škoda Auto a.s:n; Audi ja Q4 e-tron Audi AG:n; Cupra ja Born SEAT S.A:n sekä MG ja ZS SAIC Motor Corporationin tavaramerkkejä.</p></details>
       <p class="small muted" style="margin-top:8px">AKVERI ei ole minkään autonvalmistajan tekemä eikä hyväksymä.</p></div>
     ${E ? `<div class="card kehittaja"><h2>Kehittäjän työkalut</h2>
-      <p class="small muted">Näkyy vain testitileillä. Asiakkaan ohjelmassa käytetään oletusarvoja.</p>
-      <div id="kForm">
-        <h3>Raportti</h3>
-        <div class="grid g3">
-          <label class="f"><span>Kunnon esitystapa</span>${valinta("raportin_ulkoasu", s.raportin_ulkoasu || "b", [["b", "Kaarimittari (oletus)"], ["a", "Akkukuva ja luokka-asteikko"], ["c", "Tumma tunnuslukukaista"]])}</label>
-          <label class="f"><span>Vesileima</span>${valinta("vesileima", s.vesileima || "toisto", [["toisto", "Pienet toistuvat (oletus)"], ["iso", "Suuri vino AKVERI"], ["rivit", "Harvat vinot rivit"], ["ei", "Ei vesileimaa"]])}</label>
-          <label class="f"><span>Kennoryhmien kuvaaja</span>${valinta("kennokuvaaja", s.kennokuvaaja === "moduulit" ? "moduulit" : "numerot", [["numerot", "Ryhmät numerojärjestyksessä (oletus)"], ["moduulit", "Moduulikartta"]])}</label>
-          <label class="f"><span>Tekninen liite</span>${valinta("tekninen_liite", (s.tekninen_liite === false) ? "0" : "1", [["1", "Mukana (oletus)"], ["0", "Ei liitettä"]])}</label>
-        </div>
-        <h3>Mittausten raja-arvot</h3>
-        <div class="grid g3">
-          <label class="f"><span>Lepo ennen latausta (min)</span><input name="lepo_alku_min" inputmode="numeric" value="${esc(s.lepo_alku_min)}"></label>
-          <label class="f"><span>Lepo latauksen jälkeen (min)</span><input name="lepo_loppu_min" inputmode="numeric" value="${esc(s.lepo_loppu_min)}"></label>
-          <label class="f"><span>Lähtövaraus enintään (%)</span><input name="kapasiteetti_lahto_soc_max" inputmode="numeric" value="${esc(s.kapasiteetti_lahto_soc_max)}"></label>
-          <label class="f"><span>Akun lämpötila vähintään (°C)</span><input name="lampotila_min" inputmode="numeric" value="${esc(s.lampotila_min)}"></label>
-          <label class="f"><span>Akun lämpötila enintään (°C)</span><input name="lampotila_max" inputmode="numeric" value="${esc(s.lampotila_max)}"></label>
-          <label class="f"><span>Lepo ennen ajoa ja sen jälkeen (min)</span><input name="ajo_lepo_min" inputmode="numeric" value="${esc(s.ajo_lepo_min)}"></label>
-          <label class="f"><span>Ajotestin loppuvaraus enintään (%)</span><input name="ajo_loppu_soc" inputmode="numeric" value="${esc(s.ajo_loppu_soc)}"></label>
-          <label class="f"><span>Pika-ajotestin varauksen lasku (%-yks.)</span><input name="pika_ajo_soc" inputmode="numeric" value="${esc(s.pika_ajo_soc)}"></label>
-          <label class="f"><span>Kuormitustestin kiihdytyksiä</span><input name="kuormitus_tapahtumat" inputmode="numeric" value="${esc(s.kuormitus_tapahtumat)}"></label>
-          <label class="f"><span>Lepo ennen itsepurkaustestiä (min)</span><input name="itsepurkaus_lepo_min" inputmode="numeric" value="${esc(s.itsepurkaus_lepo_min)}"></label>
-          <label class="f"><span>Itsepurkaustestin seisonta (h)</span><input name="itsepurkaus_tunnit" inputmode="numeric" value="${esc(s.itsepurkaus_tunnit)}"></label>
-        </div>
-        <div class="row"><button class="btn" id="kSave" type="button">Tallenna kehittäjän asetukset</button></div>
-      </div>
+      <p class="small muted">Näkyy vain testitileillä.</p>
       <div class="row" style="margin-top:14px"><h3 style="margin:0">Laaduntarkistus</h3><span class="spacer"></span><button class="btn" id="qRun" type="button">Aja tarkistus</button></div>
       <div id="qRes"></div>
       <div class="row" style="margin-top:14px"><h3 style="margin:0">Tapahtumaloki</h3><span class="spacer"></span><button class="btn sm" id="lLoad" type="button">Näytä loki</button></div>
@@ -1238,7 +1214,6 @@ views.asetukset = {
     $("#bNow").onclick = () => { toast("Varmuuskopio tehdään…"); setTimeout(list, 2500); };
   },
   kehittaja() {
-    $("#kSave").onclick = () => act(() => api("/api/asetukset", { method: "POST", body: form($("#kForm")) }), "Kehittäjän asetukset tallennettu").then(() => this.render());
     $("#qRun").onclick = async () => {
       const b = $("#qRun");
       b.disabled = true;

@@ -744,6 +744,7 @@ class TeslaDecoder:
             if _pm:
                 d["kyselyalusta"] = True
                 d["itsepurkaus_ok"] = bool(_pm.ITSEPURKAUS_OK)
+                d["ei_testit"] = sorted((getattr(_pm, "EI_TESTIT", {}) or {}).keys())
                 raja = getattr(_pm, "SOH_JUMISSA_YLI", None)
                 d["soh_jumissa"] = bool(raja is not None and st.bms_soh_pct is not None and st.bms_soh_pct >= raja)
                 d["kennolukutapa"] = getattr(_pm, "KENNOLUKUTAPA", None)

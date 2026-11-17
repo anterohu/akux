@@ -69,6 +69,8 @@ NAYTTO = {M_V: "BMS 22B042", M_I: "BMS 22B043", M_SOC_RAW: "BMS 22B046", M_SOC_U
 KENNOLUKUTAPA = "Akunhallinta ilmoittaa kennojännitteet ja lämpötilat lohkoittain: kunkin lohkon matalimman ja korkeimman arvon."
 RESOLUUTIO_MV = 1.0
 ITSEPURKAUS_OK = False                # kennot vain lohkon ääriarvoina: kennokohtaista itsepurkausta ei voi erottaa
+EI_TESTIT = {"itsepurkaus": "Itsepurkaustestiä ei tehdä MG:lle: akunhallinta ilmoittaa kennojännitteet vain "
+                            "lohkoittain, joten yksittäisen kennon itsepurkausta ei voi erottaa."}
 ELINKAARILASKURIT = False
 PROTOKOLLA = "6"                      # ISO 15765-4, 11-bittiset tunnisteet, 500 kbit/s
 RX = {"781": "789", "7E5": "7ED", "7DF": "7ED", "7E3": "7EB", "710": "718"}
