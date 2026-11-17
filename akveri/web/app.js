@@ -352,12 +352,14 @@ views.yleiskuva = {
         stat("Täyden akun energia", "–", "kWh", "Näkyy mittauksen aikana"),
         stat("Akun kunto", "–", "%", "Näkyy mittauksen aikana ja raportissa")] : [
         stat("Täyden akun energia", L.nfp_kwh != null ? n(L.nfp_kwh) : "–", "kWh", L.kyselyalusta ? "Akunhallinnan kuntoarviosta" : "Teslan akunhallinta"),
-        stat("Akun kunto", soh != null ? n(soh) : "–", "%", L.viite_kwh ? `Uutena ${n(L.viite_kwh)} kWh, ${esc(L.viite_lahde || "")}` : "Alkuperäistä kapasiteettia ei tiedetä")]),
+        L.soh_jumissa
+          ? stat("Akunhallinnan kunto", n(L.bms_soh_pct), "%", "Akunhallinnan oma lukema, ei todellinen kunto. Kunto saadaan kapasiteettimittauksella.")
+          : stat("Akun kunto", soh != null ? n(soh) : "–", "%", L.viite_kwh ? `Uutena ${n(L.viite_kwh)} kWh, ${esc(L.viite_lahde || "")}` : "Alkuperäistä kapasiteettia ei tiedetä")]),
       L.kunto_piilotettu
         ? stat("Kennoryhmät", L.bricks_seen ? `${L.bricks_seen}/${L.brick_count || "–"}` : "–", "", "Jännite-ero näkyy mittauksen aikana ja raportissa")
-        : stat("Kennoryhmien ero", L.brick_delta_mv != null ? n(L.brick_delta_mv, 0) : (L.bricks_seen ? "Tuloksessa" : "–"), L.brick_delta_mv != null || !L.bricks_seen ? "mV" : "", L.bricks_seen ? `${L.bricks_seen}/${L.brick_count || "–"} ryhmää luettu` : ""),
+        : stat("Kennoryhmien ero", L.brick_delta_mv != null && L.kennot_valmiit ? n(L.brick_delta_mv, 0) : (L.bricks_seen ? "Luetaan" : "–"), L.brick_delta_mv != null && L.kennot_valmiit ? "mV" : "", L.bricks_seen ? `${L.bricks_seen}/${L.brick_count || "–"} ryhmää luettu` : ""),
       stat("Mittarilukema", L.odometer_km != null ? n(L.odometer_km, 0) : "–", "km", L.vin || ""),
-    ].join("");
+    ].join("") + (L.kennolukutapa ? `<div class="small muted" style="grid-column:1/-1">${esc(L.kennolukutapa)}</div>` : "");
     // tunnistettu auto
     const ac = $("#autoCard");
     if (L.vin && !S.auto_tunnettu) {
@@ -763,7 +765,8 @@ views.autot = {
   },
   async renderForm(v) {
     const { mallit } = await api("/api/mallit");
-    const live = "";   // Valmistenumeroa ei esitäytetä: se luetaan autosta vain Lue autosta -painikkeella.
+    // Uutta autoa lisättäessä autosta luettu valmistenumero esitäytetään, jos sitä ei ole vielä tallennettu.
+    const live = (!v && S && S.live && S.live.vin && !S.auto_tunnettu) ? S.live.vin : "";
     const sel0 = v ? v.malli_id || "" : (S && S.live && S.live.malli_id) || "";
     const brand0 = merkki(mallit.find(m => m.id === sel0)) || "Tesla";
     const bk = v ? { html: `<a class="back" href="#/autot/${v.id}">← ${esc(v.nimi)}</a>` } : backLink("#/autot", "Autot");

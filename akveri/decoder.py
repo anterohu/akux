@@ -740,7 +740,11 @@ class TeslaDecoder:
             if self.hk.get("malli_id"):
                 d["malli_id"] = self.hk["malli_id"]
             _pm = self._polled_module()
+            d["kennot_valmiit"] = bool(vals) and (not st.brick_count or len(vals) >= st.brick_count)
             if _pm:
                 d["kyselyalusta"] = True
                 d["itsepurkaus_ok"] = bool(_pm.ITSEPURKAUS_OK)
+                raja = getattr(_pm, "SOH_JUMISSA_YLI", None)
+                d["soh_jumissa"] = bool(raja is not None and st.bms_soh_pct is not None and st.bms_soh_pct >= raja)
+                d["kennolukutapa"] = getattr(_pm, "KENNOLUKUTAPA", None)
             return d

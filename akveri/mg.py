@@ -66,6 +66,7 @@ NAYTTO = {M_V: "BMS 22B042", M_I: "BMS 22B043", M_SOC_RAW: "BMS 22B046", M_SOC_U
           M_CMAX: "BMS 22B058", M_CMIN: "BMS 22B059", M_BLK0: "BMS 22B001–", M_SOH: "BMS 22B061",
           M_ODO: "22E101 / 22B921", M_VIN: "22F190"}
 
+KENNOLUKUTAPA = "Akunhallinta ilmoittaa kennojännitteet ja lämpötilat lohkoittain: kunkin lohkon matalimman ja korkeimman arvon."
 RESOLUUTIO_MV = 1.0
 ITSEPURKAUS_OK = False                # kennot vain lohkon ääriarvoina: kennokohtaista itsepurkausta ei voi erottaa
 ELINKAARILASKURIT = False

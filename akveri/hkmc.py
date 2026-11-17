@@ -72,9 +72,13 @@ def requests(ryhma: str, cells: int | None) -> tuple[list, list]:
 
 NIMI = "Hyundai ja Kia"
 MERKIT = ("Hyundai", "Kia")
+KENNOLUKUTAPA = "Akunhallinta ilmoittaa kennojännitteet 32 kennon ryhmissä 20 mV:n tarkkuudella ja lämpötilat moduuleittain."
 RESOLUUTIO_MV = 20.0            # kennojännitteet 20 mV:n portain
 ITSEPURKAUS_OK = False
 ELINKAARILASKURIT = True
+# Hyundain ja Kian akunhallinta pitää kuntoarvion (SOH) 100 %:ssa usein vuosia, vaikka kapasiteetti on jo alentunut.
+# Tätä suurempaa lukemaa ei käytetä akun kuntona; kunto saadaan kapasiteettimittauksesta.
+SOH_JUMISSA_YLI = 99.5
 RX = {BMS: "7EC", CLUSTER: "7CE"}
 LAHDE = ("avoimiin, laajasti käytettyihin Hyundai- ja Kia-sähköautojen tietolähteisiin (OBD-PIDs-for-HKMC-EVs "
          "ja evDash)")
@@ -110,7 +114,9 @@ def vaihtoehto_for(model: dict) -> list:
 
 def decoder_opts(model: dict) -> dict:
     g = RYHMAT[model["kyselyryhma"]]
-    return {"cells": model.get("sarjakennot"), "ref_kwh": model["viite_kwh"], "lisakennot": g["lisakennot"],
+    # Kennot 97 ja 98 ovat tilakyselyssä vain 98-kennoisissa akuissa (64 kWh); muissa tavut ovat muuta tietoa.
+    lisa = g["lisakennot"] if model.get("sarjakennot") == 98 else 0
+    return {"cells": model.get("sarjakennot"), "ref_kwh": model["viite_kwh"], "lisakennot": lisa,
             "malli_id": model["id"]}
 
 

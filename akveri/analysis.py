@@ -943,6 +943,14 @@ def _analyze_capacity(res, snaps, samples, meta, chem_key, ref_kwh, nfp, buffer)
 
 
 # ----------------------------------------------------------------------
+def _bms_soh_jumissa(res, soh) -> bool:
+    """Akunhallinnan kuntoarvio, joka ei kerro todellista kuntoa (alusta ilmoittaa SOH_JUMISSA_YLI)."""
+    from . import polled
+    pm = polled.module(res["ajoneuvo"].get("alusta"))
+    raja = getattr(pm, "SOH_JUMISSA_YLI", None) if pm else None
+    return raja is not None and soh is not None and soh >= raja
+
+
 def _summarize(res):
     chem = res["ajoneuvo"].get("kemia")
     rmv = res["ajoneuvo"].get("kenno_resoluutio_mv")
@@ -960,6 +968,16 @@ def _summarize(res):
         soh = pt["soh_pct"]
         summary.update(kunto_pct=soh, kunto_lahde=pt["lahde"], kapasiteetti_kwh=pt["taysi_kwh"],
                        epavarmuus_kwh=pt.get("epavarmuus_kwh"), epavarmuus_pct=pt.get("soh_epavarmuus_pct"))
+    elif bms.get("soh_pct") and _bms_soh_jumissa(res, bms["soh_pct"]):
+        # Akunhallinta pitää kuntoarvion 100 %:ssa pitkään (esimerkiksi Hyundai ja Kia), joten lukema ei kerro
+        # akun todellista kuntoa. Arvo näytetään akunhallinnan ilmoituksena ilman kuntoluokkaa.
+        soh = None
+        ar.append({"nimi": "Akunhallinnan ilmoittama kunto", "arvo": f"{fmt(bms['soh_pct'])} %", "luokka": None,
+                   "kuvaus": "Akunhallinnan oma lukema. Todellinen kunto saadaan kapasiteettimittauksella."})
+        res["huomiot"].append(
+            "Tämän merkin akunhallinta ilmoittaa akun kunnoksi 100 % pitkään, vaikka akun kapasiteetti olisi jo "
+            "alentunut. Lukemaa ei siksi käytetä akun kunnon arviona. Akun todellinen kunto saadaan "
+            "kapasiteettimittauksella, jossa akkuun ladattu energia mitataan auton omista energialaskureista.")
     elif bms.get("soh_pct"):
         soh = bms["soh_pct"]
         # Väärä malli valittuna: akunhallinnan kuntoprosentti pitää, mutta siitä laskettu kapasiteetti ei.
