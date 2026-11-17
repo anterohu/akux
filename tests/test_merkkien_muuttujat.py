@@ -69,3 +69,17 @@ def test_epatodelliset_testit_rajattu_malleittain():
     dec = Decoder()
     dec.configure("hkmc", **hkmc.decoder_opts(profiles.get("hy-ioniq-38")))
     assert dec.snapshot()["ei_testit"] == ["itsepurkaus", "pikatarkastus"]
+
+
+def test_autolistaus_kertoo_estetyt_testit_ilman_yhteytta(tmp_path):
+    """Mittausvalinta piilottaa estetyt testit valitun auton mallin perusteella, vaikka sovitinta ei ole kytketty."""
+    from akveri.app import App
+    from akveri.server import Api
+    app = App(data_dir=tmp_path)
+    try:
+        app.storage.add_vehicle({"nimi": "Ioniq", "malli_id": "hy-ioniq-38"})
+        app.storage.add_vehicle({"nimi": "Leaf", "malli_id": profiles.models()[0]["id"]})
+        autot = {v["malli_id"]: v for v in Api(app).ajoneuvot({}, {})["ajoneuvot"]}
+        assert autot["hy-ioniq-38"]["ei_testit"] == ["itsepurkaus", "pikatarkastus"]
+    finally:
+        app.close() if hasattr(app, "close") else None

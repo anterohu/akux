@@ -16,7 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import NIMI, VERSIO, analysis, docs, kielet, maintenance, mittaustiedosto, profiles, report
+from . import NIMI, VERSIO, analysis, docs, kielet, maintenance, mittaustiedosto, polled, profiles, report
 from . import krediitit as krediittimoduuli
 from . import vin as vinmod
 from .app import App
@@ -425,7 +425,11 @@ class Api:
     def ajoneuvot(self, q, body):
         out = []
         for v in self.app.storage.vehicles():
-            v["malli"] = (profiles.get(v["malli_id"]) or {}).get("nimi")
+            m = profiles.get(v["malli_id"]) or {}
+            v["malli"] = m.get("nimi")
+            # Testit, jotka eivät anna todellista tulosta tämän mallin alustalla (piilotetaan mittausvalinnasta)
+            pm = polled.module(m.get("alusta")) if m else None
+            v["ei_testit"] = sorted((getattr(pm, "EI_TESTIT", {}) or {}).keys()) if pm else []
             out.append(v)
         return {"ajoneuvot": out}
 

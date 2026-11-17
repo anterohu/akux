@@ -585,7 +585,23 @@ views.mittaus = {
         o.bol_kwh ? `alkuperäinen kapasiteetti ${n(o.bol_kwh)} kWh` : null,
         o.viimeisin_kunto_pct ? `edellinen kunto ${n(o.viimeisin_kunto_pct)} %` : "ei aiempia mittauksia"].filter(Boolean).join(" · ");
     };
-    $("#mVeh").onchange = hint; hint();
+    // Piilotetaan testit, jotka eivät anna todellista tulosta valitun auton mallilla (myös ilman yhteyttä).
+    const rajaa = () => {
+      const v = vs[$("#mVeh").value] || {};
+      const ei = new Set([...(v.ei_testit || []), ...((S && S.live && S.live.ei_testit) || [])]);
+      $$(".choice button[data-t]", b).forEach(x => {
+        const pois = ei.has(x.dataset.t);
+        x.style.display = pois ? "none" : "";
+        if (pois && x.classList.contains("sel")) { x.classList.remove("sel"); this.type = null; this.updateNew(S); }
+      });
+      $$(".choice", b).forEach(c => {
+        const nakyy = [...c.querySelectorAll("button[data-t]")].some(x => x.style.display !== "none");
+        c.style.display = nakyy ? "" : "none";
+        const h = c.previousElementSibling;
+        if (h && h.classList.contains("grp")) h.style.display = nakyy ? "" : "none";
+      });
+    };
+    $("#mVeh").onchange = () => { hint(); rajaa(); }; hint();
     $$("[data-jatka]", b).forEach(x => (x.onclick = () => act(() => api(`/api/mittaukset/${x.dataset.jatka}/jatka`, { method: "POST" }), "Mittaus jatkuu").then(poll)));
     $$("[data-hylkaa]", b).forEach(x => (x.onclick = async () => {
       if (!(await kysy("Hylätäänkö kesken oleva mittaus? Siitä ei tehdä raporttia.", { ok: "Hylkää mittaus", vaara: true }))) return;
@@ -598,6 +614,7 @@ views.mittaus = {
       this.updateNew(S);
     }));
     this.type = null;
+    rajaa();
     // Mittausten hinnat haetaan palvelimelta: hallinnassa tehty muutos näkyy tässä heti.
     this.hinnat = null;
     if (!(S && S.yhteys.simuloitu)) api("/api/krediitit").then(d => {
