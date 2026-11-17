@@ -125,7 +125,8 @@ def test_kona_kyselyt():
     src.start(dec.feed)
     st = dec.state
     end = time.time() + 20
-    while time.time() < end and not (st.vin and st.odometer_km and len(st.bricks) >= 98 and st.bms_soh_pct):
+    while time.time() < end and not (st.vin and st.odometer_km and len(st.bricks) >= 98 and st.bms_soh_pct
+                                     and all(r in FakeHk.commands for _, r, _ in loop)):
         time.sleep(0.1)
     src.stop()
     cmds = FakeHk.commands
@@ -279,7 +280,7 @@ def test_leaf_kyselyt():
     st = dec.state
     end = time.time() + 20
     while time.time() < end and not (st.vin and st.odometer_km and len(st.bricks) == 96 and st.bms_soh_pct
-                                     and st.temp_max is not None):
+                                     and st.temp_max is not None and all(r in FakeHk.commands for _, r, _ in loop)):
         time.sleep(0.1)
     src.stop()
     cmds = FakeHk.commands
@@ -354,7 +355,8 @@ def test_meb_kyselyt():
     st = dec.state
     end = time.time() + 30
     while time.time() < end and not (st.vin and st.odometer_km and st.brick_count == 96 and len(st.bricks) == 96
-                                     and st.bms_soh_pct and st.total_charge_kwh):
+                                     and st.bms_soh_pct and st.total_charge_kwh
+                                     and all(r in FakeHk.commands for _, r, _ in loop)):
         time.sleep(0.1)
     src.stop()
     cmds = FakeHk.commands
@@ -432,7 +434,8 @@ def _mg_testi(malli_id, bms, odo_hdr, odo_pid):
     st = dec.state
     end = time.time() + 30
     while time.time() < end and not (st.vin and st.odometer_km and len(st.bricks) == 2 * g["lohkot"]
-                                     and st.bms_soh_pct and st.soc_avg is not None and st.pack_i is not None):
+                                     and st.bms_soh_pct and st.soc_avg is not None and st.pack_i is not None
+                                     and all(r in FakeHk.commands for _, r, _ in loop)):
         time.sleep(0.1)
     src.stop()
     return m, g, st, FakeHk.commands, lohkot
