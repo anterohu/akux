@@ -52,11 +52,18 @@ function rakennaZip(tiedostot) {
   return Buffer.concat([...osat, kk, eocd]);
 }
 
-function kokoa(kohde = path.join(JUURI, 'dist')) {
+// lataukset = kansio, jonka sovellustiedostot (AKVERI-*.exe, AKVERI-*.apk) otetaan pakettiin. Silloin syntyy
+// Hallintatyökalun päivityspaketti akveri-paivitys-<versio>.zip, joka päivittää palvelimen ja Omat lataukset kerralla.
+function kokoa(kohde = path.join(JUURI, 'dist'), lataukset = null) {
   const pkg = JSON.parse(fs.readFileSync(path.join(JUURI, 'package.json'), 'utf8'));
   const sovellus = fs.readFileSync(path.join(JUURI, '..', 'akveri', '__init__.py'), 'utf8').match(/VERSIO\s*=\s*"([^"]+)"/);
   if (sovellus && sovellus[1] !== pkg.version) throw new Error(`Palvelimen versio ${pkg.version} ei vastaa sovelluksen versiota ${sovellus[1]}. Päivitä palvelin/package.json.`);
   const tiedostot = MUKAAN.flatMap(listaa).filter(n => !/(^|\/)(\.|data\/|dist\/|testit\/)/.test(n)).map(nimi => ({ nimi, data: fs.readFileSync(path.join(JUURI, nimi)) }));
+  if (lataukset) {
+    const sov = fs.readdirSync(lataukset).filter(n => /^AKVERI-[A-Za-z0-9._-]+\.(exe|apk)$/.test(n) && n.includes(pkg.version)).sort();
+    if (!sov.length) throw new Error(`Kansiosta ${lataukset} ei löytynyt version ${pkg.version} sovellustiedostoja.`);
+    for (const n of sov) tiedostot.push({ nimi: 'lataukset/' + n, data: fs.readFileSync(path.join(lataukset, n)) });
+  }
   const manifest = {
     tuote: 'akveri-palvelin', versio: pkg.version, node: pkg.engines.node.replace(/[^0-9]/g, '') || '22',
     terveysPolku: '/api/v1/tila',
@@ -64,7 +71,7 @@ function kokoa(kohde = path.join(JUURI, 'dist')) {
   };
   const zip = rakennaZip([{ nimi: 'manifest.json', data: Buffer.from(JSON.stringify(manifest, null, 2) + '\n') }, ...tiedostot]);
   fs.mkdirSync(kohde, { recursive: true });
-  const polku = path.join(kohde, `akveri-palvelin-${pkg.version}.zip`);
+  const polku = path.join(kohde, `akveri-${lataukset ? 'paivitys' : 'palvelin'}-${pkg.version}.zip`);
   fs.writeFileSync(polku, zip);
   return { polku, versio: pkg.version, tiedostoja: tiedostot.length, koko: zip.length };
 }
@@ -72,6 +79,6 @@ function kokoa(kohde = path.join(JUURI, 'dist')) {
 module.exports = { kokoa, rakennaZip };
 
 if (require.main === module) {
-  try { const t = kokoa(process.argv[2]); console.log(`Paketti valmis: ${t.polku} (${t.tiedostoja} tiedostoa, ${(t.koko / 1024).toFixed(0)} kt)`); }
+  try { const t = kokoa(process.argv[2], process.argv[3] || null); console.log(`Paketti valmis: ${t.polku} (${t.tiedostoja} tiedostoa, ${(t.koko / 1024).toFixed(0)} kt)`); }
   catch (e) { console.error(e.message); process.exit(1); }
 }

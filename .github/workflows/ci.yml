@@ -371,6 +371,11 @@ jobs:
           V=$(python3 -c "import re;print(re.search(r'VERSIO = \"([^\"]+)\"', open('akveri/__init__.py').read()).group(1))")
           echo "VERSIO=$V" >> $GITHUB_ENV
           ls -la
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Hallintatyökalun päivityspaketti
+        run: node palvelin/kokoa.js . .
       - name: Julkaise
         uses: softprops/action-gh-release@v2
         with:
@@ -381,8 +386,8 @@ jobs:
             Sisäinen julkaisu. Asiakkaat asentavat AKVERIn Google Playsta, eikä näitä tiedostoja jaeta asiakkaille.
 
             **Google Play:** AKVERI-${{ env.VERSIO }}.aab ladataan Play Consoleen (Tuotanto → Luo uusi julkaisu).
-            **Windows (omistajalle):** AKVERI-asennus-${{ env.VERSIO }}.exe viedään akveri.fi:n Omat lataukset -kohtaan Hallintatyökalun AKVERI-välilehdeltä.
-            **akveri.fi-palvelin:** akveri-palvelin-${{ env.VERSIO }}.zip viedään palvelimelle Hallintatyökalun AKVERI-välilehdeltä.
+            **Hallintatyökalu:** akveri-paivitys-${{ env.VERSIO }}.zip viedään Hallintatyökalun AKVERI-välilehdeltä. Se päivittää akveri.fi-palvelimen ja vie Windows-asennuksen ja Android-sovelluksen Omiin latauksiin samalla kertaa.
+            **Pelkkä palvelin:** akveri-palvelin-${{ env.VERSIO }}.zip sisältää vain palvelimen, ilman sovellustiedostoja.
 
             Ennen julkaisua on ajettu kaikki testit, Windows-asennus ja päivitys oikealla Windows-koneella sekä Android-sovelluksen kokonaistesti emulaattorissa.
           files: |
@@ -390,4 +395,5 @@ jobs:
             AKVERI-*.aab
             AKVERI-asennus-*.exe
             akveri-palvelin-*.zip
+            akveri-paivitys-*.zip
           overwrite_files: true
