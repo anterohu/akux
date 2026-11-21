@@ -41,6 +41,24 @@
   }
 
   // Anonyymin aineiston rivit malleittain: mittausten määrä ja kunnon vaihteluväli (eniten mittauksia ensin)
+  // Kokemukset malleittain: lopputulokset ja kyselyt, joihin auto ei vastannut.
+  function kokemusmallit(rivit) {
+    var m = {};
+    rivit.forEach(function (r) {
+      var k = (r.merkki || '–') + '\u0000' + (r.malli || '–');
+      var x = m[k] || (m[k] = { merkki: r.merkki || '–', malli: r.malli || '–', n: 0, tilat: {}, kunto: 0, odo: 0, vin: {}, puuttuu: {} });
+      x.n++; x.tilat[r.tila] = (x.tilat[r.tila] || 0) + 1;
+      if (r.kunto_saatu) x.kunto++;
+      if (r.mittarilukema_autosta) x.odo++;
+      if (r.vin_alku) x.vin[r.vin_alku] = 1;
+      Object.keys(r.kyselyt || {}).forEach(function (q) {
+        var y = r.kyselyt[q];
+        if (y && !y.vastauksia && y.ei_vastausta) x.puuttuu[q + (y.kielto !== null && y.kielto !== undefined ? ' (kielto ' + y.kielto.toString(16).toUpperCase() + ')' : '')] = 1;
+      });
+    });
+    return Object.keys(m).sort().map(function (k) { return m[k]; });
+  }
+
   function mallit(rivit) {
     var m = {};
     rivit.forEach(function (r) {
@@ -149,6 +167,18 @@
   }
   var LATAA = {
     tietosuoja: function () {
+      api('/kokemukset').then(function (d) {
+        $('#kokemus-maara').textContent = 'Mittauksia ' + d.rivit.length + '.';
+        var TILA = { valmis: 'valmis', hylatty: 'hylätty', keskeytetty: 'keskeytetty', estetty: 'estetty' };
+        taulu($('#kokemustaulu'), ['Merkki', 'Malli', 'Valmistenumeron alku', '#Mittauksia', 'Lopputulokset', '#Kunto saatu', '#Mittarilukema autosta', 'Ei vastausta'], kokemusmallit(d.rivit), function (m) {
+          var tr = el('tr'); solu(tr, m.merkki); solu(tr, m.malli); solu(tr, Object.keys(m.vin).join(', ') || '–');
+          solu(tr, String(m.n), 'luku');
+          solu(tr, Object.keys(m.tilat).map(function (t) { return (TILA[t] || t) + ' ' + m.tilat[t]; }).join(', '));
+          solu(tr, m.kunto + '/' + m.n, 'luku'); solu(tr, m.odo + '/' + m.n, 'luku');
+          solu(tr, Object.keys(m.puuttuu).join(', ') || '–');
+          return tr;
+        });
+      }).catch(virhe());
       api('/tilasto').then(function (d) {
         $('#tilasto-maara').textContent = 'Rivejä ' + d.rivit.length + '.';
         taulu($('#mallitaulu'), ['Merkki', 'Malli', '#Mittauksia', '#Kunto keskim. %', '#Pienin %', '#Suurin %', '#Testitileiltä'], mallit(d.rivit), function (m) {
@@ -374,6 +404,11 @@
       if (!window.confirm('Poistetaanko kaikki osoitteen ' + tsOsoite + ' viestit pysyvästi?')) return;
       api('/tietosuoja/viestit?sahkoposti=' + encodeURIComponent(tsOsoite), { method: 'DELETE' }).then(function (d) {
         ilmoita('Viestejä poistettu: ' + d.poistettu + '.', true); $('#ts-tulos').textContent = ''; $('#ts-toiminnot').classList.add('piilossa');
+      }).catch(virhe());
+    });
+    $('#kokemus-lataa').addEventListener('click', function () {
+      api('/kokemukset').then(function (d) {
+        lataaTiedosto('akveri-kokemukset-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(d.rivit, null, 1), 'application/json');
       }).catch(virhe());
     });
     $('#tilasto-lataa').addEventListener('click', function () {

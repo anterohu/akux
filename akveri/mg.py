@@ -54,6 +54,7 @@ RYHMAT = {
     "mg4": {"bms": "7DF", "lohkot": 24, "soc": "ui", "vin": ("710", "22F190"), "odo": ("710", "22B921")},
 }
 
+KUNTO_TUNNISTEET = (M_SOH,)
 TUNNISTEET = [M_V, M_I, M_SOC_RAW, M_SOC_UI, M_TEMP, M_CMAX, M_CMIN, M_BLK0, M_SOH, M_ODO, M_VIN]
 PAKOLLISET = [M_V, M_I, M_BLK0, M_SOH]
 KUVAUS = {

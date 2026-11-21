@@ -784,3 +784,27 @@ test('päivityspaketti sisältää sovellustiedostot ja palvelin siirtää ne Om
   assert.equal(fs.readFileSync(path.join(kohde, `AKVERI-asennus-${v}.exe`), 'utf8'), 'uusi');
   assert.deepEqual(siirraLataukset(path.join(kansio, 'ei-ole'), kohde), []);
 });
+
+test('autojen kokemukset: tunnisteet karsitaan ja aineisto näkyy hallinnassa', async (t) => {
+  const { pyynto, aika } = await kaynnista(t);
+  const tili = (await pyynto('/api/v1/tili', { method: 'POST' })).d;
+  const kokemus = {
+    tila: 'estetty', mittaustyyppi: 'pikatarkastus', alusta: 'meb', merkki: 'Volkswagen', malli: 'ID.4 77 kWh',
+    vin_alku: 'WVGZZZE2', vin: 'WVGZZZE2ZMP032376', rekisteri: 'ABC-123', mittaaja: 'Antero', vuosimalli: 2021,
+    kunto_saatu: false, mittarilukema_autosta: true, kennoryhmat_autosta: 96,
+    kyselyt: { 'BMS 2250CE': { vastauksia: 0, ei_vastausta: 3, kielto: 49, pituus: 0 }, '<script>': { vastauksia: 1 } }
+  };
+  assert.equal((await pyynto('/api/v1/kokemus', { method: 'POST', auth: tili, body: kokemus })).status, 200);
+  assert.equal((await pyynto('/api/v1/kokemus', { method: 'POST', auth: tili, body: { ...kokemus, tila: 'muu' } })).status, 400);
+  assert.equal((await pyynto('/api/v1/kokemus', { method: 'POST', body: kokemus })).status, 401);
+  const s = await kirjauduHallintaan(pyynto, aika);
+  const r = (await pyynto('/api/hallinta/kokemukset', { evaste: s.evaste, otsakkeet: s.otsakkeet })).d.rivit;
+  assert.equal(r.length, 1);
+  const k = r[0];
+  assert.equal(k.vin_alku, 'WVGZZZE2');
+  for (const pois of ['vin', 'rekisteri', 'mittaaja', 'tili']) assert.equal(k[pois], undefined, pois);
+  assert.deepEqual(Object.keys(k.kyselyt), ['BMS 2250CE']);
+  assert.equal(k.kyselyt['BMS 2250CE'].kielto, 49);
+  assert.equal(k.kunto_saatu, false);
+  assert.match(k.kuukausi, /^\d{4}-\d{2}$/);
+});

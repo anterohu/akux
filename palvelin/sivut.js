@@ -241,6 +241,7 @@ const TEKSTIT = {
 <p>Rekisteröity raportti säilytetään, jotta sen voi tarkistaa myös myöhemmin auton myynnin yhteydessä, kuitenkin enintään kymmenen vuotta. Krediittien kirjanpito säilytetään kirjanpitolain edellyttämän ajan. Yhteydenotot poistetaan, kun asia on käsitelty, viimeistään kahden vuoden kuluttua.</p>
 <h2>Anonyymi mittausaineisto</h2>
 <p>Jokaisesta rekisteröidystä mittauksesta tallennetaan erikseen anonyymi tilastorivi ohjelmiston kehittämistä varten: auton merkki, malli ja vuosimalli, akkutyyppi, mittaustyyppi, mittauksen kuukausi, mittarilukema tuhannen kilometrin tarkkuudella ja mittaustulokset. Rivillä ei ole raportin tunnusta, tilitunnusta, valmistenumeroa, rekisterinumeroa, mittauksen suorittajaa eikä tarkkaa aikaa, eikä sitä voi yhdistää raporttiin, autoon tai henkilöön. Siksi se ei ole henkilötieto eikä poistu tietojen poiston yhteydessä.</p>
+<p>Lisäksi jokaisesta mittauksesta, myös keskeytetystä, tallennetaan anonyymisti, mihin tietoihin auto vastasi ja mihin ei, sekä käytetty sovitin. Valmistenumerosta tallennetaan vain 8 ensimmäistä merkkiä, jotka kertovat valmistajan ja mallin. Tietoa käytetään eri automallien yhteensopivuuden parantamiseen.</p>
 <h2>Tietojen luovutus ja siirrot</h2>
 <p>Tietoja ei myydä eikä luovuteta markkinointiin. Ostojen tarkistuksessa palvelu on yhteydessä Googlen rajapintaan. Palvelin sijaitsee EU:ssa.</p>
 <h2>Evästeet ja seuranta</h2>
@@ -267,6 +268,7 @@ const TEKSTIT = {
 <p>A registered report is kept so that it can also be verified later when the car is sold, but for no longer than ten years. Records of credits are kept for the period required by the Finnish Accounting Act. Messages are deleted once the matter has been dealt with, at the latest after two years.</p>
 <h2>Anonymous test data</h2>
 <p>For each registered test, a separate anonymous statistics row is stored for developing the software: the car's make, model and model year, battery type, test type, the month of the test, the odometer reading rounded to the nearest thousand kilometres and the test results. The row contains no report ID, account ID, VIN, registration plate, name of the person who carried out the test or exact time, and it cannot be linked to a report, a car or a person. It is therefore not personal data and is not removed when data is deleted.</p>
+<p>In addition, for every measurement, including interrupted ones, we store anonymously which data the car responded to and which it did not, and the adapter used. Only the first 8 characters of the VIN are stored, which identify the manufacturer and model. The data is used to improve compatibility with different car models.</p>
 <h2>Disclosure and transfers</h2>
 <p>Data is not sold or disclosed for marketing. To verify purchases, the service connects to Google's interface. The server is located in the EU.</p>
 <h2>Cookies and tracking</h2>
@@ -293,6 +295,7 @@ const TEKSTIT = {
 <p>En registrerad rapport sparas så att den kan kontrolleras även senare när bilen säljs, dock högst tio år. Bokföringen av krediter sparas den tid som bokföringslagen kräver. Kontakter raderas när ärendet har behandlats, senast efter två år.</p>
 <h2>Anonyma mätdata</h2>
 <p>För varje registrerat test sparas separat en anonym statistikrad för utveckling av programvaran: bilens märke, modell och årsmodell, batterityp, testtyp, testmånad, mätarställning avrundad till närmaste tusen kilometer och testresultaten. Raden innehåller ingen rapportkod, inget konto-id, inget chassinummer, ingen registreringsskylt, inte namnet på den som utfört testet och ingen exakt tidpunkt, och den kan inte kopplas till en rapport, en bil eller en person. Den är därför inte personuppgifter och raderas inte när uppgifter raderas.</p>
+<p>Dessutom sparas anonymt för varje mätning, även avbrutna, vilka uppgifter bilen svarade på och vilka inte, samt den adapter som användes. Av chassinumret sparas endast de 8 första tecknen, som anger tillverkare och modell. Uppgifterna används för att förbättra kompatibiliteten med olika bilmodeller.</p>
 <h2>Utlämnande och överföringar</h2>
 <p>Uppgifterna säljs inte och lämnas inte ut för marknadsföring. Vid kontrollen av köp kommunicerar tjänsten med Googles gränssnitt. Servern finns inom EU.</p>
 <h2>Kakor och spårning</h2>

@@ -34,6 +34,7 @@ L_SOH = 0x7B2161
 L_VIN = 0x7A2181
 L_ODO = 0x76220E
 
+KUNTO_TUNNISTEET = (L_MAIN, L_SOH)   # kunto: ryhmän 61 kuntoarvio tai ryhmän 01 ampeeritunnit
 TUNNISTEET = [L_MAIN, L_CELLS, L_TEMP, L_SOH, L_ODO, L_VIN]
 PAKOLLISET = [L_MAIN, L_CELLS]
 KUVAUS = {

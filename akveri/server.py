@@ -622,8 +622,22 @@ class Api:
         self.app.recorder.skip_phase()
         return {"ok": True}
 
+    def mittarilukema(self, q, body):
+        km = _num(body.get("mittarilukema"))
+        if km is not None and not (0 < km < 2_000_000):
+            raise ApiError("Tarkista mittarilukema.")
+        try:
+            self.app.recorder.anna_mittarilukema(km)
+        except RuntimeError as e:
+            raise ApiError(str(e), 409) from None
+        return {"ok": True}
+
     def keskeyta(self, q, body):
         tid = self.app.recorder.test_id
+        if tid:
+            from . import kokemukset  # noqa: PLC0415
+            t = self.app.storage.test(tid) or {}
+            kokemukset.tallenna(self.app, "keskeytetty", t.get("tyyppi"), t.get("vehicle_id"))
         self.app.recorder.cancel()
         tila = self.app.peru_lupa(tid, "Mittaus keskeytettiin") if tid else ""
         return {"ok": True, "lupa": tila}
@@ -971,6 +985,7 @@ ROUTES = [
     ("DELETE", r"/api/ajoneuvot/(\d+)", "poista_ajoneuvo"),
     ("POST", r"/api/vin", "vin"), ("GET", r"/api/mallit", "mallit"),
     ("POST", r"/api/mittaukset", "aloita"), ("POST", r"/api/mittaukset/aktiivinen/ohita", "ohita"),
+    ("POST", r"/api/mittaukset/aktiivinen/mittarilukema", "mittarilukema"),
     ("POST", r"/api/mittaukset/aktiivinen/keskeyta", "keskeyta"),
     ("POST", r"/api/mittaukset/aktiivinen/tauko", "tauko"),
     ("POST", r"/api/mittaukset/(\d+)/jatka", "jatka"), ("POST", r"/api/mittaukset/(\d+)/hylkaa", "hylkaa"),

@@ -154,6 +154,8 @@ class App:
         from . import VERSIO
         from .server import platform_name
         if kw.get("tyyppi") == "pikatarkastus" and self.kunto_puuttuu():
+            from . import kokemukset  # noqa: PLC0415
+            kokemukset.tallenna(self, "estetty", "pikatarkastus", kw.get("vehicle_id"))
             raise RuntimeError("Tämä auto ei ilmoita akun kuntoa, joten pikatarkastus ei anna tulosta. "
                                "Akun kunto saadaan kapasiteettimittauksella.")
         try:
@@ -184,7 +186,9 @@ class App:
         tilasto = getattr(src, "kyselytilasto", None) if src and not src.simulated else None
         if not tunnisteet or not tilasto or not getattr(src, "loop_lukittu", False):
             return False
-        return all((tilasto.get(c) or [0, 0])[0] == 0 and (tilasto.get(c) or [0, 0])[1] >= 2 for c in tunnisteet)
+        # Kuntotiedot on kysytty vähintään kahdesti, eikä niistä saatu kuntoa (ei vastausta, kielto tai mahdoton arvo).
+        kysytty = all(sum((tilasto.get(c) or [0, 0])[:2]) >= 2 for c in tunnisteet)
+        return kysytty and self.decoder.state.nfp_kwh is None
 
     def live_kunto_sallittu(self) -> bool:
         src = self.source
@@ -208,6 +212,10 @@ class App:
     def mittaus_valmis(self, tid: int, result: dict):
         """Kutsutaan, kun mittaus on valmis ja analysoitu. Luvallisen mittauksen rekisteröinti vaatii verkkoa, joten se
         tehdään taustalla. Esittelytilan mittaus käsitellään heti."""
+        from . import kokemukset  # noqa: PLC0415
+        from .analysis import uskottavuus  # noqa: PLC0415
+        t0 = self.storage.test(tid) or {}
+        kokemukset.tallenna(self, "hylatty" if uskottavuus(result) else "valmis", t0.get("tyyppi"), t0.get("vehicle_id"))
         if krediittimoduuli.luvan_tila(self.storage.test(tid) or {}) == "varattu":
             threading.Thread(target=self._jalkikasittely, args=(tid, result), name="akveri-valmis", daemon=True).start()
         else:
@@ -292,6 +300,10 @@ class App:
             self._seuraava_rekisterointi = time.time() + 120
             if self.krediitit.odottavat():
                 threading.Thread(target=self._rekisteroi_odottavat, name="akveri-rekisterointi", daemon=True).start()
+            from . import kokemukset  # noqa: PLC0415
+            if kokemukset.odottavia(self.storage):
+                threading.Thread(target=kokemukset.laheta, args=(self.krediitit, self.storage),
+                                 name="akveri-kokemukset", daemon=True).start()
         if self.recorder.active:
             self.recorder.flush()
             if (self.source and not self.source.simulated and self.last_frame_wall

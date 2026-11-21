@@ -201,6 +201,13 @@
       <p><button class="nappi pieni" type="button" id="tilasto-lataa">Lataa CSV-tiedostona</button></p>
     </div>
     <div class="kortti">
+      <h2>Autojen kokemukset</h2>
+      <p class="paivays">Jokaisesta mittauksesta tallennetaan, mihin tietoihin auto vastasi ja mihin ei, myös keskeytetyistä, hylätyistä ja estetyistä mittauksista. Valmistenumerosta tallennetaan vain 8 ensimmäistä merkkiä (valmistaja ja mallikoodi). Rivillä ei ole tiliä, raporttia eikä tarkkaa aikaa. Lataa aineisto JSON-tiedostona, kun haluat selvittää yhteensopivuutta tarkemmin.</p>
+      <p class="paivays" id="kokemus-maara"></p>
+      <div class="taulukko"><table id="kokemustaulu"></table></div>
+      <p><button class="nappi pieni" type="button" id="kokemus-lataa">Lataa JSON-tiedostona</button></p>
+    </div>
+    <div class="kortti">
       <h2>Mittaukset malleittain</h2>
       <p class="paivays">Rekisteröidyt mittaukset anonyymistä aineistosta. Poikkeava kunto tai kapasiteetti uudella mallilla kertoo, että mallin tiedot kannattaa tarkistaa. Tulokset, jotka eivät läpäisseet ohjelman järkevyystarkistusta, eivät ole tässä: niistä tulee automaattinen hyvityspyyntö kohtaan Testit ja hyvitykset.</p>
       <div class="taulukko"><table id="mallitaulu"></table></div>

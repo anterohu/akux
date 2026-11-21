@@ -510,6 +510,7 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
       if (p === '/viestit' && req.method === 'GET') return json(res, 200, { viestit: viestit() });
       // Anonyymi mittausaineisto (ohjelmiston kehittämiseen): ladataan hallinnasta CSV-tiedostona
       if (p === '/tilasto' && req.method === 'GET') return json(res, 200, { rivit: sovellus.tilasto() });
+      if (p === '/kokemukset' && req.method === 'GET') return json(res, 200, { rivit: sovellus.kokemukset() });
       // Tietosuoja: yhteydenotot lähettäjän sähköpostiosoitteella (vienti tai kaikkien poisto)
       if (p === '/tietosuoja/viestit' && req.method === 'GET') return json(res, 200, { viestit: viestitOsoitteella(kysely).map(([id, v]) => ({ id, ...v })) });
       if (p === '/tietosuoja/viestit' && req.method === 'DELETE') {

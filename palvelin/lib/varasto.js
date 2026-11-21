@@ -8,6 +8,7 @@
 //   asetukset.json    yhteystiedot, asiakirjat ja sivuston asetukset (hallinnassa muokattavat)
 //   omistaja.json     hallinnan tunnus (salasanan tiiviste ja kaksivaiheisen tunnistuksen salaisuus)
 //   tilasto.json      anonyymi mittausaineisto ohjelmiston kehittämiseen (ei tunnisteita, satunnainen järjestys)
+//   kokemukset.json   autokohtaiset kokemukset: mihin auto vastasi (ei tunnisteita, satunnainen järjestys)
 //   kirjanpito.jsonl  krediittien kirjanpito: vain lisäyksiä, jokainen rivi ketjutettu edelliseen tiivisteellä
 //
 // Krediittisaldo lasketaan aina kirjanpidosta, ei tallenneta erikseen. Kirjanpitoa ei koskaan muokata:
@@ -18,7 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const TIEDOSTOT = ['tilit', 'testit', 'ostot', 'viestit', 'asetukset', 'omistaja', 'tilasto'];
+const TIEDOSTOT = ['tilit', 'testit', 'ostot', 'viestit', 'asetukset', 'omistaja', 'tilasto', 'kokemukset'];
 const KIRJANPITO = 'kirjanpito.jsonl';
 const VARMUUSKOPIOITA = 30;
 

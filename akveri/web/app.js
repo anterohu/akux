@@ -483,6 +483,7 @@ const PHASE_TEXT_KYSELY = {
   lepo_ajo_loppu: "Pysäköi auto lepojakson ajaksi. Lepo antaa tarkan loppuvarauksen. Älä kytke latausta ennen kuin mittaus on valmis.",
 };
 const PHASE_TEXT = {
+  mittarilukema: ["Mittarilukema", "Auto ei ilmoittanut mittarilukemaa. Kirjoita lukema mittaristosta, niin se tulee raporttiin."],
   keruu: ["Tietoja luetaan", "Ohjelma lukee akunhallinnan tiedot ja kaikkien kennoryhmien jännitteet. Pidä auto paikallaan. Tarkastus kestää yleensä 1–3 minuuttia."],
   lepo_alku: ["Akku lepää ennen latausta", "Pidä auto pysäköitynä ja hereillä, esimerkiksi ilmastointi päällä tai Leiriytymistila käytössä, jotta sovitin saa virtaa. Lepo tasaa kennojännitteet ja antaa tarkan lähtötason. Jos kytket latauksen jo nyt, mittaus siirtyy suoraan lataukseen."],
   odota_lataus: ["Aloita lataus", "Aseta latausrajaksi 100 % Tesla-sovelluksessa tai auton näytöllä. Kytke latauskaapeli ja aloita lataus. Käytä tavallista vaihtovirtalatausta, enintään 11 kW. Pikalatausta ei käytetä, koska suuri virta lisää häviöitä ja lämpenemistä. Ohjelma tunnistaa latauksen alkamisen itse."],
@@ -755,7 +756,21 @@ views.mittaus = {
       const p = Math.min(100, m.odotus_s / m.odotus_tavoite_s * 100);
       prog = `<div class="row small"><span>Seisonta ${dur(m.odotus_s)}</span><span class="spacer"></span><span class="muted">tavoite ${dur(m.odotus_tavoite_s)}</span></div><div class="bar"><i style="width:${p}%"></i></div>`;
     }
-    $("#aProg").innerHTML = prog;
+    if (m.vaihe === "mittarilukema") {
+      // Auto ei ilmoittanut mittarilukemaa: se kysytään ennen raportin tekemistä. Kenttää ei piirretä uudelleen kirjoittaessa.
+      if (!$("#aOdo")) {
+        $("#aProg").innerHTML = `<label class="f"><span>Mittarilukema (km)</span><input id="aOdo" inputmode="numeric" autocomplete="off"></label>
+          <div class="row" style="margin-top:10px"><button class="btn primary" id="aOdoOk">Tee raportti</button><button class="btn" id="aOdoEi">Lukema ei ole tiedossa</button></div>`;
+        const laheta = km => act(() => api("/api/mittaukset/aktiivinen/mittarilukema", { method: "POST", body: { mittarilukema: km } })).then(poll);
+        $("#aOdoOk").onclick = () => {
+          const km = $("#aOdo").value.replace(/\s/g, "");
+          if (!/^\d{1,7}$/.test(km)) return ilmoita("Kirjoita mittarilukema kilometreinä mittaristosta.");
+          laheta(km);
+        };
+        $("#aOdoEi").onclick = () => laheta(null);
+        $("#aOdo").focus();
+      }
+    } else $("#aProg").innerHTML = prog;
     const skip = (SKIP[m.vaihe] || [])[0];
     $("#aSkip").style.display = skip ? "" : "none";
     $("#aSkip").textContent = skip || "";

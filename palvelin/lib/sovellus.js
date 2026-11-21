@@ -221,6 +221,39 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
   }
   function tilasto() { const tl = varasto.get('tilasto'); return Array.isArray(tl.rivit) ? tl.rivit : []; }
 
+  // ---- Autokohtaiset kokemukset: mihin auto vastasi ja mihin ei, jokaisesta mittauksesta lopputuloksesta riippumatta
+  // (valmis, hylätty, keskeytetty, estetty). Ei tunnisteita: valmistenumerosta vain 8 ensimmäistä merkkiä
+  // (valmistaja ja mallikoodi), ei tiliä, raporttia eikä tarkkaa aikaa. Rivit satunnaisessa järjestyksessä.
+  const KOKEMUS_TEKSTIT = { alusta: 10, malli_id: 40, merkki: 40, malli: 80, sovitin: 60, mittaustyyppi: 20, tila: 20, versio: 20, liitanta: 40 };
+  const KOKEMUS_TILAT = new Set(['valmis', 'hylatty', 'keskeytetty', 'estetty']);
+  const KOKEMUS_NIMI = /^[A-Za-z0-9 .:_+\-–()]{1,40}$/;
+  function lisaaKokemus(tili, body) {
+    const b = body && typeof body === 'object' ? body : {};
+    const rivi = { kuukausi: new Date(nyt()).toISOString().slice(0, 7), testi: !!(tili && tili.testitili) };
+    for (const [k, n] of Object.entries(KOKEMUS_TEKSTIT)) if (typeof b[k] === 'string') rivi[k] = yksiRivi(puhdista(b[k], n));
+    if (!KOKEMUS_TILAT.has(rivi.tila)) throw new Virhe('Tuntematon mittauksen tila.');
+    if (typeof b.vin_alku === 'string' && /^[A-HJ-NPR-Z0-9]{8}$/.test(b.vin_alku)) rivi.vin_alku = b.vin_alku;
+    const v = Number(b.vuosimalli); if (Number.isInteger(v) && v >= 1990 && v <= 2100) rivi.vuosimalli = v;
+    for (const k of ['kunto_saatu', 'mittarilukema_autosta', 'vin_autosta']) if (typeof b[k] === 'boolean') rivi[k] = b[k];
+    for (const k of ['kennoryhmat_autosta', 'kennoryhmat_mallissa']) { const n = Number(b[k]); if (Number.isInteger(n) && n >= 0 && n <= 1000) rivi[k] = n; }
+    const kys = {};
+    if (b.kyselyt && typeof b.kyselyt === 'object') {
+      for (const [nimi, x] of Object.entries(b.kyselyt).slice(0, 80)) {
+        if (!KOKEMUS_NIMI.test(nimi) || !x || typeof x !== 'object') continue;
+        const luku = (y, max) => { const n = Number(y); return Number.isInteger(n) && n >= 0 && n <= max ? n : null; };
+        kys[nimi] = { vastauksia: luku(x.vastauksia, 1e7), ei_vastausta: luku(x.ei_vastausta, 1e7), kielto: luku(x.kielto, 255), pituus: luku(x.pituus, 4096) };
+      }
+    }
+    rivi.kyselyt = kys;
+    const ko = varasto.get('kokemukset');
+    if (!Array.isArray(ko.rivit)) ko.rivit = [];
+    ko.rivit.splice(crypto.randomInt(ko.rivit.length + 1), 0, rivi);
+    if (ko.rivit.length > 20000) ko.rivit.splice(0, ko.rivit.length - 20000);
+    varasto.tallenna('kokemukset');
+    return { ok: true };
+  }
+  function kokemukset() { const ko = varasto.get('kokemukset'); return Array.isArray(ko.rivit) ? ko.rivit : []; }
+
   function rekisteroi(tili, body) {
     const t = haeOmaTesti(tili, body.tunnus);
     if (t.tila === 'peruttu' || t.tila === 'mitatoity' || t.tila === 'poistettu') throw new Virhe('Testilupa on peruttu tai poistettu, joten raporttia ei voi rekisteröidä.', 409);
@@ -364,6 +397,7 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
       if (polku === '/api/v1/testi/raportti') return json(res, 200, rekisteroi(tili, body));
       if (polku === '/api/v1/testi/poista-tiedot') return json(res, 200, poistaOmaRaportti(tili, body));
       if (polku === '/api/v1/tili/tiedot') return json(res, 200, tilinTiedot(tili.id));
+      if (polku === '/api/v1/kokemus') return json(res, 200, lisaaKokemus(tili, body));
       if (polku === '/api/v1/tili/poista') {
         if (body.vahvista !== true) throw new Virhe('Vahvista tilin poisto.');
         return json(res, 200, poistaTiliTiedot(tili.id, { raportit: body.raportit === true, syy: 'Tilin omistajan pyyntö' }));
@@ -396,7 +430,7 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
     return maara;
   }
 
-  return { kasittele, tarkistaPerutut, google, julkinenAvain: avain.julkinen, tuotteet, tyhjennaRaportti, poistaTiliTiedot, tilinTiedot, tilasto };
+  return { kasittele, tarkistaPerutut, google, julkinenAvain: avain.julkinen, tuotteet, tyhjennaRaportti, poistaTiliTiedot, tilinTiedot, tilasto, kokemukset };
 }
 
 module.exports = { luoSovellusRajapinta, MITTAUSTYYPIT, OLETUSHINTA, OLETUSHINNAT, muotoileTunnus, normalisoiTunnus, TUNNUS_RE, TILI_RE, OLETUSTUOTTEET, OLETUS_VAHIMMAISVERSIO, vertaaVersioita, VERSIO_RE };

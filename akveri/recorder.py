@@ -130,6 +130,7 @@ class Recorder:
         self.quick_started = None
         self.notes: list[str] = []
         self.finishing = False
+        self.odo_kysytty = False     # mittarilukema kysytty lopussa (auto ei ilmoittanut sitä)
         self.i2_out = 0.0            # ∫ I² dt purussa (A²s)
         self.aukot_s = 0.0           # virtamittauksen katkojen yhteiskesto (s), jota ei voitu integroida
         # Resistanssi lasketaan lyhyistä aikaikkunoista, joissa varaustila ei ehdi muuttua: kunkin ikkunan
@@ -499,6 +500,8 @@ class Recorder:
 
     # ------------------------------------------------------------------
     def _phase_logic(self, t, v, i):
+        if self.vaihe == "mittarilukema":
+            return                   # odotetaan käyttäjän syöttämää mittarilukemaa
         s = self.app.settings
         st = self.app.decoder.state
         if self.tyyppi == PIKA:
@@ -945,7 +948,28 @@ class Recorder:
                 pass
             self.raw = None
 
+    def _mittarilukema_puuttuu(self) -> bool:
+        src = self.app.source
+        if self.odo_kysytty or (src and src.simulated) or self.app.decoder.state.odometer_km:
+            return False
+        return not (self.app.storage.test(self.test_id) or {}).get("mittarilukema")
+
+    def anna_mittarilukema(self, km):
+        """Käyttäjä kirjoitti mittarilukeman mittauksen lopussa (tai ilmoitti, ettei sitä tiedetä). Mittaus päättyy."""
+        with self.lock:
+            if not self.active or self.vaihe != "mittarilukema":
+                raise RuntimeError("Mittarilukemaa ei nyt kysytä.")
+            if km is not None:
+                self.app.storage.update_test(self.test_id, mittarilukema=km)
+            self.odo_kysytty = True
+            self._finish(time.time())
+
     def _finish(self, t):
+        if self._mittarilukema_puuttuu():
+            # Auto ei ilmoittanut mittarilukemaa: se kysytään ennen raportin tekemistä.
+            self.odo_kysytty = True
+            self.vaihe = "mittarilukema"
+            return
         self.finishing = True
         self._flush_reg()
         hk = getattr(self.app.decoder, "hk", None) or {}

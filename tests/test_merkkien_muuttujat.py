@@ -100,3 +100,23 @@ def test_ei_kilpailijoiden_nimia():
     for p in list((juuri / "akveri").rglob("*.py")) + list((juuri / "akveri").rglob("*.json")) + \
             list((juuri / "akveri" / "web").glob("*.*")):
         assert not re.search("AVILOO|Aviloo|Generational|DEKRA", p.read_text(encoding="utf-8", errors="ignore")), p
+
+
+def test_kaikilla_kyselymerkeilla_kuntotiedot_maaritelty():
+    """Jokaiselle kyselyihin perustuvalle merkille on määritelty kuntotiedot, joiden puuttuessa pikatarkastusta ei myydä."""
+    import types
+    from akveri.app import App
+    for m in _mallit():
+        pm = polled.module(m["alusta"])
+        assert getattr(pm, "KUNTO_TUNNISTEET", None), m["alusta"]
+        loop, rare = pm.requests_for(m)
+        kysytyt = {c for _, _, c in loop + rare}
+        assert any(c in kysytyt for c in pm.KUNTO_TUNNISTEET), m["id"]
+        # Auto vastasi muuhun, ei kuntotietoon: kunto puuttuu. Kun kunto on saatu, se ei puutu.
+        tilasto = {c: [0, 3, 0, 0x31] for c in pm.KUNTO_TUNNISTEET}
+        src = types.SimpleNamespace(simulated=False, kyselytilasto=tilasto, loop_lukittu=True)
+        st = types.SimpleNamespace(platform=m["alusta"], nfp_kwh=None)
+        stub = types.SimpleNamespace(source=src, decoder=types.SimpleNamespace(state=st))
+        assert App.kunto_puuttuu(stub), m["id"]
+        st.nfp_kwh = 50.0
+        assert not App.kunto_puuttuu(stub), m["id"]
