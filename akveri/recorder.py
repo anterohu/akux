@@ -17,7 +17,7 @@ TAYSI = "taysi"
 AJO = "ajotesti"
 PIKA_AJO = "pika_ajo"
 KUORMITUS = "kuormitus"
-# Kuormitustestin lähtöehdot (DEKRAn akkutestin vaatimukset): resistanssi riippuu voimakkaasti
+# Kuormitustestin lähtöehdot (alalla käytetyt akkutestin vaatimukset): resistanssi riippuu voimakkaasti
 # lämpötilasta ja varaustilasta, joten mittaus tehdään vain vertailukelpoisissa olosuhteissa.
 KUORMA_SOC = (40.0, 80.0)
 KUORMA_LAMPO = (10.0, 30.0)
@@ -589,7 +589,9 @@ class Recorder:
         counts = [self.brick_acc.get(k, [0, 0])[1] for k in range(1, n + 1)] if n else []
         enough_cells = n > 0 and counts and min(counts) >= 10
         enough_energy = st.nfp_kwh is not None and st.soc_avg is not None
-        if (elapsed >= 60 and enough_cells and enough_energy) or elapsed >= 300:
+        # Jos auto ei ilmoita akun kuntoa lainkaan, sitä ei jäädä odottamaan (tulos hylätään ja krediitit palautetaan).
+        kunto_puuttuu = getattr(self.app, "kunto_puuttuu", lambda: False)()
+        if (elapsed >= 60 and enough_cells and (enough_energy or kunto_puuttuu)) or elapsed >= 300:
             if not enough_cells:
                 self.notes.append("Kaikkien kennoryhmien jännitteitä ei saatu luettua mittausaikana.")
             if not enough_energy:

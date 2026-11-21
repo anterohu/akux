@@ -63,6 +63,19 @@ function pillClass(l) {
     "Poikkeava": "bad", "Takuurajan alittava": "bad" }[l] || "";
 }
 // AKVERIn oma vahvistusikkuna selaimen confirm/alert-ikkunoiden sijaan (niissä näkyisi sivun osoite).
+// Tapahtumat: päivämäärä otsikkona kerran, kellonaika aina samanlevyisessä sarakkeessa. Ei omaa vieritysaluetta.
+function tapahtumalista(rivit) {
+  let pv = null;
+  return `<div class="tapahtumat small">${rivit.map(e => {
+    const d = new Date(e.t * 1000);
+    const p = date(e.t, false);
+    const otsikko = p !== pv ? `<div class="tp-pv muted">${esc(p)}</div>` : "";
+    pv = p;
+    const klo = `${d.getHours()}.${String(d.getMinutes()).padStart(2, "0")}`;
+    return `${otsikko}<div class="tp"><span class="tp-klo muted">${klo}</span><span class="tp-teksti">${esc(e.teksti)}</span></div>`;
+  }).join("")}</div>`;
+}
+
 function kysy(teksti, { ok = "OK", peru = "Peruuta", vaara = false } = {}) {
   return new Promise(valmis => {
     const tausta = document.createElement("div");
@@ -506,17 +519,16 @@ const TESTIRYHMAT = s => [
   ]],
 ];
 const SKIP = {
-  lepo_alku: ["Lyhennä lepoa", "Lyhennetäänkö lepojakso? Lyhyt lepo heikentää tuloksen tarkkuutta."],
-  lataus: ["Lopeta lataus tähän", "Lopetetaanko lataus tähän? Kapasiteetti lasketaan siihen asti mitatusta osuudesta."],
-  lepo_loppu: ["Valmis nyt", "Lopetetaanko lepojakso ja tehdäänkö raportti nyt?"],
-  keruu: ["Valmis nyt", "Lopetetaanko tietojen keruu nyt?"],
-  lepo_ajo_alku: ["Lyhennä lepoa", "Lyhennetäänkö lepojakso? Lyhyt lepo heikentää tuloksen tarkkuutta."],
-  ajo: ["Lopeta ajo tähän", "Lopetetaanko ajo-osuus tähän? Tulos lasketaan siihen asti ajetusta osuudesta, ja lyhyt ajo heikentää tarkkuutta."],
-  lepo_ajo_loppu: ["Valmis nyt", "Lopetetaanko lepojakso ja tehdäänkö raportti nyt? Lyhyt lepo heikentää tuloksen tarkkuutta."],
-  kuorma_lepo: ["Ohita", "Ohitetaanko lepoarvojen lukeminen?"],
-  kuormitus: ["Valmis nyt", "Lopetetaanko kuormitustesti ja tehdäänkö raportti nyt?"],
-  pikalataus: ["Valmis nyt", "Lopetetaanko pikalataustesti ja tehdäänkö raportti nyt?"],
-  lepo_itse_alku: ["Lyhennä lepoa", "Lyhennetäänkö lepojakso? Lähtöarvot luetaan heti."],
+  lepo_alku: ["Lyhennä lepoa", "Lyhennetäänkö lepojakso? Lyhyt lepo heikentää tuloksen tarkkuutta.", "Lyhennä lepoa"],
+  lataus: ["Lopeta lataus tähän", "Lopetetaanko lataus tähän? Kapasiteetti lasketaan siihen asti mitatusta osuudesta.", "Lopeta lataus"],
+  lepo_loppu: ["Valmis nyt", "Lopetetaanko lepojakso ja tehdäänkö raportti nyt?", "Tee raportti nyt"],
+  lepo_ajo_alku: ["Lyhennä lepoa", "Lyhennetäänkö lepojakso? Lyhyt lepo heikentää tuloksen tarkkuutta.", "Lyhennä lepoa"],
+  ajo: ["Lopeta ajo tähän", "Lopetetaanko ajo-osuus tähän? Tulos lasketaan siihen asti ajetusta osuudesta, ja lyhyt ajo heikentää tarkkuutta.", "Lopeta ajo"],
+  lepo_ajo_loppu: ["Valmis nyt", "Lopetetaanko lepojakso ja tehdäänkö raportti nyt? Lyhyt lepo heikentää tuloksen tarkkuutta.", "Tee raportti nyt"],
+  kuorma_lepo: ["Ohita lepoarvot", "Ohitetaanko lepoarvojen lukeminen?", "Ohita lepoarvot"],
+  kuormitus: ["Valmis nyt", "Lopetetaanko kuormitustesti ja tehdäänkö raportti nyt?", "Tee raportti nyt"],
+  pikalataus: ["Valmis nyt", "Lopetetaanko pikalataustesti ja tehdäänkö raportti nyt?", "Tee raportti nyt"],
+  lepo_itse_alku: ["Lyhennä lepoa", "Lyhennetäänkö lepojakso? Lähtöarvot luetaan heti.", "Lyhennä lepoa"],
 };
 
 views.mittaus = {
@@ -631,13 +643,23 @@ views.mittaus = {
     const w = $("#mWarn"), st = $("#mStart");
     if (!w || !st) return;
     let msg = "";
-    if (!S.yhteys.kaynnissa) msg = `<div class="notice warn"><b>Ei yhteyttä autoon.</b> Yhdistä sovittimeen <a href="#/yleiskuva">Yleiskuva</a>-sivulla.</div>`;
+    // Auto ei ilmoita akun kuntoa (esim. akunhallinnan vanha ohjelmistoversio): pikatarkastusta ei voi ostaa.
+    const puuttuu = !!(S.live && S.live.kunto_puuttuu);
+    const pk = $('.choice button[data-t="pikatarkastus"]');
+    if (pk) {
+      pk.classList.toggle("estetty", puuttuu);
+      let h = pk.querySelector(".estoteksti");
+      if (puuttuu && !h) { h = document.createElement("div"); h.className = "estoteksti small"; h.textContent = "Tämä auto ei ilmoita akun kuntoa. Akun kunto saadaan kapasiteettimittauksella."; pk.appendChild(h); }
+      if (!puuttuu && h) h.remove();
+    }
+    if (puuttuu && this.type === "pikatarkastus") msg = `<div class="notice warn"><b>Pikatarkastus ei ole saatavilla tälle autolle.</b> Auton akunhallinta ei ilmoita akun kuntoa. Valitse kapasiteettimittaus.</div>`;
+    else if (!S.yhteys.kaynnissa) msg = `<div class="notice warn"><b>Ei yhteyttä autoon.</b> Yhdistä sovittimeen <a href="#/yleiskuva">Yleiskuva</a>-sivulla.</div>`;
     else if (!S.vaylatesti || !S.vaylatesti.kunnossa) msg = `<div class="notice warn">Odotetaan akun tietoja autosta…</div>`;
     else if (this.type === "kapasiteetti" && S.live.soc_ui > 15) msg = `<div class="notice warn">Akun varaus on ${n(S.live.soc_ui)} %. Tarkin tulos saadaan, kun lataus aloitetaan enintään 15 %:n varauksesta. Voit silti aloittaa mittauksen.</div>`;
     else if ((this.type === "taysi" || this.type === "ajotesti") && S.live.soc_ui != null && S.live.soc_ui < 80) msg = `<div class="notice warn">Akun varaus on ${n(S.live.soc_ui)} %. Tarkin tulos saadaan, kun ajo aloitetaan vähintään 80 %:n varauksesta. Voit silti aloittaa mittauksen.</div>`;
     else if (this.type === "pikalataus" && S.live.soc_ui != null && S.live.soc_ui > 30) msg = `<div class="notice warn">Akun varaus on ${n(S.live.soc_ui)} %. Latauskäyrä saadaan kattavimmin, kun lataus aloitetaan alle 30 %:n varauksesta.</div>`;
     if (w.innerHTML !== msg) w.innerHTML = msg;
-    const ready = S.yhteys.kaynnissa && S.vaylatesti && S.vaylatesti.kunnossa && this.type;
+    const ready = S.yhteys.kaynnissa && S.vaylatesti && S.vaylatesti.kunnossa && this.type && !(puuttuu && this.type === "pikatarkastus");
     st.disabled = !ready;
     const hinta = this.hinnat && this.hinnat[this.type];
     $("#mStartHint").textContent = !this.type ? "Valitse mittauksen tyyppi." : S.yhteys.simuloitu ? "Esittelytilan mittaus ei käytä krediittejä."
@@ -667,8 +689,8 @@ views.mittaus = {
     $("#aPause").onclick = () => act(() => api("/api/mittaukset/aktiivinen/tauko", { method: "POST" }),
       "Mittaus tallennettu. Jatka sitä myöhemmin Mittaus-sivulta.").then(() => { this.lastId = null; poll(); });
     $("#aSkip").onclick = async () => {
-      const q = (SKIP[S.mittaus.vaihe] || [])[1];
-      if (q && !(await kysy(q, { ok: "Ohita" }))) return;
+      const [, q, ok] = SKIP[S.mittaus.vaihe] || [];
+      if (q && !(await kysy(q, { ok, peru: "Jatka mittausta" }))) return;
       act(() => api("/api/mittaukset/aktiivinen/ohita", { method: "POST" })).then(poll);
     };
     if (S.yhteys.simuloitu) { $("#aDemo").innerHTML = demoControls(); bindDemo($("#aDemo")); }
@@ -702,7 +724,9 @@ views.mittaus = {
         </div>${m.tauko ? `<div class="notice warn" style="margin-top:12px">Lataus on keskeytynyt. Mittaus jatkuu, kun lataus jatkuu.</div>` : ""}`;
     } else if (m.vaihe === "keruu") {
       const p = m.kennot_yht ? m.kennot_luettu / m.kennot_yht * 100 : 0;
-      prog = `<div class="row small"><span>Kennoryhmiä luettu ${m.kennot_luettu}/${m.kennot_yht || "–"}</span></div><div class="bar"><i style="width:${p}%"></i></div>`;
+      const kaikki = m.kennot_yht && m.kennot_luettu >= m.kennot_yht;
+      prog = `<div class="row small"><span>Kennoryhmiä luettu ${m.kennot_luettu}/${m.kennot_yht || "–"}</span></div><div class="bar"><i style="width:${p}%"></i></div>
+        <p class="small muted" style="margin-top:8px">${kaikki ? "Kaikki kennoryhmät on luettu. Tarkastus varmistaa vielä lukemat ja valmistuu automaattisesti." : "Tarkastus valmistuu automaattisesti, kun kaikki tiedot on luettu."}</p>`;
     } else if (m.vaihe === "odota_lataus") {
       prog = `<div class="notice">Odotetaan latauksen alkamista. Varaus nyt ${n(L.soc_ui)} %.</div>`;
     } else if (m.vaihe === "ajo") {
@@ -953,7 +977,7 @@ views.mittaukset = {
         <div class="card"><h2>Tietojen eheys</h2><p class="small muted">Kaikki vastaanotetut viestit on tallennettu muuttamattomina. Tarkistus laskee raakadatan tarkisteen uudelleen ja vertaa sitä raporttiin merkittyyn.</p>
           <div class="small" style="word-break:break-all"><span class="muted">Tarkiste</span> ${esc(t.tarkiste || "–")}</div>
           <div class="row" style="margin-top:10px"><button class="btn sm" id="tVerify">Tarkista raakadata</button><a class="btn sm" href="/api/mittaukset/${id}/raakadata.csv.gz">Lataa raakadata</a><span id="tVerRes" class="small"></span></div></div>
-        <div class="card"><h2>Tapahtumat</h2><div class="small" style="max-height:220px;overflow:auto">${(t.tapahtumat || []).map(e => `<div class="row" style="flex-wrap:nowrap;gap:12px;padding:3px 0"><span class="muted" style="min-width:110px">${date(e.t)}</span><span>${esc(e.teksti)}</span></div>`).join("")}</div></div>
+        <div class="card"><h2>Tapahtumat</h2>${tapahtumalista(t.tapahtumat || [])}</div>
       </div>
       ${done ? `<div class="card" style="margin-top:16px"><h2>Tuloksen laskenta</h2>
         <p class="small muted">Tulos on laskettu AKVERIn versiolla ${esc(r.versio || "–")}${r.mittausversio && r.mittausversio !== r.versio ? ` (mittaus tallennettu versiolla ${esc(r.mittausversio)})` : ""}.

@@ -2,7 +2,7 @@
 
 LFP-akun kennojännitteet eroavat täyteen ladattuna ja tyhjän lähellä luonnostaan enemmän kuin
 keskivarauksella. Se ei saa näkyä vikana, mutta todellinen epätasapaino pitää yhä havaita.
-Raja-arvot: normaali alue 15/30/50 mV, jyrkkä alue 50/100 mV (Generational, akkujärjestelmien ohjearvot).
+Raja-arvot: normaali alue 15/30/50 mV, jyrkkä alue 50/100 mV (julkaistut akkutestit, akkujärjestelmien ohjearvot).
 Ajo: python tests/test_kennoarvio.py
 """
 import sys

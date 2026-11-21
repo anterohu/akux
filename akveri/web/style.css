@@ -139,6 +139,8 @@ table.t tr.click:hover td { background: var(--panel-2); }
 }
 .choice button:hover { border-color: var(--muted); }
 .choice button.sel { border-color: var(--accent); background: var(--accent-soft); }
+.choice button.estetty { opacity: .6; }
+.choice button .estoteksti { margin-top: 8px; color: var(--warn, #9a5b00); font-weight: 600; }
 .choice .ttl { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
 .choice .dur { font-size: 12px; color: var(--muted); margin-top: 8px; }
 
@@ -336,3 +338,10 @@ table.khinnat td.num { text-align: right; white-space: nowrap; }
 details summary { cursor: pointer; font-size: 14px; color: var(--accent); padding: 6px 0; }
 @media (max-width: 760px) { .ktuotteet { grid-template-columns: 1fr 1fr; } .vaaravyohyke .btn { width: 100%; min-width: 0; } }
 table.khinnat + p { margin-top: 14px; }
+
+/* Tapahtumat: kellonaika kiinteässä sarakkeessa, teksti rivittyy omassa sarakkeessaan */
+.tapahtumat .tp { display: grid; grid-template-columns: 3.2em 1fr; gap: 10px; padding: 3px 0; }
+.tapahtumat .tp-klo { font-variant-numeric: tabular-nums; text-align: right; }
+.tapahtumat .tp-teksti { min-width: 0; overflow-wrap: anywhere; }
+.tapahtumat .tp-pv { margin: 8px 0 2px; font-weight: 600; }
+.tapahtumat .tp-pv:first-child { margin-top: 0; }

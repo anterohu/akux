@@ -83,3 +83,20 @@ def test_autolistaus_kertoo_estetyt_testit_ilman_yhteytta(tmp_path):
         assert autot["hy-ioniq-38"]["ei_testit"] == ["itsepurkaus", "pikatarkastus"]
     finally:
         app.close() if hasattr(app, "close") else None
+
+
+def test_pikatarkastus_ilman_kuntoa_hylataan_ja_krediitit_palautetaan():
+    """Pikatarkastus, jossa akunhallinta ei ilmoittanut kuntoa, ei läpäise tarkistusta (raporttia ei rekisteröidä)."""
+    syyt = analysis.uskottavuus({"tyyppi": "pikatarkastus", "yhteenveto": {"teksti": "x"}})
+    assert syyt and "kapasiteettimittauksella" in syyt[0]
+    assert not analysis.uskottavuus({"tyyppi": "pikatarkastus", "yhteenveto": {"kunto_pct": 91.0}})
+    # Muissa mittauksissa kunto voi puuttua (esim. kuormitustesti), eikä se ole hylkäysperuste
+    assert not analysis.uskottavuus({"tyyppi": "kuormitus", "yhteenveto": {}})
+
+
+def test_ei_kilpailijoiden_nimia():
+    import re
+    juuri = Path(__file__).resolve().parents[1]
+    for p in list((juuri / "akveri").rglob("*.py")) + list((juuri / "akveri").rglob("*.json")) + \
+            list((juuri / "akveri" / "web").glob("*.*")):
+        assert not re.search("AVILOO|Aviloo|Generational|DEKRA", p.read_text(encoding="utf-8", errors="ignore")), p

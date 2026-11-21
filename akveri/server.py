@@ -246,6 +246,9 @@ class Api:
             v = a.storage.find_vehicle_by_vin(snap["vin"])
             known = {"id": v["id"], "nimi": v["nimi"]} if v else None
         snap["viite_kwh"], snap["viite_lahde"] = self._live_reference(snap, v)
+        if a.kunto_puuttuu():
+            # Auto ei ilmoita akun kuntoa: pikatarkastusta ei myydä. Itse kuntoa ei näytetä ilman maksua.
+            snap["kunto_puuttuu"] = True
         return {
             "nimi": NIMI, "versio": VERSIO, "alusta": platform_name(),
             "yhteys": {

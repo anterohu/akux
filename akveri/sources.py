@@ -366,7 +366,8 @@ class PolledSource(ObdLinkSource):
         self.fc = fc or {}                  # yleiskysely, jonka vastauksen vuonohjaus menee tietylle laitteelle (MG4)
         self.max_gap = 8.0
         self._hdr = None
-        self.kyselytilasto = {}             # virtuaalitunniste -> [vastauksia, ei vastausta, viimeisin pituus]
+        self.kyselytilasto = {}             # virtuaalitunniste -> [vastauksia, ei vastausta, pituus, kieltokoodi]
+        self.viimeisin_kielto = None
 
     def _init_adapter(self):
         self._cmd("ATZ", 3.0)
@@ -381,9 +382,17 @@ class PolledSource(ObdLinkSource):
         self.info = {"sovitin": ident or self._cmd("ATI"), "portti": self.port, "nopeus": self.baud,
                      "lukutapa": "kyselyt"}
         self._hdr = None
+        self._sp = str(self.protocol)
 
     def request(self, header: str, cmd: str) -> bytes | None:
         if header != self._hdr:
+            # 29-bittisellä väylällä (MEB) yksittäinen ohjainlaite voi käyttää 11-bittistä tunnistetta (yhdyskäytävä
+            # 710). Sovitin vaihdetaan sen ajaksi 11-bittiseen tilaan, muuten kysely ei mene perille.
+            if str(self.protocol) == "7":
+                sp = "6" if len(header) == 3 else "7"
+                if sp != getattr(self, "_sp", "7"):
+                    self._cmd(f"ATSP{sp}")
+                    self._sp = sp
             self._cmd(f"ATSH{header}")
             if (header == "7DF" and header not in self.rx) or (header in self.rx and self.rx[header] is None):
                 self._cmd("ATAR")           # yleiskysely: vastaus mistä tahansa ohjainlaitteesta
@@ -397,9 +406,13 @@ class PolledSource(ObdLinkSource):
                 self._cmd("ATFCSM1")
             self._hdr = header
         data = parse_isotp(self._cmd(cmd, 2.0))
+        self.viimeisin_kielto = None
         if not data:
             return None
         sid = int(cmd[:2], 16)
+        if data[0] == 0x7F and len(data) >= 3:
+            self.viimeisin_kielto = data[2]   # ohjainlaitteen kieltävä vastaus (esim. 0x31 = tietoa ei ole)
+            return None
         if data[0] != sid + 0x40:
             return None
         echo = 2 if sid in (0x01, 0x21, 0x09) else 3
@@ -427,9 +440,11 @@ class PolledSource(ObdLinkSource):
                             break
                         data = self.request(header, cmd)
                         now = time.time()
-                        ks = self.kyselytilasto.setdefault(cid, [0, 0, 0])
+                        ks = self.kyselytilasto.setdefault(cid, [0, 0, 0, None])
                         if data is None:
                             ks[1] += 1
+                            if self.viimeisin_kielto is not None:
+                                ks[3] = self.viimeisin_kielto
                         else:
                             ks[0] += 1
                             ks[2] = len(data)

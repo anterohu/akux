@@ -159,7 +159,7 @@ def test_taysi_akkutesti(tmp):
 
 
 def test_kuormitustesti_lahtoehdot(tmp):
-    """Kuormitustesti aloitetaan vain DEKRAn ehdoilla: varaus 40–80 %, akku 10–30 °C, lämpötilaero alle 2 °C."""
+    """Kuormitustesti aloitetaan vain vakioehdoilla: varaus 40–80 %, akku 10–30 °C, lämpötilaero alle 2 °C."""
     for kw, sana in ((dict(soc=0.92), "varaus"), (dict(soc=0.6, temp_c=4.0), "lämpötila")):
         app = _app(tmp)
         src = BatterySimulator(accel=4, weak_cell=None, **kw)

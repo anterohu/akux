@@ -38,6 +38,8 @@ M_ODO = 0x76295A
 M_VIN = 0x76F802
 M_ENERGY = 0x712AB2
 MAX_CELLS = 108
+# Akun kunto saadaan vain näistä tiedoista. Jos auto ei vastaa kumpaankaan, pikatarkastus ei anna tulosta.
+KUNTO_TUNNISTEET = (M_SOH, M_ENERGY)
 
 TUNNISTEET = [M_V, M_I, M_SOC, M_TMAX, M_TMIN, M_CELL0, M_LIFE, M_SOH, M_ENERGY, M_ODO, M_VIN]
 PAKOLLISET = [M_V, M_I, M_SOC, M_CELL0]

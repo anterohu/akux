@@ -153,6 +153,9 @@ class App:
             return tid
         from . import VERSIO
         from .server import platform_name
+        if kw.get("tyyppi") == "pikatarkastus" and self.kunto_puuttuu():
+            raise RuntimeError("Tämä auto ei ilmoita akun kuntoa, joten pikatarkastus ei anna tulosta. "
+                               "Akun kunto saadaan kapasiteettimittauksella.")
         try:
             lupa = self.krediitit.varaa(VERSIO, platform_name(), str(kw.get("tyyppi") or ""))
         except krediittimoduuli.PalveluVirhe as e:
@@ -171,6 +174,17 @@ class App:
             " (testitili: ei kuluta krediittiä, raportti merkitään testimittaukseksi)" if lupa.get("testi") else f" (krediittejä jäljellä {lupa.get('saldo')})"))
         _keep_awake(True)
         return tid
+
+    def kunto_puuttuu(self) -> bool:
+        """True, kun auto on vastannut kyselyihin mutta ei yhteenkään akun kunnon kyselyyn (esim. vanha ohjelmistoversio)."""
+        from . import polled  # noqa: PLC0415
+        src = self.source
+        pm = polled.module(self.decoder.state.platform)
+        tunnisteet = getattr(pm, "KUNTO_TUNNISTEET", None) if pm else None
+        tilasto = getattr(src, "kyselytilasto", None) if src and not src.simulated else None
+        if not tunnisteet or not tilasto or not getattr(src, "loop_lukittu", False):
+            return False
+        return all((tilasto.get(c) or [0, 0])[0] == 0 and (tilasto.get(c) or [0, 0])[1] >= 2 for c in tunnisteet)
 
     def live_kunto_sallittu(self) -> bool:
         src = self.source

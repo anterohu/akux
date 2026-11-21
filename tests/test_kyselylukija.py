@@ -554,3 +554,107 @@ def test_yhteystesti_vaatii_kennot_kyselymerkeilla():
     dec.feed(2.0, hkmc.P_CELLS[2], hkmc.encode_cells([3.77] * 24))
     vt = Api._bus_verdict(api)
     assert vt["kunnossa"], vt["puuttuvat"]
+
+
+def _meb_auto(soh_vastaa: bool, energia_vastaa: bool):
+    """Simuloitu MEB-auto. Yhdyskäytävä (710) vastaa vain 11-bittisessä tilassa, kuten oikea auto. Kuntoarvioon
+    vastataan tarvittaessa kieltävällä vastauksella (7F 22 31), kuten akunhallinnan vanhat ohjelmistoversiot."""
+    from akveri import meb
+
+    class FakeMeb2(FakeHk):
+        sp = "7"
+
+        def write(self, data):
+            self.cmd += data
+            while b"\r" in self.cmd:
+                c, self.cmd = self.cmd.split(b"\r", 1)
+                c = c.decode().strip()
+                if not c:
+                    continue
+                FakeHk.commands.append(c)
+                if c.startswith("ATSP"):
+                    FakeMeb2.sp, resp = c[4:], "OK"
+                elif c.startswith("ATSH"):
+                    self.hdr, resp = c[4:], "OK"
+                elif c.startswith(("AT", "ST")):
+                    resp = {"ATI": "ELM327 v1.4b", "STI": "STN2255 v5.10.3", "ATZ": "\r\rELM327 v1.4b"}.get(c, "OK")
+                else:
+                    p = self._vastaus(c)
+                    resp = isotp_text(p) if p else "NO DATA"
+                with self.lock:
+                    self.buf += (resp + "\r\r>").encode()
+
+        def _vastaus(self, cmd):
+            pid = int(cmd[2:], 16)
+            echo = bytes([0x62]) + bytes.fromhex(cmd[2:])
+            yksitoista = FakeMeb2.sp == "6"
+            if self.hdr == "710":
+                if not yksitoista:
+                    return None
+                return echo + meb.encode(meb.M_ENERGY, kwh=70.5) if energia_vastaa else bytes([0x7F, 0x22, 0x31])
+            if yksitoista:
+                return None                       # 29-bittiset ohjainlaitteet eivät kuule 11-bittistä tilaa
+            if self.hdr == "17FC007B":
+                if 0x1E40 <= pid <= 0x1E9F:
+                    return echo + meb.encode(meb.M_CELL0 + pid - 0x1E40, v=3.9)
+                if pid == 0x50CE:
+                    return echo + meb.encode(meb.M_SOH, soh=88.0) if soh_vastaa else bytes([0x7F, 0x22, 0x31])
+                vals = {0x1E3B: (meb.M_V, {"v": 400.0}), 0x1E3D: (meb.M_I, {"i": -0.8}),
+                        0x028C: (meb.M_SOC, {"soc": 95.6}), 0x1E0E: (meb.M_TMAX, {"c": 3.0}),
+                        0x1E0F: (meb.M_TMIN, {"c": 2.0})}
+                if pid in vals:
+                    cid, kw = vals[pid]
+                    return echo + meb.encode(cid, **kw)
+            return None
+
+    fake = types.ModuleType("serial")
+    fake.Serial = FakeMeb2
+    sys.modules["serial"] = fake
+    FakeHk.commands.clear()
+    from akveri import profiles
+    from akveri.sources import PolledSource
+    m = profiles.get("vw-meb-77")
+    dec = TeslaDecoder()
+    dec.configure("meb", **meb.decoder_opts(m))
+    loop, rare = meb.requests_for(m)
+    src = PolledSource("COM7", loop=loop, rare=rare, rx=meb.RX, protocol=meb.PROTOKOLLA, rare_every=0.5)
+    return src, dec
+
+
+def test_meb_yhdyskaytava_luetaan_11_bittisena():
+    """Akun energiasisältö kysytään yhdyskäytävältä 11-bittisenä; sen jälkeen palataan 29-bittiseen tilaan."""
+    from akveri import meb
+    src, dec = _meb_auto(soh_vastaa=False, energia_vastaa=True)
+    src.start(dec.feed)
+    end = time.time() + 20
+    while time.time() < end and not (dec.state.nfp_kwh and len(dec.state.bricks) >= 96):
+        time.sleep(0.1)
+    src.stop()
+    cmds = FakeHk.commands
+    assert dec.state.nfp_kwh and abs(dec.state.nfp_kwh - 70.5) < 0.01, dec.state.nfp_kwh
+    i = cmds.index("ATSH710")
+    assert "ATSP6" in cmds[:i] and "ATSP7" in cmds[i:]
+    assert src.kyselytilasto[meb.M_SOH][3] == 0x31          # kieltävä vastaus tallentuu
+
+
+def test_meb_kunto_puuttuu_estaa_pikatarkastuksen():
+    """Auto vastaa muuhun mutta ei kumpaankaan kuntotietoon: pikatarkastusta ei voi aloittaa."""
+    from akveri.app import App
+    src, dec = _meb_auto(soh_vastaa=False, energia_vastaa=False)
+    src.start(dec.feed)
+    stub = types.SimpleNamespace(source=src, decoder=dec)
+    end = time.time() + 20
+    while time.time() < end and not App.kunto_puuttuu(stub):
+        time.sleep(0.1)
+    src.stop()
+    assert App.kunto_puuttuu(stub)
+    # Kun kuntoarvio saadaan, pikatarkastus on sallittu
+    src2, dec2 = _meb_auto(soh_vastaa=True, energia_vastaa=False)
+    src2.start(dec2.feed)
+    stub2 = types.SimpleNamespace(source=src2, decoder=dec2)
+    end = time.time() + 20
+    while time.time() < end and not dec2.state.bms_soh_pct:
+        time.sleep(0.1)
+    time.sleep(1.5)
+    src2.stop()
+    assert dec2.state.bms_soh_pct == 88.0 and not App.kunto_puuttuu(stub2)

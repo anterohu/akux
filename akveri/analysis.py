@@ -9,7 +9,7 @@ from . import VERSIO, profiles
 from . import vin as vinmod
 
 TARKKUUSRAJA_PCT = 3.0   # päätuloksen suurin sallittu epävarmuus (kunto, %-yksikköä)
-# Akun kunnon luokat AVILOOn käytännön mukaan: vähintään 90 % erinomainen (vihreä), 80–90 % hyvä,
+# Akun kunnon luokat alalla vakiintuneen luokituksen mukaan: vähintään 90 % erinomainen (vihreä), 80–90 % hyvä,
 # alle 80 % heikentynyt (punainen merkintä). Alle 70 % alittaa Teslan akkutakuun rajan.
 SOH_LUOKAT = [(90, "Erinomainen"), (80, "Hyvä"), (70, "Heikentynyt"), (0, "Takuurajan alittava")]
 
@@ -21,7 +21,7 @@ def soh_class(pct):
     return SOH_LUOKAT[-1][1]
 
 
-# Kennoryhmien jännite-eron luokat (mV, levossa). Lähteet: Generational-yhtiön noin 10 000 käytetyn
+# Kennoryhmien jännite-eron luokat (mV, levossa). Lähteet: julkaistu noin 10 000 käytetyn
 # sähköauton akkutestin aineisto (tyypillinen ero noin 8 mV, yli 50 mV vaatii selvittelyä, yli 100 mV
 # viittaa vikaan) sekä akkujärjestelmien täyden latauksen ohjearvot (enintään 30 mV hyväksyttävä,
 # vähintään 50 mV vaatii tasauslatauksen).
@@ -329,7 +329,9 @@ def _platform_notes(model, platform, ref_src, last) -> list[str]:
     pm = polled.module(platform)
     if pm:
         gen = MERKKI_GEN.get((model or {}).get("merkki"), "Auton")
-        if getattr(pm, "SOH_HUOM", None) and not _soh_jumissa_alusta(platform, (last or {}).get("bms_soh_pct")):
+        # Huomautus kuntoarvion lähteestä näytetään vain, kun akunhallinta ilmoitti kunnon tai energiasisällön.
+        if getattr(pm, "SOH_HUOM", None) and (last or {}).get("nfp_kwh") \
+                and not _soh_jumissa_alusta(platform, (last or {}).get("bms_soh_pct")):
             out.append(pm.SOH_HUOM.format(gen=gen))
         if getattr(pm, "KENNO_HUOM", None):
             out.append(pm.KENNO_HUOM.format(gen=gen))
@@ -363,6 +365,10 @@ def uskottavuus(r: dict | None) -> list[str]:
     if kwh and uutena and kwh > uutena * USKOTTAVA_KAPASITEETTI_YLI:
         syyt.append(f"Mitattu kapasiteetti {fmt(kwh)} kWh on selvästi suurempi kuin akku uutena ({fmt(uutena)} kWh). "
                     "Tarkista, että auton malli ja akun koko on valittu oikein.")
+    if r.get("tyyppi") == "pikatarkastus" and kunto is None:
+        # Pikatarkastuksen päätulos on akunhallinnan kuntoarvio. Ilman sitä tulos ei vastaa sitä, mistä maksettiin.
+        syyt.append("Auton akunhallinta ei ilmoittanut akun kuntoa, joten pikatarkastuksen tulosta ei saatu. "
+                    "Akun kunto saadaan kapasiteettimittauksella.")
     k = r.get("kennot") or {}
     if k.get("lkm"):
         lo, hi = k.get("min_v"), k.get("max_v")
@@ -472,7 +478,8 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
             "malli": (model or {}).get("nimi"),
             "kemia": chem_key,
             "kemia_nimi": profiles.chemistry(chem_key)["nimi"],
-            "kennovalmistaja": (model or {}).get("kennovalmistaja"),
+            # Valmistaja näytetään vain, kun se on mallille yksiselitteinen (ei vaihtoehtojen luetteloa).
+            "kennovalmistaja": (lambda k: k if k and "/" not in k else None)((model or {}).get("kennovalmistaja")),
             "kennotyyppi": (model or {}).get("kennotyyppi"),
             "kennoryhmat": brick_count,
             "tunnistus": reasons,
@@ -1153,7 +1160,7 @@ def interpretation(soh, cs, cap) -> str:
     if cs and cs["luokka"] in ("Tyydyttävä", "Poikkeava"):
         t += " Kennoryhmien jännite-ero on tavanomaista suurempi, joten akku kannattaa tarkistaa uudelleen täyden latauksen ja levon jälkeen."
     hr = (cap or {}).get("heikoin_ryhma")
-    # Yli 100 mV:n poikkeama tyhjän lähellä viittaa vikaan (Generational, käytettyjen sähköautojen akkutestit)
+    # Yli 100 mV:n poikkeama tyhjän lähellä viittaa vikaan (julkaistut käytettyjen sähköautojen akkutestit)
     if hr and hr.get("poikkeama_mv", 0) < -100:
         t += f" Kennoryhmä {hr['nro']} poikkeaa muista matalassa varauksessa, ja sen kehitystä kannattaa seurata seuraavissa mittauksissa."
     return t
