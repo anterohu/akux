@@ -64,7 +64,8 @@ Katso `server.js`:n alku. Hallintatyökalu kirjoittaa ne tiedostoon `/etc/akveri
 ```
 node palvelin/server.js                 # http://127.0.0.1:3200
 node --test palvelin/testit/*.test.js   # testit
-node palvelin/kokoa.js                  # julkaisupaketti palvelin/dist/akveri-palvelin-<versio>.zip
+node palvelin/kokoa.js                  # palvelinpaketti palvelin/dist/akveri-palvelin-<versio>.zip
+node palvelin/kokoa-oksa.js             # Hallintatyökalun paketti palvelin/dist/akveri-<versio>.zip (palvelinpaketti mukana)
 ```
 
 Palvelimen versio (`package.json`) on aina sama kuin sovelluksen versio (`akveri/__init__.py`). `kokoa.js` ei tee pakettia, jos ne eroavat.

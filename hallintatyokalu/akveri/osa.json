@@ -1,0 +1,14 @@
+{
+  "osa": "akveri",
+  "nimi": "AKVERI",
+  "jarjestys": 2,
+  "versio": "2.0.11",
+  "vaatiiRunko": "1.0.0",
+  "kuvaus": "Sähköauton akun kuntomittaus: akveri.fi-palvelin, sen käyttäjät ja päivitykset.",
+  "logo": "logo.svg",
+  "teema": "akveri",
+  "selain": [
+    "tyyli.css",
+    "nakyma.js"
+  ]
+}

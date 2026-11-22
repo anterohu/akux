@@ -1,0 +1,3 @@
+/* akveri/tyyli.css — AKVERI-lohkon värit Hallintatyökalussa (sininen #1F4E79 ja vihreä #6CC193). */
+body[data-lohko="akveri"] .yläpalkki { background: #1F4E79; border-bottom-color: #6CC193; }
+body[data-lohko="akveri"] .lohkot .lohko.valittu { color: #1F4E79; }

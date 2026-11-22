@@ -45,28 +45,6 @@ function huoltoSivu(viesti) {
 <body class="huoltosivu"><main class="leveys huolto"><h1>Huoltokatko</h1><p>${e(viesti)}</p><p lang="en">The service is temporarily down for maintenance. Please try again soon.</p><p lang="sv">Tjänsten är tillfälligt stängd för underhåll. Försök igen snart.</p></main></body></html>`;
 }
 
-// Päivityspaketin mukana tulevat sovellustiedostot (Windows-asennus, Android-sovellus) siirretään Omat lataukset
-// -kansioon. Saman sovelluksen vanhat versiot poistetaan, joten kansioon ei kerry vanhoja tiedostoja.
-function siirraLataukset(lahde, kohde) {
-  let nimet;
-  try { nimet = fs.readdirSync(lahde).filter(n => /^AKVERI-[A-Za-z0-9._-]+\.(exe|apk|aab)$/.test(n)); } catch (e) { return []; }
-  if (!nimet.length) return [];
-  fs.mkdirSync(kohde, { recursive: true });
-  const laji = (n) => n.replace(/-\d+(\.\d+)*\.(exe|apk|aab)$/, '.$2');
-  const uudet = new Set(nimet.map(laji));
-  for (const vanha of fs.readdirSync(kohde)) {
-    if (/^AKVERI-/.test(vanha) && uudet.has(laji(vanha)) && !nimet.includes(vanha)) fs.rmSync(path.join(kohde, vanha), { force: true });
-  }
-  for (const n of nimet) {
-    const k = path.join(kohde, n);
-    const l = path.join(lahde, n);
-    if (fs.existsSync(k) && fs.statSync(k).size === fs.statSync(l).size) continue;
-    fs.copyFileSync(l, k + '.osittainen');
-    fs.renameSync(k + '.osittainen', k);
-  }
-  return nimet;
-}
-
 function luoPalvelin({ env = process.env, nyt = () => Date.now(), haku, postiLahetin } = {}) {
   env = { ...env, AKVERI_VERSIO: env.AKVERI_VERSIO || VERSIO };
   const varasto = new Varasto(env.DB_DIR || path.join(__dirname, 'data'), { nyt, varmuuskopiokansio: env.AKVERI_VARMUUSKOPIOT });
@@ -75,7 +53,6 @@ function luoPalvelin({ env = process.env, nyt = () => Date.now(), haku, postiLah
   const postitus = luoPostitus(varasto, postiLahetin ? { lahetin: postiLahetin } : {});
   const sovellus = luoSovellusRajapinta({ varasto, google, env, nyt, rajoitin, postitus });
   const hallinta = luoHallinta({ varasto, sovellus, env, nyt, rajoitin, postitus });
-  siirraLataukset(path.join(__dirname, 'lataukset'), hallinta.latauskansio);
 
   function staattinen(req, res, polku) {
     let nimi = SIVUT[polku];
@@ -148,7 +125,7 @@ function luoPalvelin({ env = process.env, nyt = () => Date.now(), haku, postiLah
   return palvelin;
 }
 
-module.exports = { siirraLataukset, luoPalvelin, VERSIO };
+module.exports = { luoPalvelin, VERSIO };
 
 if (require.main === module) {
   const portti = Number(process.env.PORT || 3200);

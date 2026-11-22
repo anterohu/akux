@@ -14,7 +14,7 @@ Muut merkit (versiosta 1.8 alkaen): Hyundai Ioniq Electric, Kona Electric, Ioniq
 
 **Raportin tarkistus:** jokaisella mittauksella on tunnus (esim. AK-7H2QK-M4XPC). Raportin QR-koodi avaa sivun akveri.fi/v/tunnus, jolla vastaanottaja näkee rekisteröidyt tulokset. Mittauksen aloittaminen vaatii verkkoyhteyden. Valmis raportti rekisteröidään automaattisesti, tarvittaessa heti kun yhteys palaa.
 
-**akveri.fi-palvelin:** kansio `palvelin/` (ks. `palvelin/README.md`). Hallintatyökalun AKVERI-välilehdeltä viedään päivityspaketti `akveri-paivitys-x.y.z.zip`: se päivittää palvelimen ja vie Windows-asennuksen ja Android-sovelluksen Omiin latauksiin. Paketti `akveri-palvelin-x.y.z.zip` sisältää pelkän palvelimen.
+**akveri.fi-palvelin:** kansio `palvelin/` (ks. `palvelin/README.md`). GitHubin julkaisussa on Hallintatyökalun paketti `akveri-x.y.z.zip`, joka viedään kohdasta AKVERI → Päivitys. Se päivittää Hallintatyökalun AKVERI-näkymän (kansio `hallintatyokalu/akveri/`) ja tuo akveri.fi-palvelimen uuden version pakettilistaan.
 
 **Tuetut sovittimet:** OBDLink EX ja SX (USB) sekä OBDLink MX+ ja LX (Bluetooth). Bluetooth-sovitin paritetaan ensin Windowsin tai puhelimen Bluetooth-asetuksista, minkä jälkeen se näkyy AKVERIn sovitinlistassa. Tavalliset ELM327-sovittimet eivät pysy Teslan väylän perässä, joten AKVERI ei hyväksy niitä. OBDLink CX (Bluetooth Low Energy) ei ole vielä tuettu.
 

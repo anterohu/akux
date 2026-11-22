@@ -747,44 +747,6 @@ test('oletushinnat ja krediittipaketit: lyhyet testit 1, ajo- ja itsepurkaustest
   assert.deepEqual(d.hinnat, { pikatarkastus: 1, kapasiteetti: 3, taysi: 4, ajotesti: 2, pika_ajo: 1, kuormitus: 1, pikalataus: 1, itsepurkaus: 2 });
 });
 
-test('päivityspaketti sisältää sovellustiedostot ja palvelin siirtää ne Omiin latauksiin', async (t) => {
-  const { siirraLataukset } = require('../server');
-  const v = require('../package.json').version;
-  const kansio = fs.mkdtempSync(path.join(os.tmpdir(), 'akveri-paivitys-'));
-  t.after(() => fs.rmSync(kansio, { recursive: true, force: true }));
-  const sov = path.join(kansio, 'sovellukset');
-  fs.mkdirSync(sov);
-  fs.writeFileSync(path.join(sov, `AKVERI-asennus-${v}.exe`), 'exe');
-  fs.writeFileSync(path.join(sov, `AKVERI-${v}.apk`), 'apk');
-  fs.writeFileSync(path.join(sov, `AKVERI-${v}.aab`), 'aab');          // Play Consoleen, ei pakettiin
-  fs.writeFileSync(path.join(sov, 'AKVERI-asennus-0.0.1.exe'), 'vanha'); // väärä versio, ei pakettiin
-  const tulos = kokoa(kansio, sov);
-  assert.ok(tulos.polku.endsWith(`akveri-paivitys-${v}.zip`));
-  const zip = fs.readFileSync(tulos.polku);
-  const eocd = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
-  let p = zip.readUInt32LE(eocd + 16); const nimet = []; let manifest;
-  for (let i = 0; i < zip.readUInt16LE(eocd + 10); i++) {
-    const koko = zip.readUInt32LE(p + 20), np = zip.readUInt16LE(p + 28), paikka = zip.readUInt32LE(p + 42);
-    const nimi = zip.toString('utf8', p + 46, p + 46 + np); nimet.push(nimi);
-    if (nimi === 'manifest.json') { const a = paikka + 30 + zip.readUInt16LE(paikka + 26) + zip.readUInt16LE(paikka + 28); manifest = JSON.parse(zlib.inflateRawSync(zip.subarray(a, a + koko))); }
-    p += 46 + np + zip.readUInt16LE(p + 30) + zip.readUInt16LE(p + 32);
-  }
-  assert.deepEqual(nimet.filter(n => n.startsWith('lataukset/')).sort(), [`lataukset/AKVERI-${v}.apk`, `lataukset/AKVERI-asennus-${v}.exe`]);
-  assert.equal(manifest.tuote, 'akveri-palvelin');
-  assert.ok(manifest.tiedostot[`lataukset/AKVERI-asennus-${v}.exe`] && manifest.tiedostot['server.js']);
-
-  // Palvelin siirtää tiedostot ja poistaa saman sovelluksen vanhat versiot, muut tiedostot jäävät
-  const lahde = path.join(kansio, 'lahde'); const kohde = path.join(kansio, 'kohde');
-  fs.mkdirSync(lahde); fs.mkdirSync(kohde);
-  fs.writeFileSync(path.join(lahde, `AKVERI-asennus-${v}.exe`), 'uusi');
-  fs.writeFileSync(path.join(kohde, 'AKVERI-asennus-1.0.0.exe'), 'vanha');
-  fs.writeFileSync(path.join(kohde, 'muu-tiedosto.zip'), 'oma');
-  siirraLataukset(lahde, kohde);
-  assert.deepEqual(fs.readdirSync(kohde).sort(), [`AKVERI-asennus-${v}.exe`, 'muu-tiedosto.zip']);
-  assert.equal(fs.readFileSync(path.join(kohde, `AKVERI-asennus-${v}.exe`), 'utf8'), 'uusi');
-  assert.deepEqual(siirraLataukset(path.join(kansio, 'ei-ole'), kohde), []);
-});
-
 test('autojen kokemukset: tunnisteet karsitaan ja aineisto näkyy hallinnassa', async (t) => {
   const { pyynto, aika } = await kaynnista(t);
   const tili = (await pyynto('/api/v1/tili', { method: 'POST' })).d;

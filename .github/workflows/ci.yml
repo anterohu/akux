@@ -70,12 +70,12 @@ jobs:
       - name: Krediitit ja testiluvat päästä päähän
         run: python tests/test_krediitit.py
         timeout-minutes: 15
-      - name: Julkaisupaketti
-        run: node palvelin/kokoa.js .
+      - name: Hallintatyökalun AKVERI-paketti
+        run: node palvelin/kokoa-oksa.js .
       - uses: actions/upload-artifact@v4
         with:
-          name: akveri-palvelin
-          path: akveri-palvelin-*.zip
+          name: akveri-hallintatyokalu
+          path: akveri-*.zip
 
   testityypit:
     name: Testityypit, autot ja akkukemiat
@@ -365,17 +365,12 @@ jobs:
           name: AKVERI-windows
       - uses: actions/download-artifact@v4
         with:
-          name: akveri-palvelin
+          name: akveri-hallintatyokalu
       - name: Lue versio
         run: |
           V=$(python3 -c "import re;print(re.search(r'VERSIO = \"([^\"]+)\"', open('akveri/__init__.py').read()).group(1))")
           echo "VERSIO=$V" >> $GITHUB_ENV
           ls -la
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Hallintatyökalun päivityspaketti
-        run: node palvelin/kokoa.js . .
       - name: Julkaise
         uses: softprops/action-gh-release@v2
         with:
@@ -386,14 +381,13 @@ jobs:
             Sisäinen julkaisu. Asiakkaat asentavat AKVERIn Google Playsta, eikä näitä tiedostoja jaeta asiakkaille.
 
             **Google Play:** AKVERI-${{ env.VERSIO }}.aab ladataan Play Consoleen (Tuotanto → Luo uusi julkaisu).
-            **Hallintatyökalu:** akveri-paivitys-${{ env.VERSIO }}.zip viedään Hallintatyökalun AKVERI-välilehdeltä. Se päivittää akveri.fi-palvelimen ja vie Windows-asennuksen ja Android-sovelluksen Omiin latauksiin samalla kertaa.
-            **Pelkkä palvelin:** akveri-palvelin-${{ env.VERSIO }}.zip sisältää vain palvelimen, ilman sovellustiedostoja.
+            **Hallintatyökalu:** akveri-${{ env.VERSIO }}.zip viedään kohdasta AKVERI → Päivitys. Se päivittää AKVERI-näkymän ja tuo akveri.fi-palvelimen uuden version pakettilistaan, josta se viedään palvelimelle.
+            **Windows (omaan käyttöön):** AKVERI-asennus-${{ env.VERSIO }}.exe.
 
             Ennen julkaisua on ajettu kaikki testit, Windows-asennus ja päivitys oikealla Windows-koneella sekä Android-sovelluksen kokonaistesti emulaattorissa.
           files: |
             AKVERI-*.apk
             AKVERI-*.aab
             AKVERI-asennus-*.exe
-            akveri-palvelin-*.zip
-            akveri-paivitys-*.zip
+            akveri-*.zip
           overwrite_files: true
