@@ -61,14 +61,14 @@ def test_jumissa_oleva_kuntoarvio_tunnistetaan_vain_hkmc_alustalla():
 
 
 def test_epatodelliset_testit_rajattu_malleittain():
-    assert set(hkmc.EI_TESTIT) == {"pikatarkastus", "itsepurkaus"}
+    assert set(hkmc.EI_TESTIT) == {"pikatarkastus", "pika_ajo", "itsepurkaus"}
     from akveri import leaf, meb, mg
     assert set(mg.EI_TESTIT) == {"itsepurkaus"}
     assert not getattr(leaf, "EI_TESTIT", None) and not getattr(meb, "EI_TESTIT", None)
     # Tilannekuva kertoo käyttöliittymälle, mitkä testit piilotetaan
     dec = Decoder()
     dec.configure("hkmc", **hkmc.decoder_opts(profiles.get("hy-ioniq-38")))
-    assert dec.snapshot()["ei_testit"] == ["itsepurkaus", "pikatarkastus"]
+    assert dec.snapshot()["ei_testit"] == ["itsepurkaus", "pika_ajo", "pikatarkastus"]
 
 
 def test_autolistaus_kertoo_estetyt_testit_ilman_yhteytta(tmp_path):
@@ -80,7 +80,7 @@ def test_autolistaus_kertoo_estetyt_testit_ilman_yhteytta(tmp_path):
         app.storage.add_vehicle({"nimi": "Ioniq", "malli_id": "hy-ioniq-38"})
         app.storage.add_vehicle({"nimi": "Leaf", "malli_id": profiles.models()[0]["id"]})
         autot = {v["malli_id"]: v for v in Api(app).ajoneuvot({}, {})["ajoneuvot"]}
-        assert autot["hy-ioniq-38"]["ei_testit"] == ["itsepurkaus", "pikatarkastus"]
+        assert autot["hy-ioniq-38"]["ei_testit"] == ["itsepurkaus", "pika_ajo", "pikatarkastus"]
     finally:
         app.close() if hasattr(app, "close") else None
 
@@ -88,8 +88,9 @@ def test_autolistaus_kertoo_estetyt_testit_ilman_yhteytta(tmp_path):
 def test_pikatarkastus_ilman_kuntoa_hylataan_ja_krediitit_palautetaan():
     """Pikatarkastus, jossa akunhallinta ei ilmoittanut kuntoa, ei läpäise tarkistusta (raporttia ei rekisteröidä)."""
     syyt = analysis.uskottavuus({"tyyppi": "pikatarkastus", "yhteenveto": {"teksti": "x"}})
-    assert syyt and "kapasiteettimittauksella" in syyt[0]
+    assert syyt and "kapasiteettimittauksella" in syyt[-1]
     assert not analysis.uskottavuus({"tyyppi": "pikatarkastus", "yhteenveto": {"kunto_pct": 91.0}})
+    assert analysis.uskottavuus({"tyyppi": "pika_ajo", "yhteenveto": {}})
     # Muissa mittauksissa kunto voi puuttua (esim. kuormitustesti), eikä se ole hylkäysperuste
     assert not analysis.uskottavuus({"tyyppi": "kuormitus", "yhteenveto": {}})
 

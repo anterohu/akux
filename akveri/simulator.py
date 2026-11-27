@@ -41,6 +41,9 @@ ESITTELYAUTOT = {
     "ioniq-28": {"nimi": "Hyundai Ioniq Electric 28 kWh 2018 (NMC)", "malli_id": "hy-ioniq-28",
                  "opts": {"chem": "NMC", "cells": 96, "nfp_kwh": 25.9, "bol_kwh": 28.0, "weak_cell": 12,
                           "vin": "KMHC851HFJU123456"}},
+    "ioniq-38": {"nimi": "Hyundai Ioniq Electric 38,3 kWh 2020 (NMC)", "malli_id": "hy-ioniq-38",
+                 "opts": {"chem": "NMC", "cells": 88, "nfp_kwh": 34.5, "bol_kwh": 38.3, "weak_cell": 30,
+                          "bms_soh": 100.0, "vin": "KMHC851HFLU123456"}},
     "ev6-77": {"nimi": "Kia EV6 77,4 kWh 2022 (NMC, 800 V)", "malli_id": "kia-ev6-77",
                "opts": {"chem": "NMC", "cells": 192, "nfp_kwh": 74.3, "bol_kwh": 77.4, "weak_cell": 150,
                         "vin": "KNACC81GFN5123456"}},
@@ -422,10 +425,11 @@ class BatterySimulator(Source):
 class HkmcSimulator(BatterySimulator):
     """Hyundai ja Kia: akunhallinta vastaa kyselyihin (simuloitu vastaus samassa muodossa kuin oikea auto)."""
 
-    def __init__(self, *, ryhma: str, lyhyt_sivu: int = 0, **kw):
+    def __init__(self, *, ryhma: str, lyhyt_sivu: int = 0, bms_soh: float | None = None, **kw):
         kw.setdefault("platform", "hkmc")
         super().__init__(**kw)
         self.ryhma = ryhma
+        self.bms_soh = bms_soh
         self.lyhyt_sivu = lyhyt_sivu        # testit: akunhallinta jättää kennosivun lopusta näin monta tavua pois
         self.r_pack = 0.072 * self.n / 96
         self.r_cell = [self.r_pack / self.n * (1 + self.rng.gauss(0, 0.05)) for _ in range(self.n)]
@@ -458,7 +462,9 @@ class HkmcSimulator(BatterySimulator):
                 out.append((hkmc.P_CELLS[k], sivu[:len(sivu) - self.lyhyt_sivu] if self.lyhyt_sivu else sivu))
         soc = sum(self._cell_socs()) / self.n * 100
         extra = vs[96:98] if g["lisakennot"] else ()
-        out.append((hkmc.P_STATUS, hkmc.encode_status(soh=self.nfp / self.bol * 100, soc_disp=min(100.0, soc),
+        # bms_soh: akunhallinnan ilmoittama kunto, joka voi olla jumissa 100 %:ssa (Ioniq 38 kWh oikeassa autossa)
+        soh = self.bms_soh if self.bms_soh is not None else self.nfp / self.bol * 100
+        out.append((hkmc.P_STATUS, hkmc.encode_status(soh=soh, soc_disp=min(100.0, soc),
                                                       extra=extra)))
         self._page += 1
         if self._page % 20 == 1:

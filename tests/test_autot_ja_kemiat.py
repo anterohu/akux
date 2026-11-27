@@ -66,7 +66,9 @@ def check_hk_decoding(car):
             w = {"jännite (V)": abs(st.pack_v - src._pack_voltage(src.current)),
                  "virta (A)": abs(st.pack_i - src.current),
                  "varaustila (%)": abs(st.soc_avg - soc_true),
-                 "kunto (%)": abs(st.nfp_kwh / (st.bol_kwh or src.bol) * 100 - src.nfp / src.bol * 100),
+                 # Akunhallinnan ilmoittama kunto (voi olla jumissa 100 %:ssa, kuten Ioniq 38 kWh)
+                 "kunto (%)": abs(st.nfp_kwh / (st.bol_kwh or src.bol) * 100
+                                  - (getattr(src, "bms_soh", None) or src.nfp / src.bol * 100)),
                  "latauslaskuri (kWh)": abs(st.total_charge_kwh - src.total_chg) if st.total_charge_kwh is not None else 0.0,
                  "lämpötila (°C)": abs((st.temp_max + st.temp_min) / 2 - src.temp),
                  "kennojännite (V)": max(abs(st.bricks[k + 1] - odotetut[k]) for k in range(n_arvot))}
@@ -288,6 +290,33 @@ def run_types(car, tmp):
     assert r["paatulos"]["lahde"] == "Ajotesti", r["huomiot"]
     _pdf_check(app, tid, ["Ajotesti", "Purkumittaus ajossa"])
     app.disconnect()
+
+    # Pika-ajotesti: varaus laskee 20 %-yksikköä. Tulos on suuntaa-antava, mutta perustuu mitattuun energiaan,
+    # joten se toimii myös autoissa, joiden akunhallinnan kuntoarvio ei kerro todellista kuntoa.
+    src = _sim(car, soc=0.80, accel=60 if _pm and not _pm.ELINKAARILASKURIT else int(os.environ.get("PIKA_ACCEL", "120")))
+    if _pm and "pika_ajo" in (getattr(_pm, "EI_TESTIT", {}) or {}):
+        try:
+            _start(app, src, "pika_ajo")
+            raise AssertionError("pika-ajotesti pitäisi olla estetty")
+        except RuntimeError as e:
+            print(f"   pika-ajotesti estetty: {e}")
+        app.disconnect()
+        src = None
+    if src is not None:
+        tid = _start(app, src, "pika_ajo")
+        _phase(app, "ajo", 90)
+        src.set_mode("drive", 20.0)
+        assert wait_until(lambda: (app.recorder.progress() or {}).get("tavoite_saavutettu"), 300)
+        src.set_mode("park")
+        t = _done(app, tid, 120)
+        r = t["tulos"]
+        pu = r["purku"]
+        assert pu["valmis"], r["huomiot"]
+        _within("pika-ajotesti", pu["taysi_kwh"], pu["epavarmuus_kwh"], src.nfp, 0.06 * src.nfp)
+        kunto = r["yhteenveto"].get("kunto_pct")
+        assert kunto is not None and abs(kunto - src.nfp / src.bol * 100) < 6, (kunto, src.nfp / src.bol * 100)
+        print(f"   pika-ajotesti: kunto {kunto:.1f} %, todellinen {src.nfp / src.bol * 100:.1f} %")
+        app.disconnect()
 
     # Kuormitustesti
     src = _sim(car, soc=0.7, accel=4, weak_cell=None)

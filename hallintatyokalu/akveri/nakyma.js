@@ -41,13 +41,12 @@ async function naytaAkveriNakyma() {
 
     <div class="kortti">
       <h2>Palvelinpaketit (versiot)</h2>
-      <p class="johdanto">AKVERI-palvelimen julkaisupaketti <code>akveri-palvelin-x.y.z.zip</code> tulee AKVERIn GitHub-julkaisusta. Paketti tarkistetaan (tuote, versio ja jokaisen tiedoston tarkiste) ennen kuin se tallennetaan. Vanhat versiot säilyvät tässä, joten minkä tahansa version voi viedä uudelleen.</p>
-      <div class="toiminnot"><label class="nappi toissijainen" for="akPakettiTiedosto">Lisää paketti…</label><input type="file" id="akPakettiTiedosto" accept=".zip" class="piilossa"></div>
+      <p class="johdanto">Palvelimen uusi versio tulee AKVERI-päivityksen mukana (kohta Päivitys), eikä sitä tarvitse lisätä erikseen. Vie se palvelimelle Päivitä palvelin -painikkeella. Vanhat versiot säilyvät tässä, joten minkä tahansa version voi viedä palvelimelle uudelleen.</p>
       <div id="akPakettiViesti"></div>
       <table><thead><tr><th>Versio</th><th>Koko</th><th>Lisätty</th><th></th></tr></thead><tbody>
       ${d.paketit.length ? d.paketit.map((p, i) => `<tr><td><strong>${esc(p.versio)}</strong>${i === 0 ? ' (uusin)' : ''}</td><td>${akveriKoko(p.koko)}</td><td>${esc(muotoilePvm(p.tallennettu))}</td>
         <td class="toiminnot-solu">${a.julkaistu ? `<button type="button" class="toissijainen akVieVersio" data-v="${esc(p.versio)}">Vie palvelimelle</button> ` : ''}<a class="nappi toissijainen" href="/api/akveri/paketit/${esc(p.versio)}">Lataa</a> <button type="button" class="vaara akPoistaPaketti" data-v="${esc(p.versio)}">Poista</button></td></tr>`).join('')
-        : '<tr><td colspan="4">Ei paketteja. Lisää AKVERI-palvelimen julkaisupaketti.</td></tr>'}
+        : '<tr><td colspan="4">Ei paketteja. Palvelimen versio tulee AKVERI-päivityksen mukana (kohta Päivitys).</td></tr>'}
       </tbody></table>
     </div>
 
@@ -148,13 +147,6 @@ async function naytaAkveriNakyma() {
   });
 
   // Paketit
-  $('#akPakettiTiedosto').addEventListener('change', async (e) => {
-    const f = e.target.files[0]; if (!f) return;
-    const v = $('#akPakettiViesti'); odota(v, 'Tarkistetaan pakettia…');
-    try { const r = await api('/api/akveri/paketit', { method: 'POST', body: f }); v.innerHTML = `<div class="viesti ok">Paketti ${esc(r.paketti.versio)} tarkistettu ja tallennettu (${r.paketti.tiedostoja} tiedostoa).</div>`; setTimeout(naytaAkveriNakyma, 1200); }
-    catch (err) { v.innerHTML = `<div class="viesti virhe">${esc(err.message)}</div>`; }
-    e.target.value = '';
-  });
   document.querySelectorAll('.akVieVersio').forEach(b => b.addEventListener('click', () => {
     if (confirm(`Viedäänkö versio ${b.dataset.v} palvelimelle?`)) palvelinToiminto('vie', { versio: b.dataset.v }, 'Viedään versiota ' + b.dataset.v + '…');
   }));

@@ -365,10 +365,11 @@ def uskottavuus(r: dict | None) -> list[str]:
     if kwh and uutena and kwh > uutena * USKOTTAVA_KAPASITEETTI_YLI:
         syyt.append(f"Mitattu kapasiteetti {fmt(kwh)} kWh on selvästi suurempi kuin akku uutena ({fmt(uutena)} kWh). "
                     "Tarkista, että auton malli ja akun koko on valittu oikein.")
-    if r.get("tyyppi") == "pikatarkastus" and kunto is None:
-        # Pikatarkastuksen päätulos on akunhallinnan kuntoarvio. Ilman sitä tulos ei vastaa sitä, mistä maksettiin.
-        syyt.append("Auton akunhallinta ei ilmoittanut akun kuntoa, joten pikatarkastuksen tulosta ei saatu. "
-                    "Akun kunto saadaan kapasiteettimittauksella.")
+    if r.get("tyyppi") in ("pikatarkastus", "pika_ajo") and kunto is None:
+        # Pikatarkastus ja pika-ajotesti nojaavat akunhallinnan kuntoarvioon. Ilman sitä tulos ei vastaa sitä,
+        # mistä maksettiin: tulosta ei rekisteröidä, ja krediitit palautetaan.
+        syyt.append("Akun kuntoa ei saatu tällä mittauksella. "
+                    "Akun kunto saadaan ajotestillä tai kapasiteettimittauksella.")
     k = r.get("kennot") or {}
     if k.get("lkm"):
         lo, hi = k.get("min_v"), k.get("max_v")
@@ -610,8 +611,8 @@ def analyze_test(storage, tid: int, meta: dict) -> dict:
         break
     if rejected:
         res["huomiot"].extend(rejected)
-        if not primary:
-            res["huomiot"].append("Akun kuntona näytetään Teslan akunhallinnan ilmoittama arvo.")
+        if not primary and (res.get("bms") or {}).get("soh_pct"):
+            res["huomiot"].append("Akun kuntona näytetään akunhallinnan ilmoittama arvo.")
     if primary and primary[0] and primary[0].get("valmis"):
         res["paatulos"] = {**{k: primary[0].get(k) for k in ("taysi_kwh", "epavarmuus_kwh", "soh_pct",
                                                               "soh_epavarmuus_pct", "laatu_luokka")},

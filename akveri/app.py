@@ -153,10 +153,10 @@ class App:
             return tid
         from . import VERSIO
         from .server import platform_name
-        if kw.get("tyyppi") == "pikatarkastus" and self.kunto_puuttuu():
+        if kw.get("tyyppi") in ("pikatarkastus", "pika_ajo") and self.kunto_puuttuu():
             from . import kokemukset  # noqa: PLC0415
-            kokemukset.tallenna(self, "estetty", "pikatarkastus", kw.get("vehicle_id"))
-            raise RuntimeError("Tämä auto ei ilmoita akun kuntoa, joten pikatarkastus ei anna tulosta. "
+            kokemukset.tallenna(self, "estetty", kw.get("tyyppi"), kw.get("vehicle_id"))
+            raise RuntimeError("Tämä auto ei ilmoita akun kuntoa, joten tämä mittaus ei anna tulosta. "
                                "Akun kunto saadaan kapasiteettimittauksella.")
         try:
             lupa = self.krediitit.varaa(VERSIO, platform_name(), str(kw.get("tyyppi") or ""))

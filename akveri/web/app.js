@@ -646,21 +646,22 @@ views.mittaus = {
     let msg = "";
     // Auto ei ilmoita akun kuntoa (esim. akunhallinnan vanha ohjelmistoversio): pikatarkastusta ei voi ostaa.
     const puuttuu = !!(S.live && S.live.kunto_puuttuu);
-    const pk = $('.choice button[data-t="pikatarkastus"]');
-    if (pk) {
+    for (const t of ["pikatarkastus", "pika_ajo"]) {
+      const pk = $(`.choice button[data-t="${t}"]`);
+      if (!pk) continue;
       pk.classList.toggle("estetty", puuttuu);
       let h = pk.querySelector(".estoteksti");
-      if (puuttuu && !h) { h = document.createElement("div"); h.className = "estoteksti small"; h.textContent = "Tämä auto ei ilmoita akun kuntoa. Akun kunto saadaan kapasiteettimittauksella."; pk.appendChild(h); }
+      if (puuttuu && !h) { h = document.createElement("div"); h.className = "estoteksti small"; h.textContent = "Tämä auto ei ilmoita akun kuntoa. Akun kunto saadaan ajotestillä tai kapasiteettimittauksella."; pk.appendChild(h); }
       if (!puuttuu && h) h.remove();
     }
-    if (puuttuu && this.type === "pikatarkastus") msg = `<div class="notice warn"><b>Pikatarkastus ei ole saatavilla tälle autolle.</b> Auton akunhallinta ei ilmoita akun kuntoa. Valitse kapasiteettimittaus.</div>`;
+    if (puuttuu && ["pikatarkastus", "pika_ajo"].includes(this.type)) msg = `<div class="notice warn"><b>Mittaus ei ole saatavilla tälle autolle.</b> Auton akunhallinta ei ilmoita akun kuntoa. Valitse ajotesti tai kapasiteettimittaus.</div>`;
     else if (!S.yhteys.kaynnissa) msg = `<div class="notice warn"><b>Ei yhteyttä autoon.</b> Yhdistä sovittimeen <a href="#/yleiskuva">Yleiskuva</a>-sivulla.</div>`;
     else if (!S.vaylatesti || !S.vaylatesti.kunnossa) msg = `<div class="notice warn">Odotetaan akun tietoja autosta…</div>`;
     else if (this.type === "kapasiteetti" && S.live.soc_ui > 15) msg = `<div class="notice warn">Akun varaus on ${n(S.live.soc_ui)} %. Tarkin tulos saadaan, kun lataus aloitetaan enintään 15 %:n varauksesta. Voit silti aloittaa mittauksen.</div>`;
     else if ((this.type === "taysi" || this.type === "ajotesti") && S.live.soc_ui != null && S.live.soc_ui < 80) msg = `<div class="notice warn">Akun varaus on ${n(S.live.soc_ui)} %. Tarkin tulos saadaan, kun ajo aloitetaan vähintään 80 %:n varauksesta. Voit silti aloittaa mittauksen.</div>`;
     else if (this.type === "pikalataus" && S.live.soc_ui != null && S.live.soc_ui > 30) msg = `<div class="notice warn">Akun varaus on ${n(S.live.soc_ui)} %. Latauskäyrä saadaan kattavimmin, kun lataus aloitetaan alle 30 %:n varauksesta.</div>`;
     if (w.innerHTML !== msg) w.innerHTML = msg;
-    const ready = S.yhteys.kaynnissa && S.vaylatesti && S.vaylatesti.kunnossa && this.type && !(puuttuu && this.type === "pikatarkastus");
+    const ready = S.yhteys.kaynnissa && S.vaylatesti && S.vaylatesti.kunnossa && this.type && !(puuttuu && ["pikatarkastus", "pika_ajo"].includes(this.type));
     st.disabled = !ready;
     const hinta = this.hinnat && this.hinnat[this.type];
     $("#mStartHint").textContent = !this.type ? "Valitse mittauksen tyyppi." : S.yhteys.simuloitu ? "Esittelytilan mittaus ei käytä krediittejä."

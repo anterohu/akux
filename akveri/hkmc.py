@@ -84,6 +84,9 @@ SOH_JUMISSA_YLI = 99.5
 EI_TESTIT = {
     "pikatarkastus": "Pikatarkastusta ei tehdä Hyundaille eikä Kialle: akunhallinnan kuntoarvio pysyy usein 100 "
                      "%:ssa, vaikka akku on jo kulunut. Akun kunto mitataan kapasiteettimittauksella.",
+    "pika_ajo": "Pika-ajotestiä ei tehdä Hyundaille eikä Kialle: 20 %:n varauksen laskusta mitattu kapasiteetti ei "
+                "ole raportin tarkkuusvaatimuksen mukainen, eikä akunhallinnan kuntoarviota voi käyttää vertailuun. "
+                "Valitse ajotesti tai kapasiteettimittaus.",
     "itsepurkaus": "Itsepurkaustestiä ei tehdä Hyundaille eikä Kialle: akunhallinta ilmoittaa kennojännitteet 20 "
                    "mV:n tarkkuudella, mutta itsepurkauksen havaitseminen vaatii alle 1 mV:n tarkkuuden.",
 }
