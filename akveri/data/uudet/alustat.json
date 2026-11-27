@@ -1,0 +1,917 @@
+{
+ "_kuvaus": "Uusien merkkien kyselyalustat, liittämättä ohjelmaan. Jokainen kysely on peräisin mainitusta avoimesta lähteestä. 'varmuus': lahde = avoin lähde, ei kokeiltu AKVERIlla; arvio = lähteiden perusteella päätelty, varmistettava oikealla autolla. Tavut A, B, C... = vastauksen tavut DID-tunnisteen jälkeen.",
+ "_lahteet": {
+  "evdash": "github.com/nickn17/evDash (MIT), tiedostot src/CarPeugeotE208.cpp, CarRenaultZoe.cpp, CarBmwI3.cpp, CarVWUpMii.cpp, PsaSoh.h",
+  "abrp": "github.com/iternio/ev-obd-pids (Apache-2.0), tiedostot renault/zoe2.json, Mini/MiniCooperSE.json, ford/MachE.json, jaguar/ipace2021.json",
+  "stellantis": "public.servicebox.peugeot.com/APddb/Battery_Report_Peugeot_8.08.2024.pdf (akkupakettien Ah-arvot)",
+  "battery_emulator": "github.com/dalathegreat/Battery-Emulator wiki: Stellantis eCMP (mallit, joissa sama akku)"
+ },
+ "alustat": [
+  {
+   "id": "ecmp",
+   "nimi": "Stellantis e-CMP",
+   "mallit": [
+    "Peugeot e-208 (2019–)",
+    "Peugeot e-2008 (2020–)",
+    "Opel Corsa-e / Mokka-e",
+    "Citroën ë-C4",
+    "DS 3 E-Tense"
+   ],
+   "kemia": "NMC",
+   "sarjakennot": 108,
+   "lampoanturit": 54,
+   "viite": [
+    {
+     "paketti": "BS2-049-4-5 (Peugeot 2008 P24)",
+     "ah": 121.0,
+     "lahde": "stellantis"
+    },
+    {
+     "paketti": "BS2-051-4-2 (Peugeot 208 P21)",
+     "ah": 136.0,
+     "lahde": "stellantis"
+    },
+    {
+     "paketti": "BS2-054-4-3 (Peugeot 2008 P24)",
+     "ah": 145.2,
+     "lahde": "stellantis"
+    }
+   ],
+   "vayla": {
+    "protokolla": "ATSP6",
+    "tunniste": "11-bit",
+    "huom": "Sama väylä kuin OBD-standardikyselyissä."
+   },
+   "ohjainlaitteet": {
+    "bms": {
+     "tx": "6B4",
+     "rx": "694"
+    },
+    "auto": {
+     "tx": "6A2",
+     "rx": "682"
+    },
+    "lataus": {
+     "tx": "590",
+     "rx": "58F"
+    }
+   },
+   "kyselyt": [
+    {
+     "nimi": "varaustila",
+     "ecu": "bms",
+     "kysely": "22D410",
+     "kaava": "(A*256+B)/512",
+     "yksikko": "%",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "jannite",
+     "ecu": "bms",
+     "kysely": "22D815",
+     "kaava": "(A*256+B)/16",
+     "yksikko": "V",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "virta",
+     "ecu": "bms",
+     "kysely": "22D816",
+     "kaava": "(76800-(A*2^24+B*2^16+C*2^8+D))*0.018",
+     "yksikko": "A",
+     "huom": "Etumerkki: lataus positiivinen. AKVERIssa purku on positiivinen, joten etumerkki käännetään.",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "kunto",
+     "ecu": "bms",
+     "kysely": "22D860",
+     "kaava": "(B*256+C)/16",
+     "yksikko": "%",
+     "huom": "Uudella akulla arvo voi olla yli 100 % (esim. 103 %). Arvoa ei rajata 100:aan tallennuksessa; raportissa enintään 100.",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "energia_jaljella",
+     "ecu": "bms",
+     "kysely": "22D865",
+     "kaava": "(A*256+B)/64",
+     "yksikko": "kWh",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "kenno_min",
+     "ecu": "bms",
+     "kysely": "22D86F",
+     "kaava": "(A*256+B)/1000",
+     "yksikko": "V",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "kenno_max",
+     "ecu": "bms",
+     "kysely": "22D870",
+     "kaava": "(A*256+B)/1000",
+     "yksikko": "V",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "kennot",
+     "ecu": "bms",
+     "kysely": "22D440",
+     "kaava": "108 × (2 tavua)/1000",
+     "yksikko": "V",
+     "huom": "Kaikki 108 kennoa yhdessä vastauksessa (216 tavua).",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "lampotilat",
+     "ecu": "bms",
+     "kysely": "22D442",
+     "kaava": "54 × (1 tavu)-40",
+     "yksikko": "°C",
+     "huom": "Yksi anturi kahta kennoa kohden.",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "lampo_min",
+     "ecu": "bms",
+     "kysely": "22D87D",
+     "kaava": "A-40",
+     "yksikko": "°C",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "lampo_ka",
+     "ecu": "bms",
+     "kysely": "22D877",
+     "kaava": "A-40",
+     "yksikko": "°C",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "eristysvastus",
+     "ecu": "bms",
+     "kysely": "22D87B",
+     "kaava": "A*2^24+B*2^16+C*2^8+D",
+     "yksikko": "kΩ",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "valmistenumero",
+     "ecu": "obd",
+     "kysely": "0902",
+     "kaava": "ASCII",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    }
+   ],
+   "puuttuu": [
+    "mittarilukema (kysytään mittauksen lopussa)",
+    "elinkaaren energialaskurit: ei avointa lähdettä"
+   ],
+   "ehdotus": {
+    "resoluutio_mv": 1,
+    "kennolukutapa": "kaikki kennot",
+    "elinkaarilaskurit": false,
+    "soh_jumissa_yli": null,
+    "ei_testit": [],
+    "kunto_tunnisteet": [
+     "22D860"
+    ]
+   },
+   "huomiot": [
+    "Kunto voi olla yli 100 %: AKVERIn jumissa olevan kunnon sääntöä (≥ 99,5 % = ei käytetä) EI saa soveltaa tähän alustaan.",
+    "Energia lasketaan jännitteestä ja virrasta, koska energialaskureita ei tunneta.",
+    "Kapasiteetin vertailuarvo kannattaa ottaa ampeeritunteina pakettikoodin mukaan; kWh-arvot vaihtelevat lähteittäin."
+   ]
+  },
+  {
+   "id": "zoe1",
+   "nimi": "Renault Zoe, vaihe 1 (ZE20 / ZE40)",
+   "mallit": [
+    "Renault Zoe 22 kWh (2013–2016)",
+    "Renault Zoe 41 kWh ZE40 (2017–2019)"
+   ],
+   "kemia": "NMC",
+   "sarjakennot": 96,
+   "viite_kwh": {
+    "ZE20": 22.0,
+    "ZE40": 41.0
+   },
+   "vayla": {
+    "protokolla": "ATSP6",
+    "tunniste": "11-bit"
+   },
+   "ohjainlaitteet": {
+    "lbc": {
+     "tx": "79B",
+     "rx": "7BB",
+     "huom": "Vastaukset palvelulla 21 (61 xx)."
+    }
+   },
+   "kyselyt": [
+    {
+     "nimi": "virta",
+     "ecu": "lbc",
+     "kysely": "2101",
+     "kaava": "((A*256+B)-5000)/10",
+     "yksikko": "A",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "kennot_1_62",
+     "ecu": "lbc",
+     "kysely": "2141",
+     "kaava": "62 × (2 tavua)/1000",
+     "yksikko": "V",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "kennot_63_96_ja_jannite",
+     "ecu": "lbc",
+     "kysely": "2142",
+     "kaava": "34 × (2 tavua)/1000; pakan jännite vastauksen tavuista 72–73 /100 (6142 mukaan lukien)",
+     "yksikko": "V",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "lampotilat",
+     "ecu": "lbc",
+     "kysely": "2104",
+     "kaava": "moduuleittain",
+     "huom": "ZE40: 24 anturia, ZE20: 12.",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "kunto",
+     "ecu": "lbc",
+     "kysely": "2161",
+     "kaava": "vastauksen 10. tavu / 2 (6161 mukaan lukien)",
+     "yksikko": "%",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "energiaa_jaljella",
+     "ecu": "lbc",
+     "kysely": "2103",
+     "kaava": "ks. evDash",
+     "varmuus": "arvio",
+     "lahde": "evdash"
+    }
+   ],
+   "puuttuu": [
+    "mittarilukema",
+    "valmistenumero: ei varmistettu",
+    "elinkaarilaskurit"
+   ],
+   "ehdotus": {
+    "resoluutio_mv": 1,
+    "kennolukutapa": "kaikki kennot",
+    "elinkaarilaskurit": false,
+    "soh_jumissa_yli": null,
+    "ei_testit": [],
+    "kunto_tunnisteet": [
+     "2161"
+    ]
+   },
+   "huomiot": [
+    "Akku on usein vuokra-akku: raportissa kannattaa mainita, että akun omistaa rahoittaja."
+   ]
+  },
+  {
+   "id": "zoe2",
+   "nimi": "Renault Zoe, vaihe 2 (ZE50)",
+   "mallit": [
+    "Renault Zoe ZE50 52 kWh (2019–2024)"
+   ],
+   "kemia": "NMC",
+   "sarjakennot": 96,
+   "lampoanturit": 12,
+   "viite_kwh": {
+    "ZE50": 52.0
+   },
+   "vayla": {
+    "protokolla": "ATSP7",
+    "tunniste": "29-bit",
+    "vaatii": [
+     "ATCP18",
+     "diagnostiikkaistunto 1003 ennen kyselyjä"
+    ]
+   },
+   "ohjainlaitteet": {
+    "lbc": {
+     "tx": "18DADBF1",
+     "rx": "18DAF1DB"
+    },
+    "evc": {
+     "tx": "18DADAF1",
+     "rx": "18DAF1DA"
+    }
+   },
+   "kyselyt": [
+    {
+     "nimi": "varaustila_bms",
+     "ecu": "lbc",
+     "kysely": "229002",
+     "kaava": "(A*256+B)/100",
+     "yksikko": "%",
+     "varmuus": "lahde",
+     "lahde": "evdash, abrp"
+    },
+    {
+     "nimi": "varaustila_naytto",
+     "ecu": "lbc",
+     "kysely": "229001",
+     "kaava": "((A*256+B)-300)/100",
+     "yksikko": "%",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "kunto",
+     "ecu": "lbc",
+     "kysely": "229003",
+     "kaava": "(A*256+B)/100",
+     "yksikko": "%",
+     "varmuus": "lahde",
+     "lahde": "evdash, abrp"
+    },
+    {
+     "nimi": "jannite",
+     "ecu": "lbc",
+     "kysely": "229005",
+     "kaava": "(A*256+B)/10",
+     "yksikko": "V",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "lampo",
+     "ecu": "lbc",
+     "kysely": "229012",
+     "kaava": "((A*256+B)-640)*0.0625",
+     "yksikko": "°C",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "moduulilampotilat",
+     "ecu": "lbc",
+     "kysely": "229131…22913C",
+     "kaava": "((A*256+B)-640)*0.0625",
+     "yksikko": "°C",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "ladattu_energia_yhteensa",
+     "ecu": "lbc",
+     "kysely": "2291C8",
+     "kaava": "(A*65536+B*256+C)/1000",
+     "yksikko": "kWh",
+     "huom": "Elinkaarilaskuri: sopii kapasiteettimittaukseen.",
+     "varmuus": "lahde",
+     "lahde": "evdash, abrp"
+    },
+    {
+     "nimi": "virta",
+     "ecu": "evc",
+     "kysely": "2221CC",
+     "kaava": "-(0.25*(A*256+B)-500)",
+     "yksikko": "A",
+     "varmuus": "lahde",
+     "lahde": "abrp"
+    },
+    {
+     "nimi": "jannite_evc",
+     "ecu": "evc",
+     "kysely": "2220FE",
+     "kaava": "(A*256+B)/10",
+     "yksikko": "V",
+     "varmuus": "lahde",
+     "lahde": "abrp"
+    }
+   ],
+   "puuttuu": [
+    "kennojännitteet: ei avointa lähdettä vaiheelle 2",
+    "mittarilukema"
+   ],
+   "ehdotus": {
+    "resoluutio_mv": null,
+    "kennolukutapa": "ei kennojännitteitä",
+    "elinkaarilaskurit": true,
+    "soh_jumissa_yli": null,
+    "ei_testit": [
+     "itsepurkaus",
+     "kuormitus"
+    ],
+    "kunto_tunnisteet": [
+     "229003"
+    ]
+   },
+   "huomiot": [
+    "Akunhallinnan ohjelmistoversiot ≤ 530 ilmoittavat kunnon liian alhaisena (tunnettu vika, korjattu päivityksellä). Kunto ei ole luotettava ilman kapasiteettimittausta, jos ohjelmistoversiota ei tunneta.",
+    "Ilman kennojännitteitä itsepurkaus- ja kuormitustestin kennoarviota ei voi tehdä."
+   ]
+  },
+  {
+   "id": "bmw_i3",
+   "nimi": "BMW i3 / i3s ja MINI Cooper SE",
+   "mallit": [
+    "BMW i3 60 Ah (2013–2016)",
+    "BMW i3 94 Ah (2016–2018)",
+    "BMW i3 120 Ah (2018–2022)",
+    "MINI Cooper SE (2020–2023)"
+   ],
+   "kemia": "NMC",
+   "sarjakennot": 96,
+   "sarjakennot_huom": "i3: 96 kennoa sarjassa kaikissa paketeissa. MINI Cooper SE: ei varmistettu.",
+   "viite": [
+    {
+     "paketti": "i3 60 Ah",
+     "ah": 60.0
+    },
+    {
+     "paketti": "i3 94 Ah",
+     "ah": 94.0
+    },
+    {
+     "paketti": "i3 120 Ah",
+     "ah": 120.0
+    }
+   ],
+   "vayla": {
+    "protokolla": "ATSPB + ATPBC001 (11-bit, 500 kbit/s, käyttäjän protokolla)",
+    "tunniste": "11-bit",
+    "vaatii": [
+     "laajennettu osoitus: ensimmäinen datatavu on kohdeohjainlaite (ATCEA07 / ATCEA)",
+     "vastausosoite 607 (SME = 0x07)",
+     "vuonohjaus ATFCSH6F1, ATFCSD07300800, ATFCSM1"
+    ]
+   },
+   "ohjainlaitteet": {
+    "sme": {
+     "tx": "6F1",
+     "kohde": "07",
+     "rx": "607"
+    },
+    "kombi": {
+     "tx": "6F1",
+     "kohde": "60",
+     "rx": "660"
+    }
+   },
+   "kyselyt": [
+    {
+     "nimi": "varaustila",
+     "ecu": "sme",
+     "kysely": "22DDBC",
+     "kaava": "tavut 4–5 /10 (BMW:n tavujärjestys käännetty)",
+     "yksikko": "%",
+     "varmuus": "lahde",
+     "lahde": "evdash, abrp"
+    },
+    {
+     "nimi": "jannite",
+     "ecu": "sme",
+     "kysely": "22DDB4",
+     "kaava": "/100",
+     "yksikko": "V",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "virta",
+     "ecu": "sme",
+     "kysely": "22DD69",
+     "kaava": "-(signed(C)*256+D)/100",
+     "yksikko": "A",
+     "varmuus": "lahde",
+     "lahde": "abrp, evdash"
+    },
+    {
+     "nimi": "kunto",
+     "ecu": "sme",
+     "kysely": "22DD7B",
+     "kaava": "A",
+     "yksikko": "%",
+     "huom": "BMW: 'kapasiteetin vanheneminen' (ALTERUNG_KAPAZITAET).",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "kunto_mini",
+     "ecu": "sme",
+     "kysely": "226335",
+     "kaava": "D",
+     "yksikko": "%",
+     "varmuus": "lahde",
+     "lahde": "abrp"
+    },
+    {
+     "nimi": "energialaskurit",
+     "ecu": "sme",
+     "kysely": "22DD7C",
+     "kaava": "purettu 4 tavua /100000, ladattu 4 tavua /100000",
+     "yksikko": "kWh",
+     "huom": "Elinkaarilaskurit: sopii kapasiteetti- ja ajotestiin.",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "kenno_min_max",
+     "ecu": "sme",
+     "kysely": "22DDBF",
+     "kaava": "max 2 tavua /1000, min 2 tavua /1000",
+     "yksikko": "V",
+     "huom": "Vain ääriarvot, ei yksittäisiä kennoja.",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "lampotilat",
+     "ecu": "sme",
+     "kysely": "22DDC0",
+     "kaava": "ka/max/min, kukin signed 2 tavua /100",
+     "yksikko": "°C",
+     "varmuus": "lahde",
+     "lahde": "evdash, abrp"
+    },
+    {
+     "nimi": "mittarilukema",
+     "ecu": "kombi",
+     "kysely": "22D10D",
+     "kaava": "ks. evDash",
+     "yksikko": "km",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    }
+   ],
+   "puuttuu": [
+    "yksittäiset kennojännitteet"
+   ],
+   "ehdotus": {
+    "resoluutio_mv": 1,
+    "kennolukutapa": "vain matalin ja korkein kenno",
+    "elinkaarilaskurit": true,
+    "soh_jumissa_yli": null,
+    "ei_testit": [
+     "itsepurkaus"
+    ],
+    "kunto_tunnisteet": [
+     "22DD7B"
+    ]
+   },
+   "huomiot": [
+    "Auto hälyttää, jos OBD-liittimeen jää laite auton lukituksen ajaksi (OVMS-dokumentaatio). Ohjeeseen: älä lukitse autoa sovittimen ollessa kytkettynä.",
+    "Vaatii AKVERIin uuden ominaisuuden: laajennettu osoitus (kohdetavu) ja oma väyläprotokolla. Tämä on suurin työ tässä listassa."
+   ]
+  },
+  {
+   "id": "mache",
+   "nimi": "Ford Mustang Mach-E",
+   "mallit": [
+    "Mach-E Standard Range (2021–)",
+    "Mach-E Extended Range (2021–)"
+   ],
+   "kemia": "NMC (2023– Standard Range myös LFP)",
+   "sarjakennot": null,
+   "sarjakennot_huom": "Ei varmistettu avoimesta lähteestä; selvitetään ensimmäisestä mittaustiedostosta.",
+   "vayla": {
+    "protokolla": "ATSP6",
+    "tunniste": "11-bit"
+   },
+   "ohjainlaitteet": {
+    "becm": {
+     "tx": "7E4",
+     "rx": "7EC"
+    },
+    "pcm": {
+     "tx": "7E0",
+     "rx": "7E8"
+    },
+    "bcm": {
+     "tx": "7E2",
+     "rx": "7EA"
+    }
+   },
+   "kyselyt": [
+    {
+     "nimi": "varaustila",
+     "ecu": "becm",
+     "kysely": "224845",
+     "kaava": "A*0.5",
+     "yksikko": "%",
+     "varmuus": "lahde",
+     "lahde": "abrp"
+    },
+    {
+     "nimi": "kunto",
+     "ecu": "becm",
+     "kysely": "22490C",
+     "kaava": "A*0.5",
+     "yksikko": "%",
+     "varmuus": "lahde",
+     "lahde": "abrp"
+    },
+    {
+     "nimi": "jannite",
+     "ecu": "bcm",
+     "kysely": "22480D",
+     "kaava": "(A*256+B)*0.01",
+     "yksikko": "V",
+     "varmuus": "lahde",
+     "lahde": "abrp"
+    },
+    {
+     "nimi": "virta",
+     "ecu": "becm",
+     "kysely": "2248F9",
+     "kaava": "(signed(A)*256+B)*0.1",
+     "yksikko": "A",
+     "varmuus": "lahde",
+     "lahde": "abrp"
+    },
+    {
+     "nimi": "lampo",
+     "ecu": "becm",
+     "kysely": "224800",
+     "kaava": "A-50",
+     "yksikko": "°C",
+     "varmuus": "lahde",
+     "lahde": "abrp"
+    }
+   ],
+   "puuttuu": [
+    "kennojännitteet (Fordin huoltotyökalu lukee ne, avointa lähdettä ei löytynyt)",
+    "energialaskurit",
+    "mittarilukema"
+   ],
+   "ehdotus": {
+    "resoluutio_mv": null,
+    "kennolukutapa": "ei kennojännitteitä",
+    "elinkaarilaskurit": false,
+    "soh_jumissa_yli": null,
+    "ei_testit": [
+     "itsepurkaus",
+     "kuormitus"
+    ],
+    "kunto_tunnisteet": [
+     "22490C"
+    ]
+   },
+   "huomiot": [
+    "Ford on ilmoittanut huoltotiedotteessa (SSM 54995), että vaihdettu akunhallinta voi näyttää kunnon liian suurena. Kunto ei ole luotettava, jos akunhallinta on vaihdettu: ohjaa kapasiteettimittaukseen.",
+    "Ford Explorer EV ja Capri ovat MEB-alustaa: ne toimivat AKVERIn nykyisellä Volkswagen-tuella."
+   ]
+  },
+  {
+   "id": "ipace",
+   "nimi": "Jaguar I-Pace",
+   "mallit": [
+    "Jaguar I-Pace 90 kWh (2018–2024)"
+   ],
+   "kemia": "NMC",
+   "sarjakennot": 108,
+   "sarjakennot_varmuus": "arvio (432 kennoa, 108S4P)",
+   "viite_kwh": {
+    "I-Pace": 90.0
+   },
+   "vayla": {
+    "protokolla": "ATSP6",
+    "tunniste": "11-bit"
+   },
+   "ohjainlaitteet": {
+    "becm": {
+     "tx": "7E4",
+     "rx": "7EC"
+    }
+   },
+   "kyselyt": [
+    {
+     "nimi": "virta",
+     "ecu": "becm",
+     "kysely": "22490C",
+     "kaava": "((A*256+B)-32768)/40",
+     "yksikko": "A",
+     "varmuus": "lahde",
+     "lahde": "abrp"
+    },
+    {
+     "nimi": "jannite",
+     "ecu": "becm",
+     "kysely": "22490F",
+     "kaava": "(A*256+B)/100",
+     "yksikko": "V",
+     "varmuus": "lahde",
+     "lahde": "abrp"
+    },
+    {
+     "nimi": "kunto",
+     "ecu": "becm",
+     "kysely": "224918",
+     "kaava": "A/2",
+     "yksikko": "%",
+     "varmuus": "lahde",
+     "lahde": "abrp"
+    },
+    {
+     "nimi": "varaustila",
+     "ecu": "becm",
+     "kysely": "224910",
+     "kaava": "(A*256+B)/100 (näyttö: ×1,07−2,7)",
+     "yksikko": "%",
+     "varmuus": "lahde",
+     "lahde": "abrp"
+    },
+    {
+     "nimi": "lampo",
+     "ecu": "becm",
+     "kysely": "224907",
+     "kaava": "A/2-40",
+     "yksikko": "°C",
+     "varmuus": "lahde",
+     "lahde": "abrp"
+    },
+    {
+     "nimi": "mittarilukema",
+     "ecu": "becm",
+     "kysely": "22DD01",
+     "kaava": "A*65536+B*256+C",
+     "yksikko": "km",
+     "varmuus": "lahde",
+     "lahde": "abrp"
+    }
+   ],
+   "puuttuu": [
+    "kennojännitteet",
+    "energialaskurit"
+   ],
+   "ehdotus": {
+    "resoluutio_mv": null,
+    "kennolukutapa": "ei kennojännitteitä",
+    "elinkaarilaskurit": false,
+    "soh_jumissa_yli": null,
+    "ei_testit": [
+     "itsepurkaus",
+     "kuormitus"
+    ],
+    "kunto_tunnisteet": [
+     "224918"
+    ]
+   },
+   "huomiot": [
+    "Huom. sama DID 22490C on Jaguarissa virta ja Fordissa kunto: kyselyt on aina sidottava merkkiin, ei pelkkään tunnisteeseen."
+   ]
+  },
+  {
+   "id": "eup",
+   "nimi": "VW e-up!, Škoda Citigo e iV, SEAT Mii electric",
+   "mallit": [
+    "VW e-up! 32,3 kWh (2020–2023)",
+    "Škoda Citigo e iV",
+    "SEAT Mii electric"
+   ],
+   "kemia": "NMC",
+   "sarjakennot": 84,
+   "sarjakennot_varmuus": "arvio (168 kennoa, 84S2P)",
+   "viite_kwh": {
+    "2020–": 36.8
+   },
+   "vayla": {
+    "protokolla": "ATSP6",
+    "tunniste": "11-bit",
+    "huom": "Samat tunnisteet kuin MEB-alustalla, mutta 11-bittinen väylä ja osoite 7E5/7ED.",
+    "vaatii": [
+     "ATCAF1 (automaattinen muotoilu)"
+    ]
+   },
+   "ohjainlaitteet": {
+    "bms": {
+     "tx": "7E5",
+     "rx": "7ED"
+    }
+   },
+   "kyselyt": [
+    {
+     "nimi": "varaustila",
+     "ecu": "bms",
+     "kysely": "22028C",
+     "kaava": "kuten MEB",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "jannite",
+     "ecu": "bms",
+     "kysely": "221E3B",
+     "kaava": "kuten MEB",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "virta",
+     "ecu": "bms",
+     "kysely": "221E3D",
+     "kaava": "kuten MEB",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "kennot",
+     "ecu": "bms",
+     "kysely": "221E40…221EA5",
+     "kaava": "(A*256+B)/4096",
+     "yksikko": "V",
+     "huom": "84 kennoa. Kennon numero = (i % 14) × 6 + i // 14, kun i = DID − 0x1E40 (järjestys poikkeaa MEB:stä).",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "kenno_max_min",
+     "ecu": "bms",
+     "kysely": "221E33 / 221E34",
+     "kaava": "(A*256+B)/4096",
+     "yksikko": "V",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "lampo_max_min",
+     "ecu": "bms",
+     "kysely": "221E0E / 221E0F",
+     "kaava": "kuten MEB",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    },
+    {
+     "nimi": "kunto",
+     "ecu": "bms",
+     "kysely": "2274CB",
+     "kaava": "(A*256+B)/120",
+     "yksikko": "%",
+     "huom": "Jakaja 120 lähteen mukaan; varmistettava oikealla autolla.",
+     "varmuus": "lahde",
+     "lahde": "evdash"
+    }
+   ],
+   "puuttuu": [
+    "energialaskurit: ei avointa lähdettä",
+    "mittarilukema"
+   ],
+   "ehdotus": {
+    "resoluutio_mv": 1,
+    "kennolukutapa": "kaikki kennot",
+    "elinkaarilaskurit": false,
+    "soh_jumissa_yli": null,
+    "ei_testit": [],
+    "kunto_tunnisteet": [
+     "2274CB"
+    ]
+   },
+   "huomiot": [
+    "Todennäköisesti helpoin lisättävä: MEB-moduulin dekoodaus on valmiina, vain osoitteet ja väylä vaihtuvat."
+   ]
+  }
+ ],
+ "ei_toteutettavissa": [
+  {
+   "merkki": "Volvo ja Polestar (SPA2, CMA, SEA)",
+   "syy": "Akunhallinta (BECM) luetaan diagnostiikkaliitännän Ethernet-väylän (DoIP) kautta. OBDLink-sovittimet eivät tue DoIP:tä. Volvo EX30:n kunnon voi lukea vain merkkikohtaisilla diagnoosilaitteilla."
+  },
+  {
+   "merkki": "Mercedes-Benz EQ",
+   "syy": "Suojattu diagnostiikkayhdyskäytävä; akkutietoja ei ole julkaistu avoimissa lähteissä."
+  },
+  {
+   "merkki": "BYD (Atto 3, Dolphin, Seal)",
+   "syy": "Yhteisö on löytänyt varaustilan ja kennojen ääriarvot, mutta kuntoa ja kaavoja ei ole varmistettu. Seurataan: github.com/loryanstrant/BYD-PID-list."
+  },
+  {
+   "merkki": "Toyota bZ4X, Subaru Solterra",
+   "syy": "Avoimia akunhallinnan kyselyjä ei löytynyt."
+  },
+  {
+   "merkki": "Xpeng, Zeekr, NIO",
+   "syy": "Avoimia lähteitä ei löytynyt."
+  }
+ ]
+}
