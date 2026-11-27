@@ -274,3 +274,4 @@ section.osio { scroll-margin-top: 76px; }
 #kaapelit .kytkenta dd { margin: 0; min-width: 0; }
 #kaapelit .huomio { color: var(--muted); max-width: 760px; margin: 22px 0 0; }
 @media (max-width: 520px) { #kaapelit .kytkennat { grid-template-columns: 1fr; } #kaapelit .kytkenta dl { grid-template-columns: 1fr; gap: 2px; } #kaapelit .kytkenta dd { margin-bottom: 8px; } }
+tr.himmea td { opacity: .55; }

@@ -98,6 +98,40 @@ function kysy(teksti, { ok = "OK", peru = "Peruuta", vaara = false } = {}) {
   });
 }
 const ilmoita = teksti => kysy(teksti, { peru: null });
+
+// Ilmoita ongelmasta: kuvaus, vapaaehtoinen sähköposti vastausta varten ja halutessa mittaustiedosto.
+function ilmoitaOngelma(mittaus = null) {
+  const tausta = document.createElement("div");
+  tausta.className = "kysely-tausta";
+  tausta.innerHTML = `<div class="kysely" role="dialog" aria-modal="true" style="max-width:520px">
+    <h2 style="margin-top:0">Ilmoita ongelmasta</h2>
+    <label class="f"><span>Mitä tapahtui?</span><textarea id="ioKuvaus" rows="5" maxlength="3000" placeholder="Kerro lyhyesti, mitä teit ja mitä ohjelma näytti."></textarea></label>
+    <label class="f"><span>Sähköposti (vapaaehtoinen)</span><input id="ioSposti" type="email" autocomplete="email" maxlength="200"></label>
+    <p class="small muted" style="margin-top:-4px">Jos annat osoitteen, voimme vastata ja kertoa lisätietoa. Osoitetta käytetään vain tähän ilmoitukseen.</p>
+    ${mittaus ? `<label class="row" style="gap:8px;align-items:flex-start;margin:10px 0"><input type="checkbox" id="ioLiite" checked style="margin-top:4px"><span class="small">Liitä mittaustiedosto. Se auttaa selvittämään ongelman. Tiedostossa on auton valmistenumero ja mittauksen tiedot.</span></label>` : ""}
+    <div id="ioViesti"></div>
+    <div class="row"><span class="spacer"></span><button class="btn" id="ioPeru">Peruuta</button><button class="btn primary" id="ioLaheta">Lähetä</button></div></div>`;
+  const loppu = () => { tausta.remove(); document.removeEventListener("keydown", nappain); };
+  const nappain = e => { if (e.key === "Escape") loppu(); };
+  document.addEventListener("keydown", nappain);
+  document.body.appendChild(tausta);
+  const q = s => tausta.querySelector(s);
+  q("#ioPeru").onclick = loppu;
+  q("#ioLaheta").onclick = async () => {
+    const b = q("#ioLaheta");
+    b.disabled = true; b.textContent = "Lähetetään…";
+    try {
+      await api("/api/palaute", { method: "POST", body: { kuvaus: q("#ioKuvaus").value, sahkoposti: q("#ioSposti").value,
+        mittaus, liita: !!(q("#ioLiite") && q("#ioLiite").checked) } });
+      loppu();
+      ilmoita("Kiitos, ilmoitus on lähetetty." + (q("#ioSposti").value.trim() ? " Vastaamme antamaasi sähköpostiosoitteeseen." : ""));
+    } catch (e) {
+      q("#ioViesti").innerHTML = `<div class="notice bad">${esc(e.message)}</div>`;
+      b.disabled = false; b.textContent = "Lähetä";
+    }
+  };
+  q("#ioKuvaus").focus();
+}
 function toast(msg, err = false) {
   const t = $("#toast");
   t.textContent = msg;
@@ -975,7 +1009,8 @@ views.mittaukset = {
       <div class="muted">${esc(v.nimi || "")} · ${date(t.aloitettu)}</div></div>
       <div class="row">${done ? `<a class="btn primary" href="/api/mittaukset/${id}/raportti.pdf" target="_blank">Avaa raportti (PDF)</a>` : ""}
         <a class="btn" href="/api/mittaukset/${id}/tiedosto.akveri">Mittaustiedosto</a>
-        <a class="btn" href="/api/mittaukset/${id}/data.csv">Mittausdata (CSV)</a></div></div>
+        <a class="btn" href="/api/mittaukset/${id}/data.csv">Mittausdata (CSV)</a>
+        <button class="btn" data-ongelma="${id}">Ilmoita ongelmasta</button></div></div>
       ${r.virhe ? `<div class="notice bad">${esc(r.virhe)}</div>` : ""}
       ${t.tulos_odottaa ? `<div class="notice warn"><b>Mittaus on valmis.</b> Tulos ja raportti näytetään, kun raportti on rekisteröity akveri.fi-palveluun. Rekisteröinti tehdään automaattisesti, kun verkkoyhteys on käytettävissä.</div>` : ""}
       ${!done && !r.virhe && !t.tulos_odottaa && !["peruttu", "peru_odottaa", "tarkistus_odottaa", "tarkistettava"].includes((t.lupa || {}).tila) ? (t.tila === "kesken" ? `<div class="notice warn"><b>Mittaus on kesken.</b> Jatka sitä <a href="#/mittaus">Mittaus</a>-sivulta, kun sovitin on kytketty samaan autoon.</div>`
@@ -1352,6 +1387,11 @@ document.addEventListener("click", e => {
   });
 });
 $("#quitM").onclick = e => { e.preventDefault(); document.body.classList.remove("menu-open"); quitApp(); };
+$("#navOngelma").onclick = e => { e.preventDefault(); document.body.classList.remove("menu-open"); ilmoitaOngelma(); };
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-ongelma]");
+  if (b) { e.preventDefault(); ilmoitaOngelma(Number(b.dataset.ongelma) || null); }
+});
 
 // ---------- käynnistys ----------
 // Kieli: ensimmäisellä käynnistyksellä asiakas valitsee kielen. Valinta tallennetaan ohjelmaan (koskee myös raportteja).

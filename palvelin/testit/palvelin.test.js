@@ -770,3 +770,33 @@ test('autojen kokemukset: tunnisteet karsitaan ja aineisto näkyy hallinnassa', 
   assert.equal(k.kunto_saatu, false);
   assert.match(k.kuukausi, /^\d{4}-\d{2}$/);
 });
+
+test('ongelmailmoitus: kuvaus, vapaaehtoinen sähköposti ja mittaustiedosto näkyvät hallinnassa', async (t) => {
+  const { pyynto, aika } = await kaynnista(t);
+  const tili = (await pyynto('/api/v1/tili', { method: 'POST' })).d;
+  const zip = Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.alloc(200, 7)]);
+  const ok = await pyynto('/api/v1/palaute', { method: 'POST', auth: tili, body: {
+    kuvaus: 'Pikatarkastus jäi kesken.\nAuto: ID.4', sahkoposti: 'asiakas@example.fi', merkki: 'Volkswagen', malli: 'ID.4',
+    mittaustyyppi: 'pikatarkastus', tila: 'keskeytetty', versio: '2.0.21', liite: zip.toString('base64') } });
+  assert.equal(ok.status, 200);
+  assert.equal((await pyynto('/api/v1/palaute', { method: 'POST', auth: tili, body: { kuvaus: 'x' } })).status, 400);
+  assert.equal((await pyynto('/api/v1/palaute', { method: 'POST', auth: tili, body: { kuvaus: 'Hei', sahkoposti: 'ei-osoite' } })).status, 400);
+  assert.equal((await pyynto('/api/v1/palaute', { method: 'POST', auth: tili, body: { kuvaus: 'Hei', liite: Buffer.from('roskaa').toString('base64') } })).status, 400);
+  assert.equal((await pyynto('/api/v1/palaute', { method: 'POST', body: { kuvaus: 'Hei' } })).status, 401);
+  assert.equal((await pyynto('/api/v1/palaute', { method: 'POST', auth: tili, body: { kuvaus: 'Ilman yhteystietoja' } })).status, 200);
+  const s = await kirjauduHallintaan(pyynto, aika);
+  const h = { evaste: s.evaste, otsakkeet: s.otsakkeet };
+  const lista = (await pyynto('/api/hallinta/palautteet', h)).d.palautteet;
+  assert.equal(lista.length, 2);
+  const p = lista.find(x => x.sahkoposti);
+  assert.equal(p.kuvaus, 'Pikatarkastus jäi kesken.\nAuto: ID.4');
+  assert.equal(p.liite, zip.length);
+  assert.equal(p.tili, undefined);
+  assert.equal(lista.find(x => !x.sahkoposti).liite, undefined);
+  const liite = await pyynto('/api/hallinta/palautteet/' + p.id + '/liite', { ...h, raaka: true });
+  assert.equal(liite.status, 200);
+  assert.equal((await pyynto('/api/hallinta/palautteet/' + p.id + '/kasitelty', { method: 'POST', ...h, body: { kasitelty: true } })).status, 200);
+  assert.equal((await pyynto('/api/hallinta/palautteet', h)).d.palautteet.find(x => x.id === p.id).kasitelty, true);
+  assert.equal((await pyynto('/api/hallinta/palautteet/' + p.id, { method: 'DELETE', ...h })).status, 200);
+  assert.equal((await pyynto('/api/hallinta/palautteet', h)).d.palautteet.length, 1);
+});

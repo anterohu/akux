@@ -252,6 +252,62 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
     varasto.tallenna('kokemukset');
     return { ok: true };
   }
+  // ---- Ongelmailmoitukset: asiakkaan kuvaus, vapaaehtoinen sähköposti vastausta varten ja vapaaehtoinen
+  // mittaustiedosto. Ilmoitukset ja liitteet poistetaan 12 kuukauden kuluttua.
+  const PALAUTE_KANSIO = path.join(varasto.kansio, 'palautteet');
+  const PALAUTE_SAILYTYS = 365 * 86400e3;
+  const SPOSTI = /^[^\s@<>]{1,64}@[^\s@<>]{1,190}\.[A-Za-z]{2,}$/;
+  function siivoaPalautteet(pa) {
+    const raja = nyt() - PALAUTE_SAILYTYS;
+    const vanhat = pa.rivit.filter(r => r.aika < raja);
+    for (const r of vanhat) if (r.liite) fs.rmSync(path.join(PALAUTE_KANSIO, r.id + '.akveri'), { force: true });
+    pa.rivit = pa.rivit.filter(r => r.aika >= raja);
+  }
+  function lahetaPalaute(tili, body) {
+    const b = body && typeof body === 'object' ? body : {};
+    const kuvaus = puhdista(String(b.kuvaus || ''), 3000).trim();
+    if (kuvaus.length < 3) throw new Virhe('Kirjoita lyhyt kuvaus ongelmasta.');
+    const sposti = String(b.sahkoposti || '').trim();
+    if (sposti && !SPOSTI.test(sposti)) throw new Virhe('Tarkista sähköpostiosoite.');
+    const pa = varasto.get('palautteet');
+    if (!Array.isArray(pa.rivit)) pa.rivit = [];
+    siivoaPalautteet(pa);
+    const vrk = pa.rivit.filter(r => r.tili === tili.id && r.aika > nyt() - 86400e3).length;
+    if (vrk >= 10) throw new Virhe('Olet lähettänyt jo useita ilmoituksia tänään. Yritä huomenna uudelleen.', 429);
+    const rivi = { id: satunnaisTunnus(12), aika: nyt(), tili: tili.id, kuvaus, sahkoposti: sposti || null, kasitelty: false };
+    for (const [k, n] of [['versio', 20], ['alusta', 10], ['merkki', 40], ['malli', 80], ['mittaustyyppi', 20], ['tila', 30], ['laite', 60]]) {
+      if (typeof b[k] === 'string') rivi[k] = yksiRivi(puhdista(b[k], n));
+    }
+    if (typeof b.liite === 'string' && b.liite) {
+      const data = Buffer.from(b.liite, 'base64');
+      if (data.length > 5 * 1024 * 1024) throw new Virhe('Mittaustiedosto on liian suuri.', 413);
+      if (data.length < 4 || data.readUInt32LE(0) !== 0x04034b50) throw new Virhe('Liite ei ole AKVERIn mittaustiedosto.');
+      fs.mkdirSync(PALAUTE_KANSIO, { recursive: true, mode: 0o700 });
+      fs.writeFileSync(path.join(PALAUTE_KANSIO, rivi.id + '.akveri'), data, { mode: 0o600 });
+      rivi.liite = data.length;
+    }
+    pa.rivit.push(rivi);
+    varasto.tallenna('palautteet');
+    return { ok: true, tunnus: rivi.id };
+  }
+  function palautteet() {
+    const pa = varasto.get('palautteet');
+    return (Array.isArray(pa.rivit) ? pa.rivit : []).slice().sort((a, b) => b.aika - a.aika).map(({ tili, ...r }) => r);
+  }
+  function palautteenLiite(id) {
+    const r = palautteet().find(x => x.id === id && x.liite);
+    return r ? path.join(PALAUTE_KANSIO, r.id + '.akveri') : null;
+  }
+  function muokkaaPalautetta(id, { kasitelty, poista } = {}) {
+    const pa = varasto.get('palautteet');
+    const i = (pa.rivit || []).findIndex(r => r.id === id);
+    if (i < 0) throw new Virhe('Ilmoitusta ei löytynyt.', 404);
+    if (poista) { fs.rmSync(path.join(PALAUTE_KANSIO, id + '.akveri'), { force: true }); pa.rivit.splice(i, 1); }
+    else pa.rivit[i].kasitelty = !!kasitelty;
+    varasto.tallenna('palautteet');
+    return { ok: true };
+  }
+
   function kokemukset() { const ko = varasto.get('kokemukset'); return Array.isArray(ko.rivit) ? ko.rivit : []; }
 
   function rekisteroi(tili, body) {
@@ -389,6 +445,7 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
       rajoita(req, 'api', 600, 3600000);
       const tili = tunnista(req);
       if (polku === '/api/v1/saldo' && req.method === 'GET') return json(res, 200, saldo(tili));
+      if (polku === '/api/v1/palaute') return json(res, 200, lahetaPalaute(tili, await lueJson(req, 8 * 1024 * 1024)));
       const body = await lueJson(req);
       if (polku === '/api/v1/osto') return json(res, 200, await osto(tili, body));
       if (polku === '/api/v1/testi/varaa') return json(res, 200, varaa(tili, body));
@@ -430,7 +487,7 @@ function luoSovellusRajapinta({ varasto, google, env = process.env, nyt = () => 
     return maara;
   }
 
-  return { kasittele, tarkistaPerutut, google, julkinenAvain: avain.julkinen, tuotteet, tyhjennaRaportti, poistaTiliTiedot, tilinTiedot, tilasto, kokemukset };
+  return { kasittele, tarkistaPerutut, google, julkinenAvain: avain.julkinen, tuotteet, tyhjennaRaportti, poistaTiliTiedot, tilinTiedot, tilasto, kokemukset, palautteet, palautteenLiite, muokkaaPalautetta };
 }
 
 module.exports = { luoSovellusRajapinta, MITTAUSTYYPIT, OLETUSHINTA, OLETUSHINNAT, muotoileTunnus, normalisoiTunnus, TUNNUS_RE, TILI_RE, OLETUSTUOTTEET, OLETUS_VAHIMMAISVERSIO, vertaaVersioita, VERSIO_RE };

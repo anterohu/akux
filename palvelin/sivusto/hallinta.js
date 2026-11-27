@@ -167,6 +167,23 @@
   }
   var LATAA = {
     tietosuoja: function () {
+      api('/palautteet').then(function (d) {
+        taulu($('#palautetaulu'), ['Aika', 'Auto', 'Mittaus', 'Kuvaus', 'Sähköposti', 'Liite', ''], d.palautteet, function (p) {
+          var tr = el('tr'); if (p.kasitelty) tr.className = 'himmea';
+          solu(tr, aika(p.aika)); solu(tr, [p.merkki, p.malli].filter(Boolean).join(' ') || '–');
+          solu(tr, [p.mittaustyyppi, p.tila].filter(Boolean).join(', ') || '–');
+          var k = el('td'); k.style.whiteSpace = 'pre-wrap'; k.textContent = p.kuvaus + (p.versio ? '\n(versio ' + p.versio + (p.laite ? ', ' + p.laite : '') + ')' : ''); tr.appendChild(k);
+          var s = el('td'); if (p.sahkoposti) { var a = el('a', p.sahkoposti); a.href = 'mailto:' + p.sahkoposti + '?subject=' + encodeURIComponent('AKVERI: ilmoituksesi'); s.appendChild(a); } else s.textContent = '–'; tr.appendChild(s);
+          var l = el('td'); if (p.liite) { var la = el('a', 'Lataa'); la.href = '/api/hallinta/palautteet/' + p.id + '/liite'; l.appendChild(la); } else l.textContent = '–'; tr.appendChild(l);
+          var t = el('td');
+          var kb = el('button', p.kasitelty ? 'Avaa uudelleen' : 'Käsitelty', 'nappi pieni'); kb.type = 'button';
+          kb.addEventListener('click', function () { api('/palautteet/' + p.id + '/kasitelty', { method: 'POST', body: { kasitelty: !p.kasitelty } }).then(LATAA.tietosuoja).catch(virhe()); });
+          var pb = el('button', 'Poista', 'nappi pieni vaara'); pb.type = 'button';
+          pb.addEventListener('click', function () { if (confirm('Poistetaanko ilmoitus ja sen liite?')) api('/palautteet/' + p.id, { method: 'DELETE' }).then(LATAA.tietosuoja).catch(virhe()); });
+          t.appendChild(kb); t.appendChild(document.createTextNode(' ')); t.appendChild(pb); tr.appendChild(t);
+          return tr;
+        });
+      }).catch(virhe());
       api('/kokemukset').then(function (d) {
         $('#kokemus-maara').textContent = 'Mittauksia ' + d.rivit.length + '.';
         var TILA = { valmis: 'valmis', hylatty: 'hylätty', keskeytetty: 'keskeytetty', estetty: 'estetty' };

@@ -52,3 +52,36 @@ def test_kokemus_ei_sisalla_tunnisteita():
     assert k["kyselyt"]["BMS 2250CE"]["kielto"] == 0x31 and k["kyselyt"]["BMS 2250CE"]["vastauksia"] == 0
     assert k["kyselyt"]["BMS 221E3B"]["vastauksia"] > 0
     assert k["kunto_saatu"] is False and k["sovitin"] == "OBDLink EX" and k["alusta"] == "meb"
+
+
+def test_ongelmailmoitus_lahtee_palveluun_mittaustiedoston_kanssa():
+    """Ilmoita ongelmasta: kuvaus, sähköposti ja valinnainen mittaustiedosto lähtevät akveri.fi-palveluun."""
+    import base64
+    from akveri.app import App
+    from akveri.server import Api, ApiError
+    with _tf.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        app = App(tmp)
+        src = _sim("m3-lr", soc=0.6, accel=20)
+        _connect(app, src)
+        tid = app.start_test(vehicle_id=_vid(app), tyyppi="pikatarkastus", mittarilukema=None, mittaaja="Testi")
+        _done(app, tid, 120)
+        app.disconnect()
+        lahetetyt = []
+        app.krediitit._kutsu = lambda m, polku, body=None, **k: (lahetetyt.append((polku, body)), {"tunnus": "ABC"})[1]
+        api = Api(app)
+        try:
+            api.palaute({}, {"kuvaus": "x"})
+            raise AssertionError("liian lyhyt kuvaus hyväksyttiin")
+        except ApiError:
+            pass
+        try:
+            api.palaute({}, {"kuvaus": "Hei", "sahkoposti": "ei-osoite"})
+            raise AssertionError("virheellinen osoite hyväksyttiin")
+        except ApiError:
+            pass
+        assert api.palaute({}, {"kuvaus": "Raportti näyttää oudolta", "sahkoposti": "a@b.fi", "mittaus": str(tid), "liita": True})["ok"]
+        polku, body = lahetetyt[-1]
+        assert polku == "/api/v1/palaute" and body["sahkoposti"] == "a@b.fi" and body["mittaustyyppi"] == "pikatarkastus"
+        assert base64.b64decode(body["liite"])[:4] == b"PK\x03\x04"
+        api.palaute({}, {"kuvaus": "Ilman liitettä", "mittaus": str(tid), "liita": False})
+        assert "liite" not in lahetetyt[-1][1]

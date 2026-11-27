@@ -19,7 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const TIEDOSTOT = ['tilit', 'testit', 'ostot', 'viestit', 'asetukset', 'omistaja', 'tilasto', 'kokemukset'];
+const TIEDOSTOT = ['tilit', 'testit', 'ostot', 'viestit', 'asetukset', 'omistaja', 'tilasto', 'kokemukset', 'palautteet'];
 const KIRJANPITO = 'kirjanpito.jsonl';
 const VARMUUSKOPIOITA = 30;
 

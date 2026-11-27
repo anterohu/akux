@@ -511,6 +511,18 @@ function luoHallinta({ varasto, sovellus, env = process.env, nyt = () => Date.no
       // Anonyymi mittausaineisto (ohjelmiston kehittämiseen): ladataan hallinnasta CSV-tiedostona
       if (p === '/tilasto' && req.method === 'GET') return json(res, 200, { rivit: sovellus.tilasto() });
       if (p === '/kokemukset' && req.method === 'GET') return json(res, 200, { rivit: sovellus.kokemukset() });
+      // Ongelmailmoitukset sovelluksesta
+      if (p === '/palautteet' && req.method === 'GET') return json(res, 200, { palautteet: sovellus.palautteet() });
+      m = /^\/palautteet\/([A-Za-z0-9]{8,20})(\/liite|\/kasitelty)?$/.exec(p);
+      if (m && !m[2] && req.method === 'DELETE') return json(res, 200, sovellus.muokkaaPalautetta(m[1], { poista: true }));
+      if (m && m[2] === '/kasitelty' && req.method === 'POST') return json(res, 200, sovellus.muokkaaPalautetta(m[1], { kasitelty: !!(body && body.kasitelty) }));
+      if (m && m[2] === '/liite' && req.method === 'GET') {
+        const polku = sovellus.palautteenLiite(m[1]);
+        let s; try { s = polku && fs.lstatSync(polku); } catch (e) { s = null; }
+        if (!s || !s.isFile()) throw new Virhe('Liitettä ei löydy.', 404);
+        res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': s.size, 'Content-Disposition': `attachment; filename="ilmoitus-${m[1]}.akveri"`, 'Cache-Control': 'no-store' });
+        return fs.createReadStream(polku).pipe(res);
+      }
       // Tietosuoja: yhteydenotot lähettäjän sähköpostiosoitteella (vienti tai kaikkien poisto)
       if (p === '/tietosuoja/viestit' && req.method === 'GET') return json(res, 200, { viestit: viestitOsoitteella(kysely).map(([id, v]) => ({ id, ...v })) });
       if (p === '/tietosuoja/viestit' && req.method === 'DELETE') {

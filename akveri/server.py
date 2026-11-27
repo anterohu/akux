@@ -622,6 +622,38 @@ class Api:
         self.app.recorder.skip_phase()
         return {"ok": True}
 
+    def palaute(self, q, body):
+        """Ilmoita ongelmasta: kuvaus, vapaaehtoinen sähköposti vastausta varten ja halutessa mittaustiedosto."""
+        import base64  # noqa: PLC0415
+        from .krediitit import PalveluVirhe  # noqa: PLC0415
+        kuvaus = str(body.get("kuvaus") or "").strip()
+        if len(kuvaus) < 3:
+            raise ApiError("Kirjoita lyhyt kuvaus ongelmasta.")
+        sposti = str(body.get("sahkoposti") or "").strip()
+        if sposti and not re.fullmatch(r"[^\s@<>]{1,64}@[^\s@<>]{1,190}\.[A-Za-z]{2,}", sposti):
+            raise ApiError("Tarkista sähköpostiosoite.")
+        st = self.app.storage
+        tid = int(body["mittaus"]) if str(body.get("mittaus") or "").isdigit() else None
+        t = st.test(tid) if tid else None
+        v = st.vehicle(t.get("vehicle_id")) if t and t.get("vehicle_id") else None
+        lahetys = {"kuvaus": kuvaus[:3000], "sahkoposti": sposti, "versio": VERSIO, "laite": platform_name(),
+                   "alusta": self.app.decoder.state.platform or "",
+                   "merkki": (v or {}).get("merkki") or "", "malli": (v or {}).get("malli") or "",
+                   "mittaustyyppi": (t or {}).get("tyyppi") or "", "tila": (t or {}).get("tila") or ""}
+        if t and body.get("liita"):
+            try:
+                _, data = mittaustiedosto.export(st, tid, with_report=False)
+            except (OSError, ValueError, KeyError) as e:
+                raise ApiError("Mittaustiedostoa ei voitu liittää.") from e
+            if len(data) > 5 * 1024 * 1024:
+                raise ApiError("Mittaustiedosto on liian suuri lähetettäväksi. Lähetä ilmoitus ilman sitä.")
+            lahetys["liite"] = base64.b64encode(data).decode("ascii")
+        try:
+            r = self.app.krediitit._kutsu("POST", "/api/v1/palaute", lahetys, aikaraja=60.0)
+        except PalveluVirhe as e:
+            raise ApiError(str(e), 503 if not e.status else e.status) from None
+        return {"ok": True, "tunnus": r.get("tunnus")}
+
     def mittarilukema(self, q, body):
         km = _num(body.get("mittarilukema"))
         if km is not None and not (0 < km < 2_000_000):
@@ -986,6 +1018,7 @@ ROUTES = [
     ("POST", r"/api/vin", "vin"), ("GET", r"/api/mallit", "mallit"),
     ("POST", r"/api/mittaukset", "aloita"), ("POST", r"/api/mittaukset/aktiivinen/ohita", "ohita"),
     ("POST", r"/api/mittaukset/aktiivinen/mittarilukema", "mittarilukema"),
+    ("POST", r"/api/palaute", "palaute"),
     ("POST", r"/api/mittaukset/aktiivinen/keskeyta", "keskeyta"),
     ("POST", r"/api/mittaukset/aktiivinen/tauko", "tauko"),
     ("POST", r"/api/mittaukset/(\d+)/jatka", "jatka"), ("POST", r"/api/mittaukset/(\d+)/hylkaa", "hylkaa"),
