@@ -260,7 +260,7 @@ views.yleiskuva = {
       [!!(st.kaytto || st.yritys_nimi), "Valitse käyttötapa: yksityinen tai yritys", "#/asetukset"],
       [!!(S && S.yhteys.kaynnissa) || mittaukset.length > 0, E ? "Yhdistä autoon tai kokeile esittelytilaa" : "Yhdistä autoon", null],
       [ajoneuvot.length > 0, "Lisää auto", "#/autot/uusi"],
-      [mittaukset.some(m => m.tila === "valmis"), "Tee ensimmäinen pikatarkastus", "#/mittaus"],
+      [mittaukset.some(m => m.tila === "valmis"), "Tee ensimmäinen mittaus", "#/mittaus"],
     ];
     const box = $("#startCard");
     if (!box || steps.every(x => x[0])) { if (box) box.innerHTML = ""; return; }

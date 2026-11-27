@@ -1740,6 +1740,7 @@
 "Tavoite: varaus laskee {} %-yksikköä": "Target: charge level drops by {} percentage points",
 "Tee LFP-akun itsepurkaustesti heti täyteen latauksen jälkeen, yli {} %:n varauksessa.": "Do the self-discharge test on an LFP battery straight after a full charge, at a charge level above {} %.",
 "Tee autolle pikatarkastus.": "Do a quick check of the car.",
+"Tee ensimmäinen mittaus": "Do the first measurement",
 "Tee ensimmäinen pikatarkastus": "Do the first quick check",
 "Tee itsepurkaustesti heti täyteen latauksen jälkeen, yli {} %:n varauksessa.": "Do the self-discharge test right after a full charge, at over {} % charge.",
 "Tee kiihdytykset": "Do the accelerations",

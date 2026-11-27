@@ -1740,6 +1740,7 @@
 "Tavoite: varaus laskee {} %-yksikköä": "Mål: laddningsnivån sjunker {} procentenheter",
 "Tee LFP-akun itsepurkaustesti heti täyteen latauksen jälkeen, yli {} %:n varauksessa.": "Gör självurladdningstestet på ett LFP-batteri direkt efter full laddning, vid en laddningsnivå över {} %.",
 "Tee autolle pikatarkastus.": "Gör en snabbkontroll av bilen.",
+"Tee ensimmäinen mittaus": "Gör den första mätningen",
 "Tee ensimmäinen pikatarkastus": "Gör den första snabbkontrollen",
 "Tee itsepurkaustesti heti täyteen latauksen jälkeen, yli {} %:n varauksessa.": "Gör självurladdningstestet direkt efter en full laddning, vid över {} % laddning.",
 "Tee kiihdytykset": "Gör accelerationerna",
