@@ -245,7 +245,7 @@ def run_window(wv, url: str | None, test: bool = False, on_start=None, watch: bo
                 time.sleep(0.5)
                 box = {}
 
-                def probe():
+                def probe(box=box):      # oma tulosrasia jokaiselle kierrokselle (myöhästynyt kysely ei sotke uutta)
                     try:
                         box["v"] = win.evaluate_js("document.querySelector('#view') ? 'ok' : ''")
                     except Exception:  # noqa: BLE001

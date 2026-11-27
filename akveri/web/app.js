@@ -255,14 +255,19 @@ views.yleiskuva = {
       c.innerHTML = `
         <h2>Yhdistä</h2>
         ${ports.pyserial ? "" : `<div class="notice warn">Sovittimen yhteysosa puuttuu ohjelmasta. Asenna ohjelma uudelleen.</div>`}
-        ${ports.pyserial && !ports.portit.length ? `<div class="notice warn"><b>Sovitinta ei löytynyt.</b> Tarkista, että OBDLink on kytketty USB-kaapelilla. Bluetooth-mallit (MX+, LX) näkyvät listassa, kun sovitin on ensin paritettu ${ANDROID ? "puhelimen" : "Windowsin"} Bluetooth-asetuksista. ${ports.windows ? "Windows asentaa sovittimen ajurin yleensä itse ensimmäisellä kytkentäkerralla, kun tietokone on verkossa. Odota hetki ja paina Päivitä portit. Jos sovitin ei vieläkään näy, asenna FTDI:n VCP-ajuri osoitteesta <b>ftdichip.com/drivers/vcp-drivers</b>." : ""}</div>` : ""}
+        ${ports.pyserial && !ports.portit.length ? `<div class="notice"><b>Kytke sovitin, niin pääset alkuun.</b>
+          <ol class="small" style="margin:8px 0 0 18px;padding:0">
+            <li>Kytke OBDLink auton diagnostiikkaliittimeen.</li>
+            <li>${ANDROID ? "Liitä sovitin puhelimeen USB-C-sovittimella. Bluetooth-mallit (MX+, LX) paritetaan ensin puhelimen Bluetooth-asetuksista." : "Liitä sovitin tietokoneeseen USB-kaapelilla. Bluetooth-mallit (MX+, LX) paritetaan ensin Windowsin Bluetooth-asetuksista."}</li>
+            <li>Paina Päivitä portit. Sovitin tulee näkyviin listaan.</li>
+          </ol>${ports.windows ? `<p class="small muted" style="margin:8px 0 0">Windows asentaa sovittimen ajurin yleensä itse ensimmäisellä kytkentäkerralla, kun tietokone on verkossa. Jos sovitin ei näy hetken kuluttua, asenna FTDI:n VCP-ajuri osoitteesta <b>ftdichip.com/drivers/vcp-drivers</b>.</p>` : ""}</div>` : ""}
         <div class="grid g2">
           <div>
             <label class="f"><span>Auto</span>
               <select id="connModel"><option value="" disabled selected>Valitse merkki ja malli</option>
                 <optgroup label="Tesla"><option value="tesla">Tesla (malli tunnistetaan automaattisesti)</option></optgroup>${hkOpts}</select></label>
             <label class="f"><span>${ANDROID ? "OBDLink-sovitin" : "OBDLink-sovittimen portti"}</span>
-              <select id="port">${opts || `<option value="">Sovitinta ei löytynyt</option>`}</select></label>
+              <select id="port">${opts || `<option value="">Ei sovitinta kytkettynä</option>`}</select></label>
             <div class="row"><button class="btn primary" id="bConnect" disabled>Yhdistä autoon</button>
               <button class="btn" id="bRefresh">Päivitä portit</button></div>
             <p class="small muted" style="margin-top:10px">${ANDROID ? "Kytke sovitin auton diagnostiikkaliittimeen ja USB-C-sovittimella puhelimeen. Kun Android kysyy lupaa käyttää sovitinta, valitse Salli." : "Kytke sovitin auton diagnostiikkaliittimeen ja tietokoneeseen."} Auton on oltava hereillä: Teslassa riittää oven avaaminen, muissa merkeissä virta päälle. <a href="#/ohjeet/yhdistaminen">Ohje</a></p>

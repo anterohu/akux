@@ -329,7 +329,7 @@ class Api:
         src = self.app.source
         if not sc or not src:
             return {"tila": "ei"}
-        from .decoder import KAIKKI_PAKOLLISET, kuvaus
+        from .decoder import kuvaus
         running = src.scanning
         now = src.now()
         dur = max(0.5, (min(now, sc["alku"] + sc["kesto"] * (src.accel if src.simulated else 1))) - sc["alku"])

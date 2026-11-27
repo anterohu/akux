@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import gzip
 import hashlib
-import os
 import io
 import json
 import shutil
